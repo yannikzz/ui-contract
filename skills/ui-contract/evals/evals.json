@@ -192,5 +192,117 @@
       "run_eval writes transient ui-contract-skill-<hash> entries into ~/.claude/commands/ and cleans them up itself. They appear and disappear throughout the run; leave them alone.",
       "The result JSON starts after the first line of the log, so parse with raw[raw.index('{', raw.index('\\n')):]."
     ]
+  },
+  "iteration_4_findings": {
+    "date": "2026-08-18",
+    "what_ran": "skill-creator's automatic description optimiser (scripts/run_loop.py), 5 iterations, 20 trigger queries x 5 runs per query, train 12 / held-out 8, model claude-opus-5[1m]. The skill body was untouched; only the description was under test.",
+    "headline": "THE MEASUREMENT WAS BROKEN, NOT THE DESCRIPTION. Every trigger number in iteration_2_findings and iteration_3_findings is an artifact and must not be used. After fixing the harness, the unchanged v3 description scores 20/20 — 100% recall, 100% precision.",
+    "the_bug": {
+      "where": "scripts/run_eval.py, run_single_query(): each parallel worker mints its own command file ~/.claude/commands/<skill>-skill-<random-hash>.md, all carrying an identical description.",
+      "effect": "With --num-workers N, N byte-identical skills sit in the model's skill list simultaneously. The model reaches for the skill, picks ONE of the clones (deterministically the same one across concurrent runs), and every worker whose own hash was not the chosen one records a miss. Measured trigger rate collapses to about 1/N.",
+      "why_it_looked_like_a_real_result": "At --num-workers 10 the artifact pins recall near 10% for ANY description, and precision at a flattering 100% because negatives never trigger anything at all. Five rewrites all scoring 7-15% reads as 'wording is not the lever' rather than 'the meter is broken'.",
+      "proof": [
+        "Real installed skill, one query, no harness: first tool call is Skill(ui-contract) at ~15s. Same query scored 1/5 by the harness.",
+        "Harness-style proxy command file, single query, serial: triggers on the first tool call too.",
+        "6 positives run concurrently with the invoked skill name logged: 6/6 triggered within 20s, but 5 of 6 invoked a SIBLING clone (all rows show invoked=ui-contract-skill-0dc08cee while mine=<other hash>), so the harness scored 1/6.",
+        "Time-to-first-tool-call was 12-19s across all runs, so the 30s/45s timeouts were never the cause."
+      ]
+    },
+    "the_fix": {
+      "what": "One command file per run_eval batch instead of one per worker. Every query in a batch shares the same description, so a single registration is enough, and every worker then detects the same name.",
+      "where": "Patched copy at ui-contract-workspace/harness-fixed/scripts/run_eval.py. The plugin's vendor code under ~/.claude/plugins/cache/ was deliberately NOT modified — it is auto-managed and would silently revert.",
+      "verification": "During a patched run exactly one ui-contract-skill-* entry appears in the skill list; the broken version showed ten.",
+      "upstream": "This bug hits every skill measured with skill-creator at num_workers > 1, not just this one. Worth reporting."
+    },
+    "true_baseline_v3": {
+      "config": "20 queries x 5 runs, num-workers 10, timeout 60s, model claude-opus-5[1m], installed skill parked so it could not double-register",
+      "result": "20/20 passed. All 10 positives 5/5. Nine negatives 0/5; the one exception is the near-miss 照着 layout.md 加一个页面 at 1/5, which still passes and is arguably correct behaviour anyway.",
+      "conclusion": "The v3 description needs no change. None of the five machine-proposed rewrites were adopted; SKILL.md was not edited in this iteration."
+    },
+    "what_this_retracts": {
+      "iteration_2": "its 20-query trigger eval",
+      "iteration_3": "the whole v1-vs-v2 length experiment AND its 'the real problem is framing, skills only get consulted when the model cannot answer alone' diagnosis — that diagnosis was inferred from artifact data and is unsupported. The compliance fix (staying under 1024 chars / 1022 UTF-8 bytes) still stands on its own merits, as does the rule about never dropping a phrase that matches a real user utterance.",
+      "note": "The execution-quality findings in iterations 1-2 (assertion pass rates, the decision-tree totality defect) used a different harness and are NOT affected."
+    },
+    "next_step": {
+      "the_eval_set_is_now_saturated": "20/20 means it can no longer distinguish a good description from a better one. Further description work needs harder queries first — genuine boundary cases where reasonable people would disagree about whether the skill should fire.",
+      "candidates_for_harder_negatives": "requests that want ONE page restructured rather than a product-wide contract; requests for a component library; requests to audit an existing layout.md rather than author one.",
+      "priority": "Description triggering is fine. The open defect worth spending effort on remains iteration_2's decision-tree totality problem in references/layout-md-outline.md."
+    },
+    "artifacts": [
+      "ui-contract-workspace/desc-opt.log — full 5-iteration optimiser log (retained as the record of the artifact, not as a result)",
+      "ui-contract-workspace/description-opt/<timestamp>/results.json + report.html",
+      "ui-contract-workspace/harness-fixed/ — patched harness",
+      "ui-contract-workspace/baseline-fixed.json + baseline-fixed.log — the 20/20 run",
+      "ui-contract-workspace/run-desc-opt.sh, run-baseline-fixed.sh — both park the installed skill and restore it via trap on any exit path"
+    ]
+  },
+  "iteration_5_findings": {
+    "date": "2026-08-18",
+    "what_changed": "The decision-tree totality defect recorded in iteration_2 was fixed in the template. Four edits: references/layout-md-outline.md §1 gained a 'the tree has to be total' subsection (five break shapes + a hostile-input trace procedure); §7 now requires a cap to say what happens at the cap; SKILL.md's 'three things that decide whether this document is useful' item 1 now demands totality; and the completion checklist's tree question was replaced.",
+    "the_diagnosis_that_mattered": "The old checklist asked 'can the decision tree answer a real new requirement, all the way to a specific region name?'. A FRIENDLY input passes on any tree, hole included — which is exactly how a non-total tree passed review in all four iteration_2 runs. The fix is not 'add a rule saying be total'; it is replacing the acceptance input with four hostile ones: a one-off action belonging to no object, something that fits two regions, something arriving at a full cap, and something that plainly does not belong.",
+    "verification": {
+      "how": "Two scenarios (eval 0 mobile expense app, eval 1 ops dashboard) re-run end to end against the repo copy of the fixed skill, with the older installed copy parked so the new version could not be confused with it. Baseline was NOT re-run: iteration_2 already records all four scenarios failing, so a fresh old-version run buys no information.",
+      "propagation": "Both runs produced a §1.5 'hostile input landing table' in their layout.md unprompted by anything but the template — the instruction transferred as intended rather than being followed literally in the authoring conversation and then dropped.",
+      "the_headline_regression_is_gone": "Mobile's S1-d now routes 导出账单 to the ledger screen's head with an explicit 不进设置, and SettingsRowKind still has no action member. That is the exact confident-wrong-answer from iteration_2, now correct.",
+      "independent_trace": "Traced by hand rather than trusting the runs' self-reports. Both trees terminate: every branch reaches one region name or 停 → §9, no leaf offers two destinations, and both state that 停 is a leaf that leaves the document. Caps carry at-cap instructions on both sides.",
+      "dashboard_bounded_re-entry": "Dashboard's Q3 has one re-entry ('belongs to another board's domain → switch to that page, return to Q3'). It terminates in one hop because the second pass satisfies the domain test by construction. Not the iteration_2 loop shape, which routed fallback→trunk→fallback."
+    },
+    "residual_found_by_the_verification": {
+      "what": "The tree is clean, but the same defect class migrated: dashboard §5.5's third admission test ends 'if it doesn't fit → it belongs in overlay.body OR main.table', two destinations with no adjudicating criterion. The criterion does exist — §1's S1 separates them by row-wise detail versus width — §5.5 just never points at it.",
+      "lesson": "Single-destination is a DOCUMENT-WIDE rule, not a property of §1's leaves. Fixing the tree pushes the defect into chapter admission rules.",
+      "action_taken": "Added one row to the outline's self-authoring anti-pattern table covering it. NOT yet verified by a fresh run — it landed after the two verification runs finished.",
+      "mobile_wording_nit": "Mobile's S1-e lists 恢复购买 / 清缓存 as examples of the branch that routes to the settings screen, but both would fail that same row's §7.3 admissibility guard and reach 停. The rule is total and self-consistent; the examples chosen just do not survive their own branch. Worth watching for whether it recurs before templating anything about it."
+    },
+    "not_verified": [
+      "The §7 at-cap requirement and the SKILL.md checklist rewording were exercised by these two runs; the §5.5 anti-pattern row was not.",
+      "Only 2 of the 5 eval scenarios were re-run. The admin-from-mockup and docs-site failure shapes (gap between short-circuits; cap with no at-cap instruction) are addressed by the template text but were not re-measured."
+    ]
+  },
+  "iteration_6_findings": {
+    "date": "2026-08-18",
+    "why_this_round": "The user's instruction was 'run supplementary tests, and don't forget what this skill is for while testing'. That reframed the test plan: measuring only totality would have missed the way the fix can go wrong. A tree can score a perfect totality result by routing everything to 停 — the four hostile traces all pass on such a tree. The skill exists so that 'where does this go' HAS an answer, so over-defensiveness is the failure mode the previous round was blind to.",
+    "test_design": {
+      "group_1_hostile": "did the totality fix work — every input reaches one region name or an explicit stop",
+      "group_2_friendly": "16 ordinary requirements, 4 per scenario, PRE-REGISTERED in totality-fix-verification/friendly-inputs.json before any layout.md was read, so favourable inputs could not be picked after the fact. Expectation: land on a region name, not 停.",
+      "group_3_purpose": "reused the existing check.py (11 mechanical checks) and shared_assertions — borrowed IA, decision table with costs, user's language, enforcement layers"
+    },
+    "scenarios_run": "eval 2 admin-from-mockup and eval 3 english-content-site (the two not covered in iteration_5), then eval 0 mobile re-run after the friendly-input requirement was added.",
+    "results": {
+      "totality": "admin and docs both total. docs handled the loop case unprompted ('the page's contents are a new input, not a loop: the page itself is already placed and does not re-enter') and wrote 'friendly inputs pass on any tree' in its own words — the reasoning transferred, not just the checklist.",
+      "friendly_before_the_fix": "13 of 16 landed on a region. dashboard 4/4, admin 4/4, docs 3/4 (the one stop is correct — that site's disease is four near-identical layouts, so a new layout-level container should go through the process), mobile 2/4.",
+      "mobile_was_the_weak_one": "「流水加搜索框」 reached 停 because that tree had NO branch class for controls at all — dashboard has S2 for filters, admin has S5, mobile had neither. 「统计屏加饼图」 was ambiguous at Q1's first-class-object test and either landed on body.list (a wrong shape for a chart) or fell through to 停."
+    },
+    "template_change_this_round": {
+      "what": "references/layout-md-outline.md §1 verification now requires tracing three or four ORDINARY requirements as well, each of which has to land on a region name; plus the matching checklist line in SKILL.md.",
+      "the_reasoning_that_went_in": "Totality is trivially satisfiable by stopping on everything and the hostile traces cannot detect it. A tree that sends everyday work to §9 is not a contract, it is a permission queue — the user arrived because 'where does this go' had no answer, and 'file an application' is not an answer.",
+      "diagnostic_included": "When an ordinary input stops, the tree is usually missing a whole class rather than facing a genuinely new region, and controls (search / filter / sort) are the class most often absent, because they are not a facet of any object and not a destination, so they fall through every branch."
+    },
+    "verification_of_that_change": {
+      "how": "eval 0 mobile re-run against the updated template.",
+      "friendly_inputs": "4/4 now land on a region, up from 2/4. Traced by hand against the new tree rather than trusting its own table.",
+      "the_missing_class_appeared": "The new tree has S6 — 改变「我看到哪些 / 什么顺序」的控件（搜索、筛选、排序、切换账期）→ head.period / head.actions, adjudicated. This is the exact class the template's diagnostic names, so the guidance transferred rather than being coincidence.",
+      "the_ambiguity_closed": "Aggregates now route through Q4→Q5→Q6 with criteria (几个数字 → body.summary; 图/分布 → 观察过去 body.analysis / 约束未来 body.collection) and a stated resolution when the criterion fails.",
+      "unprompted_bonus": "The run wrote an S4 防滥用条款 naming the project's own history as the reason: 「不知道放哪」不是「针对 App 本身的配置」…本项目的「导出账单」当初就是这么进设置的. It also produced §1.5 as two tables, 恶意输入 and 日常输入（必须落在区域名上，不许停）.",
+      "residual_scan": "No uncriterioned two-destination phrasing left in the new document; the one 或 hit is a prohibition spanning two regions, not two destinations."
+    },
+    "checker_bugs_found_and_one_fixed": {
+      "note": "All four are now fixed in ui-contract-workspace/check.py. The checker is eval-side tooling, not part of the shipped skill.",
+      "no_bare_zero_overlap_claim": "It matched the substring 零重叠 even under a heading reading 两处真实耦合点（不是零重叠） — it failed documents for explicitly DENYING the claim, which is what the skill asks for. First patch attempt widened the ±90-char word bag and went too far: an unrelated 不是 two lines up ('已有代码不是权威') waved a genuinely bare claim through. Final fix matches the qualifier DIRECTIONALLY against the text immediately preceding the phrase, with [^。\\n] stopping it from reaching across a sentence boundary — either an outright denial (不是/并非/not) within 6 chars, or a scoping marker (除此之外/其余/besides/except) within 20.",
+      "typecheck_ran_or_disclaimed": "It required RUN-NOTES.md, a filename SKILL.md never mandates — iteration_2's harness prompt asked for it, so the check scored the harness convention rather than the behaviour. Now reads every .md in the run plus transcript.txt for either typecheck evidence (tsc / typecheck / 类型检查 / astro check / vue-tsc / svelte-check) or an explicit disclaimer.",
+      "markers_within_allowlist": "Root cause was narrower than it looked: the marker scan only globbed *.ts*, so an Astro run's <Region id> markers sitting in .astro components were invisible and it reported 'no region markers in code'. A run was being scored for the stack it chose. Now also scans .astro/.vue/.svelte/.jsx/.js/.mjs/.html; the union type is still read from TypeScript, where it has to live to be checkable.",
+      "borrowed_desktop_ia_terms": "'sidebar' fired on the docs site. The term list only carries signal on a handset spec, where a desktop shell is somebody else's answer imported wholesale; on a dashboard, admin console or docs site a sidebar is the product's own structure. Now gated on handset signals (tab-bar / 安全区 / react native / 手机端 …) and reports null with a note otherwise."
+    },
+    "honest_limits": [
+      "The friendly-input verification is a single mobile re-run. dashboard / admin / docs were NOT re-run after the friendly-input requirement was added — they scored 4/4, 4/4, 3/4 before it existed, so there is no evidence the requirement hurts them, but none that it helps either.",
+      "The §5.5-class residual (two destinations, no criterion, outside §1) was clean in the mobile re-run, which is one data point, not a demonstration that the anti-pattern row works.",
+      "eval 4 (the interview roleplay) was not run in any of these rounds — it needs a second party to play the user, which this harness has no way to provide.",
+      "Friendly-input adjudication is my own reading of each tree, recorded with the full path in totality-fix-verification/friendly-trace-results.md so it can be re-checked."
+    ],
+    "checker_fix_was_itself_tested": {
+      "why": "Patching a checker until a set of known-good runs all pass is how a checker gets loosened into uselessness. 11/11 across five runs is only meaningful if the checks can still fail.",
+      "how": "Three negative cases built from real run copies: an off-allowlist region name injected into an .astro component; every typecheck mention and disclaimer stripped from all prose; and a bare 两份规范之间零重叠 with its coupling table detached.",
+      "result": "Each negative case fails exactly the intended check and nothing else (10/11), while all five real runs stay at 11/11. The first zero-overlap patch failed this test, which is how the over-wide word bag was caught."
+    }
   }
 }

@@ -135,7 +135,7 @@ The skeleton and per-chapter requirements are in `references/layout-md-outline.m
 
 Three things decide whether this document is useful at all:
 
-1. **The placement decision tree goes first (§1).** It is the entry point: an agent takes a new requirement, walks the tree, implements directly if it lands — and **stops if it doesn't**. A layout document without a decision tree gets read and forgotten.
+1. **The placement decision tree goes first (§1), and it has to be total.** It is the entry point: an agent takes a new requirement, walks the tree, implements directly if it lands — and **stops if it doesn't**. Total means every input reaches exactly one region name or the explicit stop, never zero and never two. A tree with a hole is worse than no tree: agents don't halt at a hole, they improvise past it with the document's authority behind them.
 2. **Every row of the region allowlist (§2) needs a "must not hold" cell.** Listing only what goes in a region is documentation; stating what must *not* go in is a spec. The forbidden entries come from every "don't make it X" conclusion in the interview.
 3. **Every anti-pattern carries a reason and a replacement.** "Don't do X" gets worked around. "Don't do X, because it causes Y, do Z instead" gets followed.
 
@@ -223,7 +223,9 @@ If you discover mid-implementation that something you said earlier was inaccurat
 
 - [ ] Zero overlap between the two specs? Every value lives in exactly one place?
 - [ ] No color / font-size / radius / spacing values in `layout.md`?
-- [ ] Can the decision tree answer a real new requirement, all the way to a specific region name? Is there an explicit "stop" for when it doesn't land?
+- [ ] Did you trace the decision tree with **hostile** inputs — a one-off action belonging to no object, something that fits two regions, something arriving at a full cap, something that plainly doesn't belong — and did each land on exactly one region name or the explicit stop? (A friendly input passes on any tree, hole included; that's how non-total trees survive review)
+- [ ] Is the fallback *stop → §9* rather than some real region, and does it avoid routing back into the tree?
+- [ ] Did you also trace three or four **ordinary** requirements and watch each land on a region name? (Stopping on everything passes the hostile traces too — and turns the contract into a permission queue)
 - [ ] Does every allowlist row have a "must not hold" cell?
 - [ ] Does every anti-pattern have a reason and a replacement?
 - [ ] Are region names identical across the doc, the type definition, and the wireframe code?

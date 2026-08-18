@@ -36,6 +36,35 @@ Structure:
 
 Ordering principle for the trunk: **the most discriminating question goes first.** Usually that's "is this a facet of a first-class object", because it immediately separates "goes in the focus slot" from "goes in the nav".
 
+### The tree has to be total
+
+A tree that answers *most* inputs isn't a spec — it's a spec with a hole, and the hole is exactly where agents improvise. Totality is what makes it binding: **every input reaches exactly one region name, or the explicit stop. Never zero destinations, never two.**
+
+Five ways it breaks. Every one of these shipped inside a tree whose author had already confirmed "there is a decision tree, and it has a stop":
+
+| Break | What it looked like | What it actually means |
+|---|---|---|
+| **Gap** | A one-off action on the whole library fell between short-circuit 1 and short-circuit 3, matching no branch | A question is missing, or a short-circuit's real scope is narrower than its wording suggests |
+| **Two answers** | A leaf read "overlay.body *or* board.detail" — no adjudicating criterion, no § pointer | The deciding question is missing. Two plausible destinations calls for one more question, not a coin flip |
+| **Fallback into a real region** | "Nothing matched → settings" | The fallback is *stop → §9*, never a region. Whichever region gets named as the catch-all becomes the junk drawer — which is the complaint that brought the user here |
+| **Loop** | The fallback routed back into the trunk, which routed back to the fallback | The stop is a leaf: it leaves the document for the change process. A fallback that re-enters the tree can't terminate |
+| **Open boundary** | A nav segment capped at 2 said nothing about reaching the cap, while the segment capped at 4 said it twice | Every cap and every closed enumeration states what happens when it's full, or "an 11th item arrives" is an input with nowhere to go |
+
+**When the fallback contradicts the rest of the document, the tree is what's wrong.** One run's fallback routed a global action into settings, contradicting the short-circuit that forbade it, §2's "must not hold" cell, an anti-pattern, and the union type — all at once. The pull is then to relax the prohibition, which is backwards: four places agreeing against one means the trunk lost a branch.
+
+### Verify it by trying to break it
+
+Trace the finished tree with inputs picked to be hostile, and write down where each one lands:
+
+1. **A one-off action belonging to no object** — export everything, bulk import, contact support. The most common gap, and the source of the worst observed failure: a confident "put it in settings".
+2. **Something that plausibly fits two regions** — checks that leaves are single-valued.
+3. **Something arriving at a full enumeration** — one more item for a capped nav segment, one more type beyond the slot enumeration.
+4. **Something that genuinely doesn't belong** — has to reach the stop, and the stop has to not be a region.
+
+A friendly input passes on any tree, hole included. That is precisely how this defect survives review: "can it place a new metric card" gets asked, "can it place the export button" doesn't.
+
+**Then trace three or four ordinary requirements too, and require each to land on a region name.** Totality is trivially satisfiable by stopping on everything, and the hostile traces above won't catch that — they'd all pass. A tree that sends everyday work to §9 isn't a contract, it's a permission queue: the user arrived because "where does this go" had no answer, and "file an application" is not an answer. When an ordinary input stops, the tree is usually missing a whole class rather than facing a genuinely new region — controls (search, filter, sort) are the class most often absent, because they aren't a facet of any object and aren't a destination, so they fall through every branch.
+
 ## §2 Region-name allowlist
 
 Must answer: which region names are legal · what each region holds · **what it must not hold**.
@@ -93,7 +122,7 @@ If the interview settled on "actions only in one place", give it a section cover
 
 Must answer: how many segments · each segment's distinguishing feature · each segment's badge rule · what doesn't belong in the nav at all.
 
-Spell out **the consequence of putting something in the wrong segment** — one per segment, specific about what will happen. Cap the "never empties" segment and explain that the cap's job is to force a consolidation decision.
+Spell out **the consequence of putting something in the wrong segment** — one per segment, specific about what will happen. Cap the "never empties" segment and explain that the cap's job is to force a consolidation decision — including what happens once the cap is reached, and who decides. A cap with no at-cap instruction is a dead end (see §1, totality).
 
 ## §8 Non-happy-path placement
 
@@ -137,4 +166,5 @@ Four columns: was | became | why overturned.
 | **MUST** / **NEVER** everywhere with no reasoning | Today's models reason well — give them the why and they generalize to cases you didn't cover; give them only prohibitions and they follow the letter | One line of reasoning per rule |
 | Color / font-size / spacing values | Duplication with the visual spec is a drift source | Reference "see visual spec §X" |
 | Enumerating every page for completeness | It becomes a feature spec, and goes stale fast | Abstract into page archetypes |
+| Naming two destinations without the criterion that picks between them ("it goes in A *or* B") | The reader guesses, and the guess is unauditable. This one migrates: make §1's leaves single-valued and it reappears in a chapter's admission rule, which is where it was last caught | One destination, or the question that decides. A chapter may point back at §1's branch instead of restating the criterion |
 | Promising properties the design can't deliver | e.g. claiming "positions are stable, muscle memory works" when a sliding window guarantees they move | Promise only what holds, and write down explicitly what doesn't |
