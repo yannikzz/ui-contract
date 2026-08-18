@@ -1,0 +1,196 @@
+{
+  "skill_name": "ui-contract",
+  "notes": "Scenarios are deliberately spread across very different form factors (mobile / dashboard / desktop admin) because the single biggest risk for this skill is smuggling in one reference product's information architecture as if it were universal truth. Subagents cannot conduct a one-question-at-a-time interview with a human, so every prompt includes 'I'm in a hurry, go with your recommendations but list the decision points' — which conveniently also tests default quality. The cost of that shortcut: the interview process itself is not directly tested.",
+  "shared_assertions": [
+    "A structural spec exists and contains a placement decision tree: a new requirement can be walked all the way to a specific region name, with an explicit 'stop' when nothing matches",
+    "A region-name allowlist exists and every region states what it must NOT hold — listing only what goes in makes it a manual, not a spec",
+    "The structural spec contains no color values, font sizes, or radii (structural parameters like column widths and minimum sizes are fine)",
+    "A visual spec exists and opens with a division-of-labor statement whose cut is 'does it change when the brand skin changes'",
+    "The repo-root CLAUDE.md carries the hard constraint: walk the decision tree before changing structure, stop if it doesn't land, region names must be in the allowlist",
+    "Region names in the wireframe are constrained by a union type (or an equivalent checkable allowlist) that fails at compile time on an off-table name",
+    "Every anti-pattern carries a reason and a replacement, not just 'don't do X'",
+    "No reference product's specific information architecture is written in as a default (desktop three-column shells, borrowed panel-type enumerations, borrowed session models, reference product names)",
+    "A decision-point table exists where each row states what was chosen and what it costs, with costs specific about what will happen",
+    "Deliverables are written in the language the user used"
+  ],
+  "evals": [
+    {
+      "id": 0,
+      "name": "mobile-from-scratch",
+      "language": "zh",
+      "prompt": "我在做一个手机端的记账 app，就我一个人写，前端用 React Native。现在功能越加越多，界面结构已经开始乱了——记一笔、账本列表、月度统计、预算、设置，每次想加新东西我都不知道该塞哪，上次把「导出账单」硬塞进了设置里，现在自己都找不到。想搞一份规范出来，以后让 claude 写前端的时候能有个准绳。目前没有设计稿，只有一堆想法。我现在赶时间没法一问一答，你先按你的推荐往下做，但把所有本来要问我的决策点、你选了什么、代价是什么列成一张表给我，我回头核对。",
+      "prompt_en_gloss": "Solo dev building a React Native expense-tracking app. Features keep piling up (add entry, ledger list, monthly stats, budget, settings) and they never know where new things go — last time they jammed 'export statement' into settings and now can't find it. Wants a spec so Claude has something to follow when writing the frontend. No mockups, just ideas. In a hurry: go with recommendations, but produce a table of decision points, choices and costs.",
+      "expected_output": "A structural spec (decision tree + region allowlist), a visual spec skeleton, and a low-fidelity wireframe, with a mobile-shaped region tree (page stack / bottom tabs), not a desktop three-column shell. Plus a decision-point table.",
+      "assertions": [
+        "The region tree is mobile-shaped (page stack / bottom tabs / drill-down); no desktop sidebar three-column shell was ported over",
+        "The user's original pain point is answerable by the decision tree: walking 'export statement' through it lands on a definite destination, rather than a vague 'it depends'"
+      ],
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "dashboard-existing-tokens",
+      "language": "zh",
+      "prompt": "我们团队在做一个给运营看的数据看板，React + Tailwind，tailwind.config.js 里已经有一套颜色和字号 token 了，也有个简单的 DESIGN.md 写了配色。问题是每个人加新指标卡都是随便加，现在首页有 20 多张卡片，筛选器有全局的也有卡片自己带的，乱成一团。能不能帮我们把界面结构的规范定下来，我要能拿给团队同步理解，也要让 cursor 和 claude code 照着写不跑偏。赶时间，你先按推荐的往下做，把要问我的决策点和代价列一张表给我。",
+      "prompt_en_gloss": "Team building an ops-facing dashboard in React + Tailwind. tailwind.config.js already has color and type tokens, plus a thin DESIGN.md covering palette. Everyone adds metric cards ad hoc — 20+ cards on the home page, some filters global and some per-card. Wants a structural spec they can circulate to the team and that Cursor / Claude Code will follow. In a hurry: recommendations plus a decision-point table.",
+      "expected_output": "Identifies start C (visual spec exists, structural spec missing); the extension slot is a grid cell rather than a panel-type enumeration; addresses the global-vs-per-card filter disease; aligns the existing DESIGN.md's boundary rather than rewriting it.",
+      "assertions": [
+        "The extension-slot model is grid cells (where a new metric card goes, how many cells it spans), not a borrowed 'focus panel type enumeration'",
+        "An explicit ownership rule for global versus per-card filters — the structural disease the user named",
+        "The existing DESIGN.md was not rewritten: a division-of-labor statement was added, structural content moved out, and a pointer left behind"
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "desktop-from-mockup",
+      "language": "zh",
+      "prompt": "设计给了我两张 figma 截图，是个后台管理系统。我描述一下：左边 220px 宽的导航分三组（工作台/内容管理/系统），主区上面一条筛选条下面是表格，点表格某一行右侧会滑出一个 360 宽的属性面板；第二张图是「批量导入」页，那页没有属性面板，主区是个三步向导。另外两张图的左侧导航里「回收站」都出现了两次，我怀疑是设计复制粘贴弄的。我要把这些变成前端能照着开发的东西，我们全部用 claude code 写代码，所以最重要的是让它别乱改结构。赶时间，先按你的推荐做，决策点列表给我。",
+      "prompt_en_gloss": "Two Figma screenshots of an admin system, described in text: 220px nav in three groups; main area with a filter bar over a table; clicking a row slides out a 360px property panel. Second screenshot is a bulk-import page with no property panel and a three-step wizard in the main area. Both screenshots show 'Trash' twice in the nav, which the user suspects is copy-paste. Wants it turned into something the frontend can build against; everything is written with Claude Code, so the priority is stopping it from restructuring things.",
+      "expected_output": "Reverse-engineers the region tree from the description; proactively flags 'Trash appears twice' as a placeholder rather than a structural fact; identifies at least two page archetypes and states that the property panel does not exist on the wizard page; produces all three artifacts plus enforcement.",
+      "assertions": [
+        "Proactively confirms or flags that 'Trash appearing twice' is a mockup placeholder, not a structural fact, and does not write the duplicate into the spec",
+        "Identifies at least two page archetypes and explicitly states that the property panel does not exist on the wizard page (the archetype × shell-part tradeoff)"
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "english-content-site",
+      "language": "en",
+      "prompt": "We run a docs + blog site (Astro, ~120 pages) and every time we add a section the nav and the page templates drift a bit more. Right now we have four different page layouts that are almost identical but not quite, and nobody remembers why. I want something I can point Claude Code at so it stops inventing new layouts. We don't have a designer — the visual side is fine, it's the structure that's the problem. Don't interview me, just go with your best judgment and give me a list of what you decided and what each choice costs.",
+      "expected_output": "Identifies that only the structural spec is genuinely needed (the user says visuals are fine) but still produces the visual spec skeleton to hold the boundary; page archetypes consolidate the four near-identical layouts; the decision tree is built around 'where does a new section go'. Deliverables in English.",
+      "assertions": [
+        "Page archetypes consolidate the near-identical layouts rather than documenting all four",
+        "The decision tree centres on the content-site core question: where does a new section go",
+        "Deliverables are in English"
+      ],
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "interview-roleplay",
+      "language": "zh",
+      "prompt": "赵姐，45 岁，杭州三家宠物寄养店店主，9 个员工，完全不懂技术、性子急。店里内部管理系统找了外包在写，她想先把界面规范定下来。她的初始诉求只有这三句，其余全靠问：房间怎么管、员工用什么设备、有几类核心对象都不知道。她持有一份只在被问到时才说的真实约束（竖屏 iPad 站着手指点 / 6 个四五十岁阿姨学不会复杂界面 / 22 间房状态 / 800 客户与狗是两个对象但她自己没意识到 / 加钱项目写便利贴天天漏收钱 / 三店隔离 / 微信通知客人接狗），以及 9 条行为要求（一次只答一个问题、被问多个就发火、听不懂术语直接说、选项没代价就追问、中段推翻前面答案、重复提问就不耐烦、决策表阶段挑一条不对的）。",
+      "prompt_en_gloss": "A roleplay run: a non-technical, impatient owner of three pet-boarding shops is interviewed by the skill through a relay. Tests the interview process itself rather than the deliverables.",
+      "expected_output": "A 10-15 round one-question-at-a-time interview that surfaces the constraints she never volunteers, survives her overturning a settled answer mid-way, and produces all three artifacts in Chinese. The transcript is the primary artifact.",
+      "assertions": [
+        "The transcript shows one question per turn throughout",
+        "Every option carries its cost in the same turn",
+        "When she says she doesn't understand, the next turn explains before re-asking",
+        "When she overturns an earlier answer, the knock-on already-settled conclusions are enumerated",
+        "No question is re-asked verbatim",
+        "No answer is fabricated on her behalf",
+        "The decision table is put to her before any document is written",
+        "The iPad-portrait / standing-touch constraint reshapes the region tree rather than sitting in a footnote",
+        "The customer-versus-pet distinction is surfaced by the interviewer, not silently assumed",
+        "The sticky-note revenue leak is answerable by the placement decision tree"
+      ],
+      "how_to_run": "Subagents cannot talk to each other: SendMessage to a subagent returns only a 'Resuming agent' receipt, and the callee's reply comes back to the MAIN agent as a task notification. So the interviewer and the user-simulator must both be spawned by main, and main relays every turn verbatim. Tell the interviewer to return its next question as its return value and stop — do not let it call SendMessage.",
+      "files": []
+    }
+  ],
+  "iteration_1_findings": {
+    "date": "2026-08-17",
+    "ran": "evals 0-2, with_skill and a no-skill baseline for each",
+    "result": "All shared and scenario-specific assertions passed for all three with_skill runs. Strongest signals: zero visual values in the structural spec (3/3); zero occurrences of 'three-column' or 'sidebar' in the mobile run; the dashboard run independently derived a grid-cell model.",
+    "baseline_contaminated": "The no-skill control is invalid. A subagent's available-skills listing includes this skill's full description, and that description names the three artifacts, the decision tree, the allowlist and the wireframe — effectively leaking the architecture to the control group. All three baselines used the description's vocabulary verbatim while never invoking the Skill tool or reading SKILL.md. A clean control requires temporarily moving the skill out of the skills directory and re-running.",
+    "weak_metric": "A count of the literal string 'must not hold' only matches table headers; a low count does not mean rows lack forbidden entries. Judge this one by actual column count and cell contents.",
+    "improvements_applied": [
+      "Added 'type-checking is not optional' — allowlist enforcement happens there, so skipping it means the compile-time layer is not in force",
+      "Added 'where conclusions ultimately live' — forbids starting a separately-maintained decision log, which would become a second source of truth",
+      "Corrected the overclaim about zero overlap: acknowledge the one or two genuine coupling points and require them marked on both sides",
+      "Added region markers for non-web platforms (React Native: identical testID / accessibilityLabel), plus a grep reconciliation requirement",
+      "Added a checklist item for region-description quality (what goes here / what must not, never 'what this is')"
+    ],
+    "cost": "Each with_skill run was roughly 170-180k tokens and 26-28 minutes. The contaminated baselines ran 70-145k tokens; that delta is confounded by the contamination and is not a meaningful measure of the skill's cost."
+  },
+  "iteration_2_findings": {
+    "date": "2026-08-18",
+    "ran": "evals 0-3 with_skill and a genuinely clean no-skill control for each, plus the new eval 4 interview roleplay. 8 execution runs + 8 grading runs + a 20-query trigger eval.",
+    "control_is_clean_now": "Fixed iteration 1's contaminated control by moving the whole skill directory out of ~/.claude/skills for the duration of the run (parked under the workspace) and pointing the with_skill runs at that copy by absolute path. The workspace itself must also live outside ~/.claude/skills, or the copy it holds risks being registered as a second skill.",
+    "fixtures_added": "eval 1 and eval 3 now run against real project skeletons (fixtures/ops-dashboard with tailwind tokens + a DESIGN.md that has structural content mixed in; fixtures/docs-site with 124 pages and 4 near-identical layouts). Without them the 'did not rewrite the existing DESIGN.md' assertion was testing nothing. eval 0 got a thin RN skeleton. eval 2 stays an empty directory (only a verbal mockup description exists).",
+    "results": {
+      "assertions_with_skill": "100% (4 scenarios, 67/67)",
+      "assertions_no_skill": "73% (4 scenarios, 49/67)",
+      "mechanical_checks_with_skill": "11/11 on all five runs, after the checker was calibrated",
+      "mechanical_checks_no_skill": "3/11, 4/11, 5/11, 7/11",
+      "cost_with_skill": "187k tokens / 26.0 min average",
+      "cost_no_skill": "99k tokens / 15.3 min average",
+      "cost_ratio": "the skill costs ~1.9x the tokens and ~1.7x the wall clock"
+    },
+    "the_control_is_strong": "Every control run independently produced a written structural spec, an executable checker, and a CLAUDE.md. Two of them wrote a placement decision tree unprompted. The mobile control reached 12/17 and the dashboard control 14/17. Do not present the skill as the difference between 'something' and 'nothing' — it is not.",
+    "what_the_control_systematically_lacks": [
+      "Per-region negative boundaries. All four controls: mobile wrote them for 1 of 3 regions, dashboard 0 of 5 sections, admin 2 of ~20, docs site only BaseLayout. This is the one gap that held across every scenario.",
+      "Enforcement granularity. Controls do constrain names at compile time (the mobile control's TabId union really does reject MagicCrystalBallTab with TS2322), but only at page / tab / section / layout-filename level. Injecting invented REGIONS into an allowed layout passed clean on the docs site, and a fourth top-level Region passed clean on the dashboard. 'Where does a new feature go' happens at region level, which is exactly the level they do not reach."
+    ],
+    "cross_scenario_skill_defect_decision_tree_totality": {
+      "severity": "highest-value fix found this round",
+      "finding": "All four with_skill runs have a decision tree that fails to be a total function, in four different shapes: mobile — a global one-off action has no exit in S1 and the §1.2 fallback routes it into settings, contradicting S1's own prohibition, §2's forbidden-entry cell, an anti-pattern, AND the ConfigRowKind union (verified TS2322), then loops back; admin — a whole-library one-off action falls between short-circuits 1 and 3; dashboard — short-circuit S3's destination column reads 'overlay.body OR board.detail' with no adjudicating criterion and no § pointer; docs site — the utility-nav cap of 2 has no at-cap instruction while the primary cap of 4 has two.",
+      "root_cause": "references/layout-md-outline.md requires a decision tree and requires a stop, but never requires TOTALITY: that every input reaches exactly one region name or one explicit stop. Nothing forbids an input that reaches nothing, or a leaf offering two answers.",
+      "note": "Two control runs have the same class of dead end, so this is a weakness of the placement-tree method rather than something the skill invented. But the skill is the one shipping a template, so the template is where it gets fixed — and fixing it is where the skill gains a real edge, since the controls have no fallback at all.",
+      "worst_part": "On the mobile run the confident wrong answer was 'action → settings' — the exact shape of the user's original complaint (they had jammed 'export statement' into settings)."
+    },
+    "cross_scenario_skill_defect_false_verification_claims": {
+      "finding": "Two of four runs state a verification that does not hold. Dashboard: RUN-NOTES claims DESIGN.md variant names were aligned with the code, but src/ was never touched and DESIGN.md was aligned to the WIREFRAME instead, so the visual spec now names variants that do not exist in the product code. Docs site: 'all nine hand-written sidebar links 404' is repeated in five places and labelled 'verified by filesystem check' in RUN-NOTES, but 3 of the 9 resolve.",
+      "why_it_matters": "A false fact inside a spec outlives a bug in code — later agents re-read it as the justification for structural decisions. The skill already demands honest reporting and real pasted output; what is missing is a requirement to re-verify factual claims ABOUT THE EXISTING CODEBASE before writing them into the spec, and never to label something verified unless the command that verified it is pasted."
+    },
+    "interview_defects_from_eval_4": [
+      "No length control and no progress disclosure. She protested at round 10 ('how many more questions? I have customers waiting'). SKILL.md §1's five disciplines and all of references/interview.md say nothing about a round budget, reporting remaining questions, or splitting the remainder into must-ask / I-decide when patience runs out. Asking the question bank straight through (Q1-Q17 plus form-factor extras) is 20-25 rounds; this user would not survive half of it.",
+      "The question bank has no 'outbound notification / customer contact' dimension. She caught it herself at the decision-table stage ('we notify customers on WeChat, you never mentioned WeChat'). Groups 1-5 and every form-factor extra miss it; Q10's five content-routing classes are all internal content flows, so following the bank never surfaces it. This dimension grows real structure: an action button, a notified-or-not state, and competition for a badge slot.",
+      "'One question at a time' and 'write out every option's cost' fight each other for non-technical users, and the skill does not adjudicate. interview.md's 'How to write options' asks for what you get / what you lose / when you'll regret it, which is necessarily a long paragraph — round 3 followed it verbatim and earned 'that long speech made me dizzy'. Also every cost example in the skill is a long-term-system-evolution cost (the junk-drawer kind); not one is a 'can a 50-year-old employee learn this on the spot' cost, which is the only kind this user cared about — she supplied it herself ('can the aunties figure out tapping it open?')."
+    ],
+    "trigger_eval": {
+      "result": "20 queries x 3 runs: 11 pass / 9 fail. Over-triggering 0 of 10 — every near-miss trap (button radius tweak, eslint config, backend layering spec, ER diagram, landing page, pixel-perfect Figma port, checkout usability review, palette-to-token export) correctly stayed silent at 0%. Under-triggering 9 of 10 — three at 0%, six at 33%, one at 67%.",
+      "the_irony": "The three 0% queries are the ones whose phrasing the description quotes almost verbatim: 'make the AI stop restructuring my frontend', '界面越改越乱' + information architecture, '新功能该放哪' for mobile tabs. Stuffing trigger phrases into the description does not make it trigger.",
+      "conclusion": "Execution quality is excellent and triggering is near-broken. A skill that does not fire is worth nothing regardless of how well it executes. The description is ~200 words of pushy phrase-stuffing; it likely needs to be SHORTER and to state the judgement ('when the answer is a written rule about where things go, not the thing itself') instead of listing phrases. Run scripts.run_loop to optimise it, but re-measure the winner on a fresh held-out set, and re-check the near-miss traps afterwards — the current 0% over-trigger rate is worth protecting.",
+      "caveat": "3 runs per query is a small sample and the harness is single-turn `claude -p`, which may differ from interactive sessions. But 10 negatives at 0% and one positive at 67% show the measurement discriminates."
+    },
+    "assertion_set_needs_repair": [
+      "Nothing checks decision-tree TOTALITY or internal consistency. Three graders independently reported that the only substantive defect in their run fell in this blind spot: assertion 1 only asks that a requirement 'can be walked to a region name', which a self-contradictory destination also satisfies. Add: every short-circuit and every leaf must yield exactly one region name or one explicit stop; no 'A or B' without an adjudicating criterion; a destination must not be forbidden by the same spec's own forbidden-entry cell or type gate.",
+      "Nothing checks the truth of the spec's factual claims about the existing codebase — where the docs-site defect landed.",
+      "Assertion 9 (a decision-point table must exist) and assertion 14 (no separately-maintained decision log) contradict each other in scenarios whose prompt explicitly asks for a table. Clarify that a one-off confirmation document is fine when it carries the 'the structural spec is authoritative' line.",
+      "Assertions 10 and 13 are duplicates in the eval-3 set; assertion 16 is near-vacuous when no visual spec exists.",
+      "Add an assertion that document-to-code identifier consistency was actually checked (the withSparkline drift slipped through)."
+    ],
+    "harness_lessons_to_save_an_hour_next_time": [
+      "Subagents cannot converse with each other. SendMessage to a subagent returns only {'success':true,'message':'Resuming agent ...'} — the callee's reply is delivered to MAIN as a task notification. Any two-agent roleplay must be relayed by main, one turn at a time. Also instruct the simulated user NOT to call SendMessage, or every turn arrives at main twice.",
+      "Do not combine `nohup ... &` with the background-run flag: the wrapper exits immediately and reports success while the real work is still running. Use a plain background command, or an `until ! pgrep -f ...` waiter.",
+      "scripts/aggregate_benchmark expects eval-<ID>/<config>/outputs/ and silently emits an all-zero benchmark for any other layout. Aggregating from grading.json + timing.json directly took two minutes and was accurate.",
+      "scripts/run_eval registers its own temporary command files in the nearest .claude/commands/ and cleans up after itself; the transient ui-contract-skill-<hash> entries appearing and disappearing mid-run are normal, not residue. Do not delete them while it runs.",
+      "A mechanical checker written around the skill's own conventions systematically UNDER-scores, and under-scores the control hardest. Eight distinct false failures had to be fixed before the numbers meant anything: region names containing dots being truncated, `data-region={id}` read as a region called 'id', hex colours inside a forbidden-writing example table, structural specs not recognised because the control named them SPEC.md / page-contract.md, 'Must not hold' missed for want of re.I, a forbidden form quoted inside a code comment, the authority disclaimer phrased as 'layout.md 是权威' rather than '以…为准', and a bolded standalone `**停**`. Calibrate against a known-good sample first — the skill's own examples/ works well for this."
+    ],
+    "defects_in_the_skills_own_examples": [
+      "examples/admin-console/layout.md §0 claims the two specs have 'zero overlap' (两份零重叠), which SKILL.md:20 explicitly forbids — it should name the genuine coupling points instead. Agents copy the example.",
+      "examples/admin-console/DECISIONS-TO-CONFIRM.md has no 'layout.md is authoritative' line at the top, which SKILL.md:124's exception clause requires. 3 of 4 runs did write it; the one that did not matched the example's omission. That clause is buried inside an 'Exception:' subordinate clause and is easy to miss."
+    ],
+    "cost": "with_skill runs: 145k-229k tokens, 22-30 min each. Controls: 71k-113k tokens, 10-21 min. Grading: 75k-119k tokens each. Eight execution runs in parallel on one machine stretched each run well past iteration 1's 26-28 min because of CPU contention during npm install and type-checking."
+  },
+  "iteration_3_findings": {
+    "date": "2026-08-18",
+    "what_changed": "Only the description. The body, references and assets were untouched, so this is a clean single-variable experiment on triggering.",
+    "why": "The description measured 1176 characters, over the spec's 1024 limit. The 152 characters past the limit contained the entire Chinese keyword block plus the tail of 'make the AI stop restructuring my frontend' — and those were exactly the phrases behind the three queries that scored 0% in iteration 2. The hypothesis was that the description was being truncated and those signals never reached the system prompt.",
+    "result": "HYPOTHESIS NOT SUPPORTED. Same 20 queries, same 3 runs each, same harness.",
+    "numbers": {
+      "v1_1176_chars": "positives averaged 27% trigger rate, 1 of 10 passed; negatives 0%, 10 of 10 passed",
+      "v2_938_chars": "positives averaged 17% trigger rate, 0 of 10 passed; negatives 0%, 10 of 10 passed",
+      "per_query": "1 query rose 0%->33% (the one whose phrase was cut mid-word, which is the only evidence for truncation), 3 fell, 6 unchanged"
+    },
+    "do_not_over-read_this": "30 positive trials per version is too few to separate the two. v1 hit 8 of 30, v2 hit 5 of 30. A 33%->0% move is 1-of-3 becoming 0-of-3 and is well within noise. The honest reading is 'no improvement observed', NOT 'compression made it worse'. Raise runs-per-query to 5-7 before drawing any conclusion from a single query's delta.",
+    "what_it_does_establish": "Length is not the cause of under-triggering. Compliance still had to be fixed because 1176 > 1024 violates the spec regardless, but it is not the lever for triggering.",
+    "authoring_mistake_to_avoid": "While compressing, 'an interface skeleton /' was dropped from the phrase list — and one test query is literally 需要一个低保真的界面骨架. It went 33% -> 0%. Whether or not that delta is significant, never drop a phrase that matches a real user utterance to save characters; find the room elsewhere. Restored in v3.",
+    "current_description_v3": "936 characters / 1022 UTF-8 bytes. Both limits are satisfied on the stricter byte reading, which matters because CJK characters are 3 bytes each and a byte-based truncator would cut the Chinese block first. Carries 22 trigger signals including interface skeleton / 界面骨架.",
+    "the_real_problem_and_next_step": {
+      "diagnosis": "Skills are consulted only when the model judges it cannot handle the request itself. Every one of these queries reads like a question it can just answer ('help me write a spec', 'stop Claude changing my layout'), so it answers directly. This is a FRAMING problem in the description, not a keyword-coverage problem. The description should read like a job with a fixed process, several output files, and a real cost to improvising.",
+      "next_action": "Run skill-creator's automatic description optimiser, which splits train/held-out, rewrites the description, and re-scores each iteration on the held-out set: python -m scripts.run_loop --eval-set <workspace>/trigger-evals.json --skill-path <repo>/skills/ui-contract --model <session model id> --max-iterations 5 --verbose",
+      "cost": "roughly 300 model calls, 1-2 hours",
+      "run_it_against_the_repo_copy": "Point --skill-path at the repo copy, not ~/.claude/skills/ui-contract, so the working install is not modified mid-experiment.",
+      "also": "Bump --runs-per-query to 5 or 7. At 3 runs the resolution is 0/33/67/100% and real differences hide in the noise."
+    },
+    "harness_notes": [
+      "Move ~/.claude/skills/ui-contract out of the skills directory for the duration of the run, or the skill is registered twice and the measurement is polluted. Wrap the mv, the run, and the mv-back in one script so the skill is restored even if the run fails.",
+      "run_eval writes transient ui-contract-skill-<hash> entries into ~/.claude/commands/ and cleans them up itself. They appear and disappear throughout the run; leave them alone.",
+      "The result JSON starts after the first line of the log, so parse with raw[raw.index('{', raw.index('\\n')):]."
+    ]
+  }
+}

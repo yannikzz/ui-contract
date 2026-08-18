@@ -1,0 +1,29 @@
+{
+  "name": "yannikzz",
+  "owner": {
+    "name": "yannikzz",
+    "url": "https://github.com/yannikzz"
+  },
+  "plugins": [
+    {
+      "name": "ui-contract",
+      "source": "./",
+      "skills": [
+        "./skills/ui-contract"
+      ],
+      "version": "0.1.0",
+      "description": "Establishes a project's UI contract: a structural spec with a placement decision tree and a region-name allowlist, a visual spec, a runnable low-fidelity wireframe, and enforcement that stops coding agents putting new features in the wrong place.",
+      "author": {
+        "name": "yannikzz"
+      },
+      "homepage": "https://github.com/yannikzz/ui-contract",
+      "keywords": [
+        "design-system",
+        "information-architecture",
+        "layout",
+        "wireframe",
+        "spec"
+      ]
+    }
+  ]
+}
