@@ -24,7 +24,7 @@ For the deliverable's language and terminology, call the Skill tool with "delive
 
 | Start | Looks like | Approach |
 |---|---|---|
-| **A — greenfield** | An idea or a paragraph; no mockups, no docs | Spend an extra interview round on form factor and first-class objects — there is nothing to reverse-engineer |
+| **A — greenfield** | A feature list; no mockups, no docs | Spend an extra interview round on form factor and first-class objects — there is nothing to reverse-engineer. **If there is no feature list either — just an idea — say so now**: that is `ui-contract-layout`'s third precondition and it will stop there anyway. This plugin does not do product discovery |
 | **B — mockups exist** | Figma screenshots, design images, competitor screenshots; no docs | Reverse-engineer first, then interview |
 | **C — visual spec exists, structural spec missing** | A `design.md` or token system exists, but nobody ever wrote down where new features go | **The most common case.** Focus on cutting the boundary and moving structural content out of the existing doc |
 

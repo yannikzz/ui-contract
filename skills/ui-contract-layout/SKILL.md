@@ -16,14 +16,17 @@ For handling change requests once something is running, call the Skill tool with
 **Artifact paths come from `docs/ui-contract/config.md`'s paths table.** If that file doesn't exist, the specs are at the repo root. Never assume a path the config contradicts.
 
 
-Check these **before asking anything**. Both are hard stops, not warnings.
+Check these **before asking anything**. All three are hard stops, not warnings.
 
 | Condition | Action |
 |---|---|
 | The repo has frontend code, **and** there is no `as-built.md`, **and** `layout.md` does not yet exist | **Stop.** Call the Skill tool with "ui-contract-baseline" first |
 | A wireframe, a `RegionId` type, or region markers already exist in code, but `layout.md` does not | **Stop and say so.** The spec would be written by reading the code, which makes it a description of what exists rather than a constraint on what comes next. Run `ui-contract-baseline` to record the as-built state honestly, then write the spec against it |
+| All you have is a product idea or a paragraph — **no enumerable feature list**, and no code or mockups to read one off | **Stop and say why.** This plugin constrains where interface structure goes; it does not do product discovery and does not make feature tradeoffs. Ask for the feature list — roughly, what a user can *do* — and come back. Say plainly that you are declining a step, not failing at one |
 
 The first row's third clause matters: **once `layout.md` exists, this gate must not fire again.** Without it, every later maintenance edit on an existing project is blocked forever.
+
+The third row is the upstream boundary from ADR-0001, and it is narrow on purpose. It fires on *nothing to place*, not on *vague*: a rough list of features is workable input, and sharpening it is what the interview is for. A product that has not decided what it does yet cannot have a region tree, and inventing one produces a spec that constrains nothing — every later feature lands outside it, so the placement tree sends everything to §9 and the contract degrades into a permission queue.
 
 ## Three things decide whether this document is useful at all
 
