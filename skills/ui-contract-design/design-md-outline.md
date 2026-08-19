@@ -2,13 +2,17 @@
 
 Owns the **visual** layer: everything that changes when you swap the brand skin. No region tree, no column widths, no page archetypes — those live in `layout.md`.
 
+**This document holds rules, not values.** Every color value, size, radius step and spacing step lives in the **token file**, which is the single value authority in code. Where a value is needed here, write the token's name and "see the token file" — never the literal. This is the same shape as `layout.md` holding no visual values at all: the cut hasn't moved, there is just one more hop.
+
+A worked table of steps is still a rule (it says *how many steps exist and what each is for*). A hex code, a px size, or a radius literal is a value, and it belongs in the token file.
+
 If the project already has a visual spec, **do not rewrite it.** Do three things: add the division-of-labor statement, move structural content out, align region names with the allowlist. See the last section.
 
 ---
 
 ## Opening: division of labor with layout.md
 
-Put a blockquote right under the title stating: what this document owns, what `layout.md` owns, that the cut is "does it change when the brand skin changes", that the two have zero overlap, and that **this document contains no region tree and no column widths**.
+Put a blockquote right under the title stating: what this document owns, what `layout.md` owns, that the cut is "does it change when the brand skin changes", that the two have zero overlap, that **this document contains no region tree and no column widths**, and that **the token file is the value authority — this document names tokens, it does not carry their values**.
 
 Its purpose is that an agent reading either document knows where the other half is.
 
@@ -43,9 +47,9 @@ The rules that actually keep an interface from getting muddy:
 
 A base grid (usually 4px) plus a spacing-semantics table: each step maps to a **relationship** (tightly bound / same group different item / within a subsection / between groups / block padding). Spacing carries information; it isn't nudged by feel.
 
-List the permitted half-steps explicitly; everything else is forbidden. Name and converge the drift values that recur in the mockup (`9px` / `7px` / `14px` and friends).
+List the permitted half-steps explicitly by **token name**; everything else is forbidden. Name and converge the drift values that recur in the mockup (`9px` / `7px` / `14px` and friends) — the converged result becomes a token, and this chapter references it.
 
-**This chapter contains values only, never the region tree.** Per-region padding may be tabulated, but structural relationships belong to `layout.md`.
+**This chapter contains the scale's semantics, never the region tree and never the literals.** Per-region padding may be tabulated by token name, but structural relationships belong to `layout.md` and the numbers belong to the token file.
 
 ## §5 Interaction states
 
@@ -106,6 +110,7 @@ Also flag which of the converged items **actually change how things look**, and 
 ## When a visual spec already exists (start C)
 
 1. **Add the division-of-labor statement** (see Opening). Change nothing else yet.
+1b. **Move values out to the token file.** Every literal in the normative body becomes a token reference. If the project already has a token source (`tailwind.config.*`, `tokens.css`, a theme file), that is the token file — do not create a second one. If it has none, **say so explicitly to the user**: this document will reference tokens that do not exist yet, and the gap has to be closed before the spec is usable.
 2. **Move structural content out**: find the sections that describe region trees, column widths, page archetypes; move the structure into `layout.md`, leaving behind only spacing/feel values plus a one-line "structure: see layout.md §X". Rename the section too if its title promised structure ("Layout skeleton" → "Skeleton spacing and feel").
 3. **Align region names with the allowlist**: replace old component-style names (camel-cased widget names) with allowlist names. This step is easy to half-finish — grep out every old name and replace them one by one, touching **only the normative body**; leave mockup-reality appendices as they are.
 4. Report to the user afterwards: which sections you touched, how many region names you replaced, and what you deliberately left alone.

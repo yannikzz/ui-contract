@@ -9,10 +9,24 @@
       "name": "ui-contract",
       "source": "./",
       "skills": [
+        "./skills/decision-interview",
+        "./skills/spec-before-code",
+        "./skills/constraint-by-types",
+        "./skills/decision-record",
+        "./skills/deliverable-language",
+        "./skills/ui-contract-glossary",
+        "./skills/ui-contract-setup",
+        "./skills/ui-contract-baseline",
+        "./skills/ui-contract-layout",
+        "./skills/ui-contract-design",
+        "./skills/ui-contract-assets",
+        "./skills/ui-contract-wireframe",
+        "./skills/ui-contract-enforce",
+        "./skills/ui-contract-audit",
         "./skills/ui-contract"
       ],
-      "version": "0.1.0",
-      "description": "Establishes a project's UI contract: a structural spec with a placement decision tree and a region-name allowlist, a visual spec, a runnable low-fidelity wireframe, and enforcement that stops coding agents putting new features in the wrong place.",
+      "version": "0.2.0",
+      "description": "Establishes a project's UI contract: a structural spec with a placement decision tree and a region-name allowlist, a visual spec whose values live in the token file, an asset layer in the production tree, a runnable low-fidelity wireframe, enforcement that stops coding agents putting new features in the wrong place, and a health check that reports drift months later.",
       "author": {
         "name": "yannikzz"
       },
@@ -22,7 +36,9 @@
         "information-architecture",
         "layout",
         "wireframe",
-        "spec"
+        "spec",
+        "design-tokens",
+        "drift"
       ]
     }
   ]

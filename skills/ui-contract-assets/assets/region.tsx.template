@@ -1,0 +1,104 @@
+/**
+ * Asset layer — region allowlist as a type, region metadata, and the structural container.
+ *
+ * This file goes into the project's **production** tree and follows its stack.
+ * It is long-lived: it evolves with the product, and business code imports from it.
+ *
+ * `RegionId` is the code form of the allowlist in layout.md §2: write a
+ * data-region that isn't in the table and TypeScript fails the build.
+ * Order for adding a region: edit layout.md §2 → edit RegionId and REGION_META → write code.
+ *
+ * There are **no brand visuals and no annotation affordances here** — brand values live in
+ * the token file, and the annotation layer belongs to the wireframe, which is a
+ * throwaway consumer of this file. Keeping them out is what stops this file from
+ * becoming a second source of visual truth.
+ */
+import type { ReactNode, RefObject } from 'react'
+
+// ── Region allowlist ─────────────────────────────────────────
+// TODO replace with this project's regions. Convention: lowercase, hyphenated,
+// dot for nesting (parent.child), at most two levels.
+//
+// Whenever layout.md says "region X must not hold things of kind Y", the
+// corresponding union elsewhere in the codebase must have Y deleted from it,
+// with a comment saying the omission is deliberate. See the constraint-by-types skill.
+export type RegionId =
+  // shell
+  | 'app-shell'
+  | 'title-row'
+  | 'body'
+  | 'nav'
+  | 'stage'
+  | 'overlay'
+  // main area
+  | 'main'
+  | 'main.content'
+  | 'main.actions'
+  // other archetypes
+  | 'list'
+  | 'detail'
+
+// ── Region metadata ─────────────────────────────────────────
+/**
+ * `label` is for humans, the id is for agents, and `desc` states
+ * **what goes here / what must not**.
+ *
+ * Do not write "what this is" — that's visible from the screen. A wrong
+ * description is more dangerous than wrong code, because the next agent
+ * extends from it.
+ *
+ * All three forms of the allowlist are bound together (table / union type /
+ * metadata); changing one requires changing layout.md §2.
+ */
+export const REGION_META: Record<RegionId, { label: string; desc: string }> = {
+  'app-shell': { label: 'App shell', desc: 'TODO what it may hold; what it never renders itself' },
+  'title-row': {
+    label: 'Window controls',
+    desc: 'TODO layout controls allowed; business information and persistent signals forbidden',
+  },
+  body: { label: 'Body', desc: 'TODO' },
+  nav: {
+    label: 'Navigation',
+    desc: 'TODO whether contents are identical across archetypes; forbids current-context content',
+  },
+  stage: { label: 'Stage', desc: 'TODO' },
+  overlay: {
+    label: 'Overlay',
+    desc: 'TODO what it covers, whether it can stack, what qualifies for promotion into it',
+  },
+  main: { label: 'Main card', desc: 'TODO' },
+  'main.content': { label: 'Main content', desc: 'TODO which content classes belong; which never do' },
+  'main.actions': { label: 'Action area', desc: 'TODO' },
+  list: { label: 'List column', desc: 'TODO mutating data or a fixed directory' },
+  detail: { label: 'Detail area', desc: 'TODO' },
+}
+
+// ── Structural container ────────────────────────────────────
+/**
+ * Every structural container in the product renders through this, with an id
+ * from the allowlist. The runtime marker (`data-region`) is not optional: a type
+ * with no runtime marker cannot be reconciled by grep, and the annotation layer
+ * has nothing to hook into.
+ *
+ * On platforms without DOM attributes (React Native, Flutter, native), write the
+ * id into the platform's equivalent (testID / accessibilityLabel / …) using the
+ * **identical string** — do not invent a more readable name.
+ */
+export function Region({
+  id,
+  children,
+  className = '',
+  elRef,
+  ...rest
+}: {
+  id: RegionId
+  children?: ReactNode
+  className?: string
+  elRef?: RefObject<HTMLDivElement | null>
+} & Omit<React.HTMLAttributes<HTMLDivElement>, 'id' | 'className' | 'children'>) {
+  return (
+    <div ref={elRef} data-region={id} className={className} {...rest}>
+      {children}
+    </div>
+  )
+}

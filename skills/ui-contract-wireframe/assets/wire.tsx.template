@@ -1,70 +1,22 @@
 /**
- * Wireframe parts + region allowlist. Starting point for <wireframe>/src/wire.tsx.
+ * Wireframe display layer. Starting point for <wireframe>/src/wire.tsx.
  *
- * `RegionId` is the code form of the allowlist in layout.md §2: write a
- * data-region that isn't in the table and TypeScript fails the build.
- * Order for adding a region: edit layout.md §2 → edit RegionId and REGION_META → write code.
+ * This file is **throwaway**: when the structure changes, regenerate it.
+ * It consumes the asset layer and adds two things the asset layer must never carry —
+ * the annotation overlay, and neutral low-fidelity parts.
  *
- * The visuals are deliberately neutral. Brand visuals belong to design.md; with no
+ * The visuals are deliberately neutral. Brand values live in the token file; with no
  * brand visuals here to copy, this file can't become a stale second source of truth
- * once design.md changes.
+ * once the token file changes. An agent that copies this gets structure only, and
+ * the one place it can go for brand values is the token file.
  */
 import { createContext, useContext, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { ReactNode, RefObject } from 'react'
 
-// ── Region allowlist ─────────────────────────────────────────
-// TODO replace with this project's regions. Convention: lowercase, hyphenated,
-// dot for nesting (parent.child), at most two levels.
-export type RegionId =
-  // shell
-  | 'app-shell'
-  | 'title-row'
-  | 'body'
-  | 'nav'
-  | 'stage'
-  | 'overlay'
-  // main area
-  | 'main'
-  | 'main.content'
-  | 'main.actions'
-  // other archetypes
-  | 'list'
-  | 'detail'
-
-// ── Region metadata ─────────────────────────────────────────
-/**
- * `label` is for humans, the id is for agents, and `desc` states
- * **what goes here / what must not**.
- *
- * Do not write "what this is" — that's visible from the screen. A wrong
- * description is more dangerous than wrong code, because the next agent
- * extends from it.
- *
- * All three forms are bound together; changing one requires changing layout.md §2.
- */
-export const REGION_META: Record<RegionId, { label: string; desc: string }> = {
-  'app-shell': { label: 'App shell', desc: 'TODO what it may hold; what it never renders itself' },
-  'title-row': {
-    label: 'Window controls',
-    desc: 'TODO layout controls allowed; business information and persistent signals forbidden',
-  },
-  body: { label: 'Body', desc: 'TODO' },
-  nav: {
-    label: 'Navigation',
-    desc: 'TODO whether contents are identical across archetypes; forbids current-context content',
-  },
-  stage: { label: 'Stage', desc: 'TODO' },
-  overlay: {
-    label: 'Overlay',
-    desc: 'TODO what it covers, whether it can stack, what qualifies for promotion into it',
-  },
-  main: { label: 'Main card', desc: 'TODO' },
-  'main.content': { label: 'Main content', desc: 'TODO which content classes belong; which never do' },
-  'main.actions': { label: 'Action area', desc: 'TODO' },
-  list: { label: 'List column', desc: 'TODO mutating data or a fixed directory' },
-  detail: { label: 'Detail area', desc: 'TODO' },
-}
+// TODO point this at the project's asset layer (the file produced by ui-contract-assets).
+// The wireframe imports from the asset layer; never the reverse.
+import { Region, REGION_META, type RegionId } from '../../src/ui/region'
 
 // ── Annotation toggle ───────────────────────────────────────
 const LabelsCtx = createContext(false)
@@ -131,8 +83,14 @@ function RegionLabel({ id, text, desc }: { id: RegionId; text: string; desc: str
   )
 }
 
-/** Structural container. In annotation mode, outlines itself and floats its label. */
-export function Region({
+/**
+ * Annotated wrapper around the asset layer's `Region`.
+ *
+ * The wireframe renders every structural container through this; production code
+ * renders through the bare `Region`. Same id space, same runtime marker — the only
+ * difference is the inspect overlay, which is why it lives here and not there.
+ */
+export function AnnotatedRegion({
   id,
   children,
   className = '',
@@ -149,14 +107,14 @@ export function Region({
   const on = useLabels()
   const meta = REGION_META[id]
   return (
-    <div
-      ref={elRef}
-      data-region={id}
+    <Region
+      id={id}
+      elRef={elRef}
       className={`${className} ${on ? 'relative outline-1 outline-dashed outline-sky-500/50' : ''}`}
     >
       {on && <RegionLabel id={id} text={label ?? meta.label} desc={meta.desc} />}
       {children}
-    </div>
+    </Region>
   )
 }
 

@@ -1,21 +1,22 @@
-# Interview question bank
+# Question bank — structural spec
 
-One question at a time; wait for the answer. Every question carries a recommendation and, more importantly, a **cost** — users need "what do I lose by picking this".
+One question at a time; every question carries a recommendation **and its cost**. For the discipline itself, call the Skill tool with "decision-interview".
 
-## How to write options
+**Questions that belong to other units, and where their answers already are:**
 
-| Weak | Strong |
-|---|---|
-| "Option A / Option B / Option C" | Each option states: what you get, what you lose, when you'll regret it |
-| "Which layout do you want?" | "When it doesn't fit, which one gives way first? — giving up A costs you…, giving up B costs you…" |
-| Recommendation not marked | Put the recommendation first and label it, so the user can act on the first line alone |
+| Question | Owner | Read the answer from |
+|---|---|---|
+| Where the files go, what they're called, whether you may edit an existing visual spec | `ui-contract-setup` | `docs/ui-contract/config.md` |
+| Which ambiguous values are visual vs structural | `ui-contract-design` | `design.md` opening |
+| Wireframe fidelity | `ui-contract-wireframe` | — |
+| How hard enforcement should be | `ui-contract-enforce` | — |
 
-Costs must be **specific about what will happen**, not abstract. "Six months in, this column becomes an infinitely-scrolling junk drawer" is a hundred times more useful than "poor extensibility".
+**Do not re-ask a question whose answer is already on disk.** Read it. Re-asking is how a user ends up answering the same thing three times across three sessions.
 
 ---
 
 ## Group 1 — Form factor and first-class objects
-*(Mandatory for start A. For B/C, derive it from the mockups or the code first, then confirm.)*
+*(Mandatory for a greenfield start. With mockups or existing code, derive it first, then confirm.)*
 
 This group defines the answer space for everything below. Get it wrong and the rest tilts.
 
@@ -33,7 +34,7 @@ This decides whether a second persistent column is needed at all. "Neither" is a
 
 ---
 
-## Group 2 — Artifact boundaries *(all starts)*
+## Group 2 — Surface
 
 **Q4 How much surface should the spec cover?**
 
@@ -42,19 +43,6 @@ This decides whether a second persistent column is needed at all. "Neither" is a
 | Shell + primary scenario + 2–4 page archetypes (recommended) | Every future page has a placement rule: pick an archetype, then fill it | Moderate length |
 | The primary screen only | Fastest to something visible | Every other destination in the nav has nothing to go on; agents will each invent something |
 | Every page, spelled out | Most complete | Large, and very easily degenerates into a feature spec rather than a layout spec |
-
-**Q5 Where do the ambiguous values live?**
-Container spacing, radii, region padding are the three most likely to end up in both docs. Judge by the cut: **does it change when the brand skin changes** — if yes, it's visual.
-Warn the user this implies **their existing visual spec needs slimming** (region tree and column widths move out). Ask whether you're allowed to edit that document.
-
-**Q6 What fidelity for the wireframe?**
-
-| Option | You get | You lose |
-|---|---|---|
-| Low fidelity with real copy and real density (recommended) | You can judge "does the structure hold, does the interaction land where it should"; density problems surface immediately | Slightly more work than grey boxes |
-| Grey-box placeholders | Fastest | Density problems stay hidden — and layout specs most often break on density |
-
-Neither carries brand visuals (reasoning in SKILL.md §4). If the user also wants to validate that the visual spec is implementable, that is a **separate task** (one screen, full fidelity) — don't fold it in.
 
 ---
 
@@ -136,25 +124,9 @@ For each archetype, pin down which shell parts are present and which are not.
 
 Follow-ups: **what remains after collapse** — collapsing to zero buries the "something needs you" signal, so leaving a signal rail is almost always right. And **who wins between a manual toggle and automatic degradation** — recommend the user, in both directions (collapsed by hand stays collapsed even when space returns), because automatic degradation is a fallback, not an opinion.
 
----
-
-## Group 5 — Scope and enforcement
-
 **Q15 Include empty / loading / partial-failure / whole-region-failure states?**
 
 Recommend "include, but only the placement rules, not drawn pages": each archetype and each list region declares where these four go, how they present, and what's forbidden. Reasoning: leave them out and they still consume half the real implementation effort, with every agent inventing its own (skeleton screens here, toasts there, a blank page somewhere else).
-
-**Q16 How hard should enforcement be?**
-
-| Option | You get | You lose |
-|---|---|---|
-| Decision tree up front + `CLAUDE.md` hard constraint + allowlist as a union type (recommended) | Zero extra tooling, and one layer is compile-time | — |
-| Plus a validation script or lint rule | Hardest | With only a wireframe existing, there isn't much to validate yet — easy to build too early |
-| Documentation only | Lightest | Agents don't read a document nobody told them to read — least of all when the task sounds small |
-
-**Q17 Where do the files go, and what are they called?**
-Both specs side by side at the same level (usually the repo root) so they apply across sub-projects. Split across two locations and agents find only one of them.
-The wireframe gets its own directory, containing its own `CLAUDE.md`.
 
 ---
 
@@ -166,8 +138,8 @@ The wireframe gets its own directory, containing its own `CLAUDE.md`.
 - After the sidebar collapses, does it disappear or become an icon rail? Which signals **absolutely must not** be lost from the rail?
 
 ### Mobile app
-- Is navigation a bottom tab bar, a drawer, or a page stack? For a page stack the "region tree" is **one tree per screen**, not one big tree.
-- A "focus slot" usually doesn't exist on mobile; the equivalents are **drilling down a level** or a **bottom sheet**. Don't port the sidebar model.
+- Is navigation a bottom tab bar, a drawer, or a page stack? For a page stack the region tree is **one tree per screen**, not one big tree.
+- A focus slot usually doesn't exist on mobile; the equivalents are **drilling down a level** or a **bottom sheet**. Don't port the sidebar model.
 - Do gesture rules belong in the spec (back, swipe-to-delete)?
 
 ### Dashboards / reporting
@@ -178,15 +150,3 @@ The wireframe gets its own directory, containing its own `CLAUDE.md`.
 ### Content sites
 - Archetypes are usually landing / list / detail / search results; confirm the shell-part tradeoffs for each.
 - "Where does a new section go" is this category's core extension question — write the decision tree around it.
-
----
-
-## Closing the interview
-
-Flatten into three tables for the user to confirm:
-
-1. **Settled conclusions** (numbered, one per line)
-2. **What I'll decide myself** (already answered by the mockup, or purely mechanical)
-3. **Explicitly out of scope** (goes into "not decided by this spec")
-
-Only start writing documents once the user confirms these three.

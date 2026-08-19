@@ -1,0 +1,72 @@
+#!/bin/sh
+# UI contract health check. Reports drift; fixes nothing.
+#
+# Lives in the user's repo, runs without an agent, and is safe in CI.
+# Exit 0 = no drift found. Exit 1 = drift found. Exit 2 = nothing to check.
+#
+# TODO adjust the paths below to this project.
+set -u
+LAYOUT="layout.md"
+DESIGN="design.md"
+SRC="src"
+REGION_TYPE="src/ui/region.tsx"   # the asset layer file that declares RegionId
+
+FAIL=0
+ok(){   printf '  \033[32m✓\033[0m %s\n' "$1"; }
+drift(){ printf '  \033[31m✗\033[0m %s\n' "$1"; FAIL=1; }
+skip(){ printf '  \033[33m—\033[0m %s\n' "$1"; }
+
+[ -f "$LAYOUT" ] || { echo "No $LAYOUT — there is no contract to check."; exit 2; }
+
+echo "1. Region names in code are inside the allowlist"
+if [ -f "$REGION_TYPE" ]; then
+  # allowlist as declared in the type
+  ALLOWED=$(sed -n "/export type RegionId/,/^$/p" "$REGION_TYPE" | grep -o "'[^']*'" | tr -d "'" | sort -u)
+  USED=$(grep -rho 'data-region="[^"]*"' "$SRC" 2>/dev/null | sed 's/.*="//;s/"//' | sort -u)
+  # No process substitution: this has to run under any POSIX sh, including dash in CI.
+  BAD=""
+  for u in $USED; do
+    echo "$ALLOWED" | grep -qx "$u" || BAD="$BAD $u"
+  done
+  [ -z "$BAD" ] && ok "every data-region value is declared" \
+                || drift "region names not in RegionId:$BAD"
+else
+  skip "no asset layer at $REGION_TYPE — document layer only"
+fi
+
+echo "2. RegionId is not bypassed"
+B=$(grep -rn 'as RegionId\|as any' "$SRC" 2>/dev/null | grep -i region)
+[ -z "$B" ] && ok "no casts around region ids" || drift "$B"
+
+echo "3. No hardcoded color values in feature code (they belong to the token file)"
+B=$(grep -rnE '#[0-9a-fA-F]{6}\b|rgba?\(' "$SRC" 2>/dev/null | grep -v -e 'token' -e '\.css:')
+[ -z "$B" ] && ok "no raw color literals" || drift "$(echo "$B" | head -20)"
+
+echo "4. design.md holds rules, not values"
+if [ -f "$DESIGN" ]; then
+  B=$(grep -nE '#[0-9a-fA-F]{6}\b|[0-9]+px' "$DESIGN")
+  [ -z "$B" ] && ok "no literal values" || drift "$(echo "$B" | head -20)"
+else
+  skip "no $DESIGN"
+fi
+
+echo "5. Every allowlist row states what it must not hold"
+B=$(awk '/^\| *`?[a-z]/ && /\|/ {n=split($0,a,"|"); if (a[n-1] ~ /^ *$/) print NR": "$0}' "$LAYOUT")
+[ -z "$B" ] && ok "no empty forbidden cells" || drift "$(echo "$B" | head -10)"
+
+echo "6. Every allowlist name is findable in code"
+if [ -f "$REGION_TYPE" ]; then
+  MISSING=""
+  for r in $ALLOWED; do
+    grep -rq "\"$r\"\|'$r'" "$SRC" 2>/dev/null || MISSING="$MISSING $r"
+  done
+  [ -z "$MISSING" ] && ok "all declared regions exist in code" \
+                    || drift "declared but never rendered:$MISSING"
+else
+  skip "no asset layer"
+fi
+
+printf '\n'
+[ $FAIL -eq 0 ] && printf '\033[32mNo drift found.\033[0m\n' \
+                || printf '\033[31mDrift found. This script does not fix anything — read the spec, decide, then change the document first.\033[0m\n'
+exit $FAIL
