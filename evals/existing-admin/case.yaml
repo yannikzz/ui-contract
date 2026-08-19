@@ -57,6 +57,10 @@ graders:
       判定：在产出任何结构规范条款之前，没有先给出一份基于真实代码的现状盘点 → 不通过。
       只凭对话里的描述列出区域树、没有实际读过 `src/` 下的文件 → 不通过。
 
+      **先判这一条**：`as-built.md` 与 `layout.md` 任一不存在 → 直接不通过，不要往下判顺序。
+      什么都没产出的一轮里「没有违反顺序」是空真——实测对照臂两份文件都没写，
+      这条却拿了三票 PASS，把一个假阳性算进了对照臂的分数。
+
   - type: llm
     name: existing-spec-slimmed-not-rewritten
     focus:
@@ -83,14 +87,13 @@ graders:
     match: contains
     weight: 1
 
-  - type: regex
-    name: design-md-holds-no-hex
-    target:
-      source: file
-      path: design.md
-    pattern: "#[0-9a-fA-F]{6}\\b"
-    match: not_contains
-    weight: 1
+  # 这里**刻意没有**一条「design.md 不许出现 hex」的 regex。试过，是误报：
+  # 边界对齐的正确产物里有一张迁移对照表（`#f8fafc` → `surface.sunken`），
+  # 正则分不开「定义一个值」和「引用一个要被搬走的旧值」。实测同一份产物，
+  # 上面那条 llm 判据（第 3 点判的正是同一件事）三票 PASS，正则 FAIL。
+  # 而且 fixture 的初始 design.md 本来就含 hex，这条 regex 在两个臂上都不可能过。
+  # 与 `ui-contract-audit` 把尺寸检查降到 agent 判断档是同一个理由，方向相反：
+  # **能机械判的别交给判断，判断才能判的别硬凑正则。**
 
 expected_outcome: >
   先跑 baseline 逆向出实际区域树并落成 as-built.md，再写 layout.md；
