@@ -127,7 +127,7 @@ Deliverables are written in whatever language you're speaking. `ui-contract-glos
 
 ```
 skills/                 The 15 packages. Only this directory is shipped to users
-tests/run.sh            Structure invariants — free, no API key, seconds
+tests/run.sh            Structure invariants + proof the health check can fail — free, seconds
 evals/                  Two end-to-end scenarios (greenfield / existing project)
 examples/admin-console/ A complete three-artifact set, type-checked and building
 docs/adr/               Decisions about developing this plugin
@@ -143,6 +143,8 @@ install.sh              Cross-agent installer; traverses skills/ with nothing ha
 ./tests/run.sh                          # structure invariants, free
 claude plugin eval . --ablation with-without   # behaviour, costs money
 ```
+
+`tests/run.sh` has two halves. The invariants keep the 15 packages consistent with both manifests and the README index. The second half injects one violation per check into `tests/fixtures/audit-project/` and requires the health-check script to report each one — because a check that exists and a check that can fail are different things: two review passes found four checks in that script that always returned green, all four defeated by the same thing, a JSX call site formatted across several lines.
 
 `evals/` holds two scenarios — one greenfield, one existing project — covering the two entry paths. `--ablation with-without` runs a genuine no-plugin control arm; an earlier hand-rolled control was contaminated because a subagent sees the skill's description in its listing even without invoking it.
 
