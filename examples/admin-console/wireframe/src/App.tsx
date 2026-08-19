@@ -6,7 +6,7 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Badge, Btn, GroupLabel, LabelsProvider, NavRow, Region, Tile } from './wire'
+import { Badge, Btn, GroupLabel, LabelsProvider, NavRow, AnnotatedRegion, Tile } from './wire'
 import type { PageKind } from './wire'
 import { STRUCT, resolveShell } from './structure'
 import type { Pref } from './structure'
@@ -159,20 +159,20 @@ export default function App() {
 
         {/* ── 产品界面 ─────────────────────────────────────────── */}
         <div className="flex min-h-0 flex-1 justify-center overflow-hidden p-3">
-          <Region
+          <AnnotatedRegion
             id="app-shell"
             elRef={shellRef}
             className="flex min-h-0 w-full overflow-hidden rounded border border-neutral-400 bg-neutral-50"
             style={clamp ? { maxWidth: clamp } : undefined}
           >
             {/* ── nav ───────────────────────────────────────── */}
-            <Region
+            <AnnotatedRegion
               id="nav"
               className="flex shrink-0 flex-col border-r border-neutral-300 bg-neutral-100"
               label={shell.nav === 'rail' ? '全局导航（图标条）' : undefined}
               style={{ width: shell.navWidth }}
             >
-              <Region
+              <AnnotatedRegion
                 id="nav.brand"
                 className="flex items-center gap-2 border-b border-neutral-200 px-2.5 py-2.5"
               >
@@ -189,9 +189,9 @@ export default function App() {
                 >
                   {shell.nav === 'full' ? '«' : '»'}
                 </button>
-              </Region>
+              </AnnotatedRegion>
 
-              <Region id="nav.groups" className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-2">
+              <AnnotatedRegion id="nav.groups" className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-2">
                 {NAV_GROUPS.map((g) => (
                   <div key={g.group}>
                     {shell.nav === 'full' ? (
@@ -226,10 +226,10 @@ export default function App() {
                     ))}
                   </div>
                 ))}
-              </Region>
+              </AnnotatedRegion>
 
               {/* 配置类去处贴底独立成段：导航变长也不会被滚走，且禁止带角标 */}
-              <Region id="nav.settings" className="border-t border-neutral-200 px-1.5 pt-1 pb-2">
+              <AnnotatedRegion id="nav.settings" className="border-t border-neutral-200 px-1.5 pt-1 pb-2">
                 {NAV_SETTINGS.map((g) => (
                   <div key={g.group}>
                     {shell.nav === 'full' ? (
@@ -248,14 +248,14 @@ export default function App() {
                     ))}
                   </div>
                 ))}
-              </Region>
-            </Region>
+              </AnnotatedRegion>
+            </AnnotatedRegion>
 
             {/* ── work ──────────────────────────────────────── */}
-            <Region id="work" className="flex min-w-0 flex-1 flex-col">
-              <Region id="stage" className="relative flex min-h-0 min-w-0 flex-1">
+            <AnnotatedRegion id="work" className="flex min-w-0 flex-1 flex-col">
+              <AnnotatedRegion id="stage" className="relative flex min-h-0 min-w-0 flex-1">
                 {/* main：最小可用宽 640，触底后横向滚动 */}
-                <Region
+                <AnnotatedRegion
                   id="main"
                   className="flex min-w-0 flex-1 flex-col overflow-hidden bg-neutral-50"
                   style={{ minWidth: STRUCT.mainMinWidth }}
@@ -283,7 +283,7 @@ export default function App() {
                   {page === 'overview' && (
                     <OverviewPage failed={dataState === '局部失败' || dataState === '整区失败'} />
                   )}
-                </Region>
+                </AnnotatedRegion>
 
                 {/*
                   面板只在 P1 出现。这里的 page="list" 是字面量：
@@ -302,7 +302,7 @@ export default function App() {
 
                 {/* 覆盖层：盖住 stage 全部（含面板），不盖 nav；必须自带头部 */}
                 {overlay && (
-                  <Region
+                  <AnnotatedRegion
                     id="overlay"
                     className="absolute inset-0 z-30 flex flex-col bg-white/98 backdrop-blur-[1px]"
                   >
@@ -342,11 +342,11 @@ export default function App() {
                         禁止在这上面再叠第二层覆盖层。
                       </p>
                     </div>
-                  </Region>
+                  </AnnotatedRegion>
                 )}
-              </Region>
-            </Region>
-          </Region>
+              </AnnotatedRegion>
+            </AnnotatedRegion>
+          </AnnotatedRegion>
         </div>
       </div>
     </LabelsProvider>

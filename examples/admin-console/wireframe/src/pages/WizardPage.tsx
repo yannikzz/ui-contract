@@ -7,7 +7,7 @@
  *
  * 需要在导入过程中查已有内容 → 开 overlay（临时）或另开一页（长期）。
  */
-import { Badge, Btn, Card, Region, StateBlock } from '../wire'
+import { Badge, Btn, Card, AnnotatedRegion, StateBlock } from '../wire'
 import { IMPORT_MAPPING, IMPORT_PREFLIGHT, WIZARD_STEPS } from '../fixtures'
 
 export function WizardPage({
@@ -25,7 +25,7 @@ export function WizardPage({
 
   return (
     <>
-      <Region
+      <AnnotatedRegion
         id="main.pagehead"
         className="flex items-start justify-between gap-4 border-b border-neutral-200 bg-white px-5 py-3"
       >
@@ -36,10 +36,10 @@ export function WizardPage({
           </p>
         </div>
         <Btn weight="ghost">取消并退出</Btn>
-      </Region>
+      </AnnotatedRegion>
 
       {/* 进度指示器，不是导航：未完成的步骤不可点 */}
-      <Region
+      <AnnotatedRegion
         id="main.steps"
         className="flex items-center gap-2 border-b border-neutral-200 bg-white px-5 py-3"
       >
@@ -64,9 +64,9 @@ export function WizardPage({
             {i < last && <span className="w-8 shrink-0 border-t border-neutral-300" />}
           </div>
         ))}
-      </Region>
+      </AnnotatedRegion>
 
-      <Region id="main.step-body" className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+      <AnnotatedRegion id="main.step-body" className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
         {failed ? (
           <StateBlock
             kind="整区失败"
@@ -165,10 +165,10 @@ export function WizardPage({
             )}
           </>
         )}
-      </Region>
+      </AnnotatedRegion>
 
       {/* 只放推进，不放业务操作 */}
-      <Region
+      <AnnotatedRegion
         id="main.step-foot"
         className="flex items-center justify-between border-t border-neutral-200 bg-white px-5 py-2.5"
       >
@@ -187,7 +187,7 @@ export function WizardPage({
             </Btn>
           )}
         </div>
-      </Region>
+      </AnnotatedRegion>
     </>
   )
 }

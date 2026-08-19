@@ -7,7 +7,7 @@
  * - 筛选条里只有缩小结果范围的控件，导出/新建都不在这里
  * - 批量操作条在没有选中时**不渲染**，不是隐藏
  */
-import { Badge, Btn, Card, Pill, Region, StateBlock } from '../wire'
+import { Badge, Btn, Card, Pill, AnnotatedRegion, StateBlock } from '../wire'
 import { FILTERS, ROWS, TABLE_COLUMNS } from '../fixtures'
 import { STRUCT } from '../structure'
 
@@ -35,7 +35,7 @@ export function ListPage({
 
   return (
     <>
-      <Region
+      <AnnotatedRegion
         id="main.pagehead"
         className="flex items-start justify-between gap-4 border-b border-neutral-200 bg-white px-5 py-3"
       >
@@ -50,10 +50,10 @@ export function ListPage({
           <Btn weight="secondary">导出当前筛选</Btn>
           <Btn weight="primary">新建内容</Btn>
         </div>
-      </Region>
+      </AnnotatedRegion>
 
       {/* 只放「缩小结果范围」的控件。刻意放满 6 个，看面板打开后（宽度 -360）会不会换行 */}
-      <Region
+      <AnnotatedRegion
         id="main.filters"
         className="flex flex-wrap items-center gap-1.5 border-b border-neutral-200 bg-white px-5 py-2.5"
       >
@@ -61,11 +61,11 @@ export function ListPage({
           <Pill key={f}>{f}</Pill>
         ))}
         <button className="ml-1 text-[11px] text-neutral-500 underline">清除全部条件</button>
-      </Region>
+      </AnnotatedRegion>
 
       {/* 没有选中行时本区不渲染（不是 hidden）。这是 §2.2 白名单里写死的 */}
       {selected.length > 0 && (
-        <Region
+        <AnnotatedRegion
           id="main.bulkbar"
           className="flex items-center gap-2 border-b border-neutral-200 bg-neutral-100 px-5 py-2"
         >
@@ -77,10 +77,10 @@ export function ListPage({
           <Btn weight="ghost" onClick={onClearSelection}>
             取消选择
           </Btn>
-        </Region>
+        </AnnotatedRegion>
       )}
 
-      <Region id="main.table" className="min-h-0 flex-1 overflow-auto bg-white">
+      <AnnotatedRegion id="main.table" className="min-h-0 flex-1 overflow-auto bg-white">
         {state === '加载' && (
           /* §8.1：表头保留可见，只有行区在加载。禁止整区骨架屏 */
           <>
@@ -177,9 +177,9 @@ export function ListPage({
             </tbody>
           </table>
         )}
-      </Region>
+      </AnnotatedRegion>
 
-      <Region
+      <AnnotatedRegion
         id="main.pager"
         className="flex items-center justify-between border-t border-neutral-200 bg-white px-5 py-2"
       >
@@ -194,7 +194,7 @@ export function ListPage({
           <Card className="px-2 py-1 text-xs">1</Card>
           <Btn weight="outline">下一页</Btn>
         </div>
-      </Region>
+      </AnnotatedRegion>
     </>
   )
 }

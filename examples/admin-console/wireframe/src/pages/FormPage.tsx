@@ -5,13 +5,13 @@
  * 有底部保存语义。**没有空态**——配置项固定，空了说明出错，按整区失败处理。
  * 无属性面板（矩阵 §4.2）。
  */
-import { Btn, Card, Region, StateBlock } from '../wire'
+import { Btn, Card, AnnotatedRegion, StateBlock } from '../wire'
 import { FORM_GROUPS } from '../fixtures'
 
 export function FormPage({ failed }: { failed: boolean }) {
   return (
     <>
-      <Region
+      <AnnotatedRegion
         id="main.pagehead"
         className="flex items-start justify-between gap-4 border-b border-neutral-200 bg-white px-5 py-3"
       >
@@ -19,9 +19,9 @@ export function FormPage({ failed }: { failed: boolean }) {
           <h1 className="truncate text-base font-semibold text-neutral-800">站点参数</h1>
           <p className="mt-0.5 truncate text-xs text-neutral-500">改完保存，不影响已发布内容</p>
         </div>
-      </Region>
+      </AnnotatedRegion>
 
-      <Region id="main.form" className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+      <AnnotatedRegion id="main.form" className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
         {failed ? (
           /* §8.1：整区失败时**禁止把已填内容清掉** */
           <StateBlock
@@ -61,7 +61,7 @@ export function FormPage({ failed }: { failed: boolean }) {
             </div>
           </div>
         )}
-      </Region>
+      </AnnotatedRegion>
     </>
   )
 }

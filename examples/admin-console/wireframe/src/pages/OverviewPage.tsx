@@ -8,14 +8,14 @@
  * 硬规则：**概览页不放筛选条**（需要筛选说明用户要的是 P1 列表页），
  * 不放完整表格（只放短列表卡 + 「查看全部」）。
  */
-import { Btn, Card, Region, StateBlock } from '../wire'
+import { Btn, Card, AnnotatedRegion, StateBlock } from '../wire'
 import { OVERVIEW_CARDS } from '../fixtures'
 import { STRUCT } from '../structure'
 
 export function OverviewPage({ failed }: { failed: boolean }) {
   return (
     <>
-      <Region
+      <AnnotatedRegion
         id="main.pagehead"
         className="flex items-start justify-between gap-4 border-b border-neutral-200 bg-white px-5 py-3"
       >
@@ -25,9 +25,9 @@ export function OverviewPage({ failed }: { failed: boolean }) {
             截至 2026-08-17 09:45 · 数据每 5 分钟更新
           </p>
         </div>
-      </Region>
+      </AnnotatedRegion>
 
-      <Region id="main.grid" className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+      <AnnotatedRegion id="main.grid" className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
         <div
           className="grid gap-3"
           style={{ gridTemplateColumns: `repeat(${STRUCT.gridColumns}, minmax(0, 1fr))` }}
@@ -70,7 +70,7 @@ export function OverviewPage({ failed }: { failed: boolean }) {
         <p className="mt-3 text-[11px] text-neutral-400">
           新指标卡放哪、占几格归 layout.md §4.4；卡片里图表长什么样归 design.md。
         </p>
-      </Region>
+      </AnnotatedRegion>
     </>
   )
 }

@@ -6,7 +6,7 @@
  * - `kind: InspectorKind` 现在只有 'content-item' 一型，新增一型要先过 §5.4 三条判据
  */
 import { useState } from 'react'
-import { Badge, Btn, Field, Region, StateBlock } from './wire'
+import { Badge, Btn, Field, AnnotatedRegion, StateBlock } from './wire'
 import type { InspectorKind, PageWithInspector } from './wire'
 import type { InspectorMode } from './structure'
 import { STRUCT } from './structure'
@@ -44,7 +44,7 @@ export function InspectorSlot({
   void kind
 
   return (
-    <Region
+    <AnnotatedRegion
       id="inspector"
       className={
         mode === 'overlay'
@@ -57,7 +57,7 @@ export function InspectorSlot({
       style={{ width: STRUCT.inspectorWidth }}
     >
       {/* 自给自足：面板必须自己说清「你在看谁」，不能依赖用户记得点了哪一行 */}
-      <Region
+      <AnnotatedRegion
         id="inspector.head"
         className="flex items-start gap-2 border-b border-neutral-200 px-4 py-3"
       >
@@ -72,9 +72,9 @@ export function InspectorSlot({
         <Btn weight="ghost" onClick={onClose}>
           关闭
         </Btn>
-      </Region>
+      </AnnotatedRegion>
 
-      <Region id="inspector.tabs" className="flex gap-1 border-b border-neutral-200 px-3">
+      <AnnotatedRegion id="inspector.tabs" className="flex gap-1 border-b border-neutral-200 px-3">
         {INSPECTOR_TABS.map((t) => (
           <button
             key={t}
@@ -88,9 +88,9 @@ export function InspectorSlot({
             {t}
           </button>
         ))}
-      </Region>
+      </AnnotatedRegion>
 
-      <Region id="inspector.body" className="min-h-0 flex-1 overflow-y-auto px-4 py-2">
+      <AnnotatedRegion id="inspector.body" className="min-h-0 flex-1 overflow-y-auto px-4 py-2">
         {state === '加载' && (
           /* §8.1：面板内加载，但 inspector.head 的对象标识先出——用户已经知道自己点了谁 */
           <StateBlock kind="加载" text="正在读取这条内容的属性" />
@@ -129,11 +129,11 @@ export function InspectorSlot({
             ))}
           </div>
         )}
-      </Region>
+      </AnnotatedRegion>
 
       {/* 单对象操作的唯一宿主。表格里没有操作列，所以这里是唯一能操作这一条的地方 */}
       {state === '正常' && (
-        <Region
+        <AnnotatedRegion
           id="inspector.foot"
           className="flex flex-wrap gap-1.5 border-t border-neutral-200 bg-neutral-50 px-3 py-2.5"
         >
@@ -142,8 +142,8 @@ export function InspectorSlot({
               {a}
             </Btn>
           ))}
-        </Region>
+        </AnnotatedRegion>
       )}
-    </Region>
+    </AnnotatedRegion>
   )
 }
