@@ -74,18 +74,23 @@ graders:
       判定：把已有 `design.md` 整份重写 → 不通过。搬走结构内容却没留指针 → 不通过。
       `design.md` 里仍留有硬编码色值 → 不通过。
 
-  - type: llm
+  - type: regex
     name: allowlist-has-forbidden-column
-    focus:
+    target:
       source: file
       path: layout.md
+    pattern: "禁止放|must not hold"
+    match: contains
     weight: 1
-    criteria: |
-      `layout.md` 的区域名白名单是一张表。只写「这个区域放什么」是文档；
-      写明「什么**不得**放进来」才是规范——「禁止放」那一列正是它成为规范的原因，
-      也是强制机制唯一能下沉到类型层的东西。
 
-      判定：白名单表缺少「禁止放 / must not hold」列 → 不通过。有该列但存在空格子 → 不通过。
+  - type: regex
+    name: design-md-holds-no-hex
+    target:
+      source: file
+      path: design.md
+    pattern: "#[0-9a-fA-F]{6}\\b"
+    match: not_contains
+    weight: 1
 
 expected_outcome: >
   先跑 baseline 逆向出实际区域树并落成 as-built.md，再写 layout.md；
