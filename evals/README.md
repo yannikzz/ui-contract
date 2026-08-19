@@ -25,14 +25,14 @@ CLAUDE_CODE_WALNUT_SPIRE=1 claude plugin eval . \
 
 `--ablation with-without` 会**真的把插件摘掉**跑一遍对照臂。这修掉了历史上一个已知的测量假象：手工造对照组时，子 agent 的可用技能清单里仍带着本插件的完整 description，等于把架构泄露给了对照组。
 
-## 两个 harness 坑（踩过，别再踩）
+## 八个 harness 坑（踩过，别再踩）
 
 **1. 每条 prompt 都必须带「我时间紧，你按推荐的来，但把决策点列给我看」。**
 技能的核心纪律是一次一问、等回答，而 eval 里没有人回答。漏了这句，带插件那一臂会停在一个访谈问题上，不带插件那一臂一口气吐完，**分数反而更高**。首次实跑就撞上了：with 0.00 / without 0.33 / Δ −0.33，全部由这一句的缺失造成，与插件质量无关。
 
 **2. llm grader 必须写 `focus: trace`。** 默认是 `last_message`，只判最后一条消息。带插件的那一臂轮数多（实测 14 轮 vs 2 轮），产出散布在整条对话里，只判最后一条等于系统性地惩罚"会分步骤做事"的那一臂。
 
-两个坑是同一件事的两面：**默认配置偏向一次性长答，而这个插件的价值恰恰在于不那样答。**
+头两个坑是同一件事的两面：**默认配置偏向一次性长答，而这个插件的价值恰恰在于不那样答。**
 
 **3. prompt 描述的现状必须和 sandbox 的实际磁盘一致。**
 eval 在一个空 git 仓库里跑。如果 prompt 说"我已经有十几个页面了"，而磁盘上一个文件都没有，`ui-contract-setup` 会**正确地发现这个矛盾并停下来问**——前置门就是这么设计的。于是它永远产不出规范，所有 grader 必然全挂，而这跟插件质量毫无关系。
@@ -46,7 +46,7 @@ eval 在一个空 git 仓库里跑。如果 prompt 说"我已经有十几个页�
 
 ```sh
 CLAUDE_CODE_WALNUT_SPIRE=1 claude plugin eval . \
-  --ablation with-without --allow-tools Write Edit --max-cost-usd 10
+  --ablation with-without --scaffold --allow-tools Write Edit --max-cost-usd 10
 ```
 
 **5. 默认 `timeout_seconds: 300` 对这条流程太短。**

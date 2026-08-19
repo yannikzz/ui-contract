@@ -113,7 +113,6 @@ function RegionLabel({ id, text, desc }: { id: RegionId; text: string; desc: str
   )
 }
 
-/** 结构容器。标注模式下描虚线边并浮出人读模块名。 */
 /**
  * 资产层 `Region` 的带标注包装。
  *

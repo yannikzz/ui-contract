@@ -59,7 +59,9 @@ wireframe/
 ├── CLAUDE.md          目录级硬约束 + 刻意的取舍清单（改代码前必读）
 ├── README.md          本文件
 └── src/
-    ├── wire.tsx       区域白名单（RegionId 联合类型）+ 区域元信息 + 中性线框零件 + 其它硬规则的类型形态
+    ├── ui/
+    │   └── region.tsx 资产层：区域白名单（RegionId 联合类型）+ 区域元信息 + 结构容器。生产代码，业务从这里 import
+    ├── wire.tsx       展示层：区域标注层 + 中性线框零件 + 其它硬规则的类型形态。一次性，转发 RegionId
     ├── structure.ts   结构参数（STRUCT）+ 降级判定纯函数（resolveShell）
     ├── fixtures.ts    假数据（**不是规格**）
     ├── Inspector.tsx  聚焦槽（属性面板）
