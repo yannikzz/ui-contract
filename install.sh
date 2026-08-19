@@ -40,13 +40,15 @@ esac
 # $0 is "sh" and $SELF_DIR resolves to the *caller's* working directory — so a
 # bare `skills/` there (common for the people this plugin is for) would make the
 # script install their own skills instead of downloading this repo. Require $0 to
-# be a real file, and require a marker that only this repo has.
+# be a real file, and require a marker only this repo has. The marker is the
+# plugin manifest rather than any one package: no package name is hardcoded
+# anywhere in this script, so renaming one cannot silently send it downloading.
 if [ -f "$0" ]; then
   SELF_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 else
   SELF_DIR=""
 fi
-if [ -n "$SELF_DIR" ] && [ -f "$SELF_DIR/skills/ui-contract/SKILL.md" ]; then
+if [ -n "$SELF_DIR" ] && [ -f "$SELF_DIR/.claude-plugin/plugin.json" ] && [ -d "$SELF_DIR/skills" ]; then
   SRC="$SELF_DIR/skills"
   CLEANUP=""
 else
