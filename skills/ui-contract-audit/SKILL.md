@@ -31,16 +31,22 @@ The value of a health check is inversely proportional to what it costs to run. I
 
 | Check | How | Automated |
 |---|---|---|
-| Region names in code ⊆ allowlist | type-check + grep the runtime markers | full |
-| `as any` / literals bypassing `RegionId` | grep | full |
+| Region names in code ⊆ allowlist | grep the container's call sites | full |
+| `as any` casts bypassing the id type | grep | full |
+| Hand-written markers bypassing the container | grep | full |
 | Hardcoded color values in feature code | regex | full |
-| `design.md` holding literal values | regex | full |
+| `design.md` holding literal **colours** | regex | full |
 | Every allowlist row has a "must not hold" cell | parse the table | full |
-| Asset layer's containers match the region tree | structural comparison | full |
+| Every declared name is findable in code | grep each name | full |
+| Have **sizes** moved to the token file? | semantic judgement | agent |
 | Is the decision tree still total for the last N features? | walk real commits through the tree | agent |
 | Do region descriptions say "what goes here" rather than "what this is"? | semantic judgement | agent |
 
-The first six cover roughly eight tenths and can run in CI. **If that ratio ever drops much below eight tenths, this unit has degenerated into subjective re-reading and its value claim fails** — that is its stated revisit condition, not a slogan.
+Seven of ten run automatically and fit in CI. **If that ratio drops much below eight tenths, this unit has degenerated into subjective re-reading and its value claim fails** — that is its stated revisit condition, not a slogan. It currently sits at seven tenths, and the reason is recorded rather than rounded away:
+
+**Sizes cannot be checked by regex.** A visual spec legitimately discusses numbers — in prose ("no writing off-table px sizes in feature code"), and in anti-pattern rows ("six months in you'll have 13px / 13.5px / 15px at once"). Measured against a real spec, a px regex produced four hits and **all four were false positives**. A check that cries wolf on correct documents is worse than no check, because people stop reading the output. Colours stay automated: a hex code in a visual spec is unambiguous.
+
+**Do not grep for `data-region="..."` to find region names.** The runtime marker is written once, inside the container, as an expression. The only literal occurrence in a healthy tree is the annotation layer's own display text — grepping for it finds the label, not a region. Read the ids off the container's call sites instead; keep a separate grep for literal markers, because those mean somebody wrote a raw element and skipped the type check entirely.
 
 ## What this version can and cannot see
 
