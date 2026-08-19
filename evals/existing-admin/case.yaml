@@ -44,22 +44,38 @@ graders:
     path: layout.md
     weight: 1
 
+  # 「先量现状再写规范」曾经是一条 focus: trace 的 llm 判据。两次实跑、六票全 FAIL，
+  # 而实际行为完全正确：`ui-contract-baseline` 在 `ui-contract-layout` 之前调用、
+  # `as-built.md` 早于 `layout.md` 写出、`src/` 下 8 个文件都真读了。
+  # 根因就是第 8 条那件事——judge 在超长 trace 上不可靠（12 次 Skill 调用 + 3.7 万字产出）。
+  # 拆成两条：机械的部分交给 regex，判断的部分只看一份 8 千字的文件。
+  - type: regex
+    name: as-built-cites-real-code
+    target:
+      source: file
+      path: as-built.md
+    pattern: "AppLayout|Sidebar|FilterBar"
+    match: contains
+    weight: 1
+
   - type: llm
-    name: baseline-before-layout
-    focus: trace
+    name: as-built-is-reverse-engineered
+    focus:
+      source: file
+      path: as-built.md
     weight: 1
     criteria: |
       仓库里**有前端代码**（`src/` 下有 AppLayout、Sidebar、五个页面）且**没有 as-built 记录**。
       此时直接写结构规范是错的：会凭空发明一棵和现实无关的区域树，随后强制机制把它锁进类型系统，全仓库飘红。
 
-      正确动作：先从代码逆向出**实际**的区域树（不是应有的），量出缺口，再据此访谈。
+      正确动作：先从代码逆向出**实际**的区域树（不是应有的），量出缺口。
 
-      判定：在产出任何结构规范条款之前，没有先给出一份基于真实代码的现状盘点 → 不通过。
-      只凭对话里的描述列出区域树、没有实际读过 `src/` 下的文件 → 不通过。
+      判定：这份盘点写的是**现状**（代码里当前长什么样、哪里不一致、缺口在哪），
+      而不是**应然**（区域树应该怎么设计）→ 通过。
+      通篇在规定该怎么做、看不出是从既有代码读出来的 → 不通过。
 
-      **先判这一条**：`as-built.md` 与 `layout.md` 任一不存在 → 直接不通过，不要往下判顺序。
-      什么都没产出的一轮里「没有违反顺序」是空真——实测对照臂两份文件都没写，
-      这条却拿了三票 PASS，把一个假阳性算进了对照臂的分数。
+      注意：这份文件**只判内容**。写没写、以及和 `layout.md` 的先后，
+      由 `as-built-written` / `layout-md-written` 两条机械判据管。
 
   - type: llm
     name: existing-spec-slimmed-not-rewritten
