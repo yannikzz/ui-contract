@@ -10,12 +10,27 @@ LAYOUT="layout.md"
 DESIGN="design.md"
 SRC="src"
 REGION_TYPE="src/ui/region.tsx"   # the asset layer file that declares RegionId
+TOKENS="src/tokens.css"           # the token file — values are supposed to live here
 SRC_EXT="tsx jsx"                 # source extensions that can hold container call sites
 
 FAIL=0
 ok(){   printf '  \033[32m✓\033[0m %s\n' "$1"; }
 drift(){ printf '  \033[31m✗\033[0m %s\n' "$1"; FAIL=1; }
 skip(){ printf '  \033[33m—\033[0m %s\n' "$1"; }
+
+# A container call site carrying more than one prop is formatted across several
+# lines, so anything matching against one has to see the whole tag at once — a
+# line-wise grep silently sees only the few written on one line. Every check that
+# looks at call sites reads through here: one line per file, path then a tab.
+FIND_EXPR=""
+for e in $SRC_EXT; do
+  [ -z "$FIND_EXPR" ] && FIND_EXPR="-name *.$e" || FIND_EXPR="$FIND_EXPR -o -name *.$e"
+done
+flatten_sources(){
+  # shellcheck disable=SC2086  # FIND_EXPR is a word list on purpose
+  find "$SRC" -type f \( $FIND_EXPR \) \
+    -exec sh -c 'printf "%s\t" "$1"; tr "\n" " " < "$1"; echo' _ {} \; 2>/dev/null
+}
 
 [ -f "$LAYOUT" ] || { echo "No $LAYOUT — there is no contract to check."; exit 2; }
 
@@ -27,17 +42,7 @@ if [ -f "$REGION_TYPE" ]; then
   # In this architecture the runtime marker is written once inside the container,
   # as an expression — so the only literal `data-region="..."` in the tree is the
   # annotation tooltip's own display text. Grepping for that finds the label, not a region.
-  #
-  # Each file is flattened to one line first: a container call site with more than
-  # one prop is formatted across several lines, so a line-wise grep sees only the
-  # handful that happen to be one-liners and silently passes everything else.
-  FIND_EXPR=""
-  for e in $SRC_EXT; do
-    [ -z "$FIND_EXPR" ] && FIND_EXPR="-name *.$e" || FIND_EXPR="$FIND_EXPR -o -name *.$e"
-  done
-  # shellcheck disable=SC2086  # FIND_EXPR is a word list on purpose
-  USED=$(find "$SRC" -type f \( $FIND_EXPR \) \
-           -exec sh -c 'tr "\n" " " < "$1"; echo' _ {} \; 2>/dev/null \
+  USED=$(flatten_sources \
          | grep -oE '<[A-Za-z]*Region([[:space:]]+[^>]*)?[[:space:]]id="[^"]*"' \
          | sed 's/.*[[:space:]]id="//;s/".*//' | sort -u)
   # No process substitution: this has to run under any POSIX sh, including dash in CI.
@@ -52,7 +57,15 @@ else
 fi
 
 echo "2. RegionId is not bypassed"
-B=$(grep -rn 'as RegionId\|as any' "$SRC" 2>/dev/null | grep -i region)
+# Two shapes, and they need different treatment. `as RegionId` names the type, so
+# it is a bypass wherever it appears. `as any` only counts inside a container call
+# site — but filtering for that with a line-wise `grep -i region` drops the very
+# case that matters: in a multi-line call site the tag name sits a line above the
+# `id={x as any}`, so the bypass line contains no "region" at all and passes.
+B=$(grep -rn 'as RegionId' "$SRC" 2>/dev/null)
+B2=$(flatten_sources | grep -E '<[A-Za-z]*Region[[:space:]][^>]*[[:space:]]as any' \
+     | cut -f1 | sort -u | sed 's/^/as any inside a region container: /')
+B=$(printf '%s\n%s\n' "$B" "$B2" | grep -v '^$')
 [ -z "$B" ] && ok "no casts around region ids" || drift "$B"
 
 echo "2b. No hand-written region markers bypassing the container"
@@ -62,7 +75,10 @@ B=$(grep -rnE '<[a-z][^>]*data-region="' "$SRC" 2>/dev/null)
 [ -z "$B" ] && ok "every marker goes through the container" || drift "$B"
 
 echo "3. No hardcoded color values in feature code (they belong to the token file)"
-B=$(grep -rnE '#[0-9a-fA-F]{6}\b|rgba?\(' "$SRC" 2>/dev/null | grep -v -e 'token' -e '\.css:')
+# Exclude the token file by path and nothing else. This once excluded every *.css
+# file, which turned the check off exactly where hardcoded colours accumulate:
+# a #123456 dropped into a feature stylesheet was reported as no drift.
+B=$(grep -rnE '#[0-9a-fA-F]{6}\b|rgba?\(' "$SRC" 2>/dev/null | grep -v "^$TOKENS:")
 [ -z "$B" ] && ok "no raw color literals" || drift "$(echo "$B" | head -20)"
 
 echo "4. design.md holds rules, not values"
