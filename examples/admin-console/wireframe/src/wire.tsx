@@ -1,7 +1,7 @@
 /**
  * 线框展示层。**一次性**：结构变了就重新生成。
  *
- * 它消费资产层（`src/ui/region.tsx`），并加上两样资产层绝不能带的东西——
+ * 它消费资产层（`../src/ui/region.tsx`，在线框目录之外），并加上两样资产层绝不能带的东西——
  * 区域标注层，和中性低保真零件。
  *
  * 视觉刻意保持中性：品牌值住 token 文件，骨架里没有品牌视觉可抄，
@@ -12,7 +12,7 @@ import { createPortal } from 'react-dom'
 import type { CSSProperties, ReactNode, RefObject } from 'react'
 
 // 线框 import 资产层；反过来永远不成立。
-import { Region, REGION_META, type RegionId } from './ui/region'
+import { Region, REGION_META, type RegionId } from '../../src/ui/region'
 
 export type { RegionId }
 

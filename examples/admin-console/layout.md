@@ -112,7 +112,7 @@
 
 ## §2 区域名白名单
 
-**改本表必须同时改两处**：`wireframe/src/ui/region.tsx` 的 `RegionId` 联合类型、以及同文件的 `REGION_META`。顺序写死在 §9.4：**改本表 → 改类型 → 写代码。**
+**改本表必须同时改两处**：`src/ui/region.tsx` 的 `RegionId` 联合类型、以及同文件的 `REGION_META`。顺序写死在 §9.4：**改本表 → 改类型 → 写代码。**
 
 命名法：小写字母 + 连字符；点号分层表示「父.子」；**最多两层**。三层说明你在用区域名表达组件树，那不是区域名该干的事。
 
@@ -499,7 +499,7 @@ app-shell ───────────────────────�
 
 ### 9.4 同步顺序（写死，顺序不能反）
 
-**改 `layout.md` §2 白名单 → 改 `wireframe/src/ui/region.tsx` 的 `RegionId` 与 `REGION_META` → 写代码。**
+**改 `layout.md` §2 白名单 → 改 `src/ui/region.tsx` 的 `RegionId` 与 `REGION_META` → 写代码。**
 
 反过来（先写代码再补文档）会让规范退化成「给已有代码补的说明书」，不再是约束。
 

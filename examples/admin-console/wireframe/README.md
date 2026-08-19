@@ -2,8 +2,10 @@
 
 `../layout.md` 的可运行参考实现。**它长得很朴素是故意的**——原因见 `CLAUDE.md` 的「刻意的取舍清单」。
 
+从**项目根**（`..`）跑，不是从这个目录——依赖与配置住在项目根，这里只有源码。
+
 ```bash
-pnpm install
+cd .. && pnpm install
 pnpm dev
 ```
 
@@ -55,16 +57,25 @@ pnpm dev
 ## 目录
 
 ```
-wireframe/
-├── CLAUDE.md          目录级硬约束 + 刻意的取舍清单（改代码前必读）
-├── README.md          本文件
-└── src/
-    ├── ui/
-    │   └── region.tsx 资产层：区域白名单（RegionId 联合类型）+ 区域元信息 + 结构容器。生产代码，业务从这里 import
-    ├── wire.tsx       展示层：区域标注层 + 中性线框零件 + 其它硬规则的类型形态。一次性，转发 RegionId
-    ├── structure.ts   结构参数（STRUCT）+ 降级判定纯函数（resolveShell）
-    ├── fixtures.ts    假数据（**不是规格**）
-    ├── Inspector.tsx  聚焦槽（属性面板）
-    ├── App.tsx        外壳 + 页型路由 + 降级实算 + 演示开关条
-    └── pages/         每种页型一个文件
+admin-console/                 项目根：依赖、构建配置、两份规范都在这里
+├── package.json · tsconfig.json · vite.config.ts
+├── layout.md · design.md
+├── src/
+│   └── ui/region.tsx          资产层：区域白名单（RegionId）+ 区域元信息 + 结构容器
+│                              生产代码，长期维护。**在线框目录之外，重建线框碰不到它**
+└── wireframe/                 ← 本目录。一次性，结构变了整个重新生成
+    ├── CLAUDE.md              目录级硬约束 + 刻意的取舍清单（改代码前必读）
+    ├── README.md              本文件
+    ├── index.html
+    └── src/
+        ├── wire.tsx           展示层：区域标注层 + 中性线框零件 + 其它硬规则的类型形态
+        ├── structure.ts       结构参数（STRUCT）+ 降级判定纯函数（resolveShell）
+        ├── fixtures.ts        假数据（**不是规格**）
+        ├── Inspector.tsx      聚焦槽（属性面板）
+        ├── App.tsx            外壳 + 页型路由 + 降级实算 + 演示开关条
+        └── pages/             每种页型一个文件
 ```
+
+`src/ui/region.tsx` 住在这个目录之外，是刻意的：线框自称一次性、结构变了重新生成，
+而白名单不能跟着一起被重新生成掉。同理，`vite.config.ts` 把 root 设成 `wireframe/`，
+但依赖与类型检查是整个项目的。

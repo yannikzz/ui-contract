@@ -10,18 +10,18 @@
 
 1. **读 `../layout.md` §1 落位决策树、§2 区域名白名单、§4.2 页型×部件矩阵。** 只改视觉的话读 `../design.md`。
 2. **走决策树。** 走通了直接实现；**走不通就停下**，按 `../layout.md` §9.3 写区域申请，不要挑一个最像的区域塞进去。
-3. **每个结构容器必须用 `<AnnotatedRegion id="...">`**，`id` 取值必须在 `src/ui/region.tsx` 的 `RegionId` 里。手写 `<div data-region="...">` 绕过类型检查算违规。
-4. **新增区域的顺序写死**：改 `../layout.md` §2 白名单 → 改 `src/ui/region.tsx` 的 `RegionId` 与 `REGION_META` → 写代码。**顺序不能反**，反了规范就退化成「给代码补的说明书」。
+3. **每个结构容器必须用 `<AnnotatedRegion id="...">`**，`id` 取值必须在 `../src/ui/region.tsx` 的 `RegionId` 里。手写 `<div data-region="...">` 绕过类型检查算违规。
+4. **新增区域的顺序写死**：改 `../layout.md` §2 白名单 → 改 `../src/ui/region.tsx` 的 `RegionId` 与 `REGION_META` → 写代码。**顺序不能反**，反了规范就退化成「给代码补的说明书」。
 5. `REGION_META` 里的 `desc` 写「**该放什么 / 不该放什么**」，不是「这是什么」。说明写错比代码写错更危险——下一个 Agent 会照着它扩展。
 
 ## 分层：资产层 / 展示层
 
 | | 住哪 | 性质 |
 |---|---|---|
-| **资产层** | `src/ui/region.tsx` | `RegionId` · `REGION_META` · 裸的 `Region` 结构容器。生产代码，长期维护，**不含品牌视觉、不含标注层** |
-| **展示层** | `src/wire.tsx` | `AnnotatedRegion` 包装 + 中性零件。一次性，结构变了重新生成 |
+| **资产层** | `../src/ui/region.tsx`（**在本目录之外**） | `RegionId` · `REGION_META` · 裸的 `Region` 结构容器。生产代码，长期维护，**不含品牌视觉、不含标注层** |
+| **展示层** | `src/wire.tsx`（本目录） | `AnnotatedRegion` 包装 + 中性零件。一次性，结构变了重新生成 |
 
-线框 import 资产层，**反过来永远不成立**。在展示层里声明区域名 = 项目有了两份白名单，强制机制会去守错的那一份。
+线框 import 资产层，**反过来永远不成立**。资产层住在本目录之外，正是为了让这条不可能被写反：**重新生成这个目录不会碰到它**。在展示层里声明区域名 = 项目有了两份白名单，强制机制会去守错的那一份。
 
 **已知的临时倒挂**：`src/structure.ts`（结构参数常量 + 降级纯函数）按设计属于资产层，但资产层这一版还没有 `Shell`，所以它暂住展示层。**当前位置不是目标位置。**
 
@@ -57,9 +57,12 @@
 
 ## 怎么跑
 
+从**项目根**（`..`）跑：`package.json`、`tsconfig.json`、`vite.config.ts` 都住在那里，这个目录只有源码。
+
 ```bash
+cd ..
 pnpm install
-pnpm dev        # 起 dev server
+pnpm dev        # 起 dev server（vite 的 root 设成了 wireframe/）
 pnpm typecheck  # ← 白名单校验就在这一步：写了不在 RegionId 里的区域名会直接失败
 pnpm build
 ```

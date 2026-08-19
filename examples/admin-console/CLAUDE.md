@@ -9,7 +9,7 @@
 1. **改任何界面结构之前，先走 `layout.md` §1 落位决策树。** 走通了直接实现，不用改文档。
 2. **走不通就停下。** 不许自己新开一个区域、一栏、一个浮层、一个页型，也不许「先挑个最像的区域放着」。按 `layout.md` §9.3 写区域申请，回答那五问。**五问答不出来，说明需求本身没想清楚，不是布局问题。**
 3. **代码里每个区域的标记必须出现在 `layout.md` §2 白名单里。** 不在表里的名字就是违规。
-4. **新增区域的顺序写死**：改 `layout.md` §2 → 改 `wireframe/src/ui/region.tsx` 的 `RegionId` 与 `REGION_META` → 写代码。**顺序不能反。**
+4. **新增区域的顺序写死**：改 `layout.md` §2 → 改 `src/ui/region.tsx` 的 `RegionId` 与 `REGION_META` → 写代码。**顺序不能反。**
 5. **文档与代码冲突时改代码。** 已有代码不是权威。
 6. 推翻旧结论时**不要删**，移到 `layout.md` 附录 B 并写清理由。被推翻的判断比现行判断更容易重复踩坑。
 
@@ -32,16 +32,17 @@
 |---|---|---|
 | `layout.md` | 结构：区域树、栏宽、页型、拓展位、内容落位、降级 | 加功能、挪位置、新增页面 |
 | `design.md` | 视觉：颜色、字号、间距、圆角、状态样式、组件变体 | 调样式、加组件 |
-| `wireframe/` | 上面两份的可运行参考实现（低保真、刻意无品牌视觉） | 想知道「这块到底摆在哪」时 |
+| `src/ui/region.tsx` | **资产层**：区域白名单的类型形态 + 结构容器。生产代码，业务从这里 import | 新增区域、写任何带区域标记的代码 |
+| `wireframe/` | 上面两份的可运行参考实现（低保真、刻意无品牌视觉）。**一次性**，消费资产层 | 想知道「这块到底摆在哪」时 |
 | `wireframe/CLAUDE.md` | 线框目录的硬约束 + **刻意的取舍清单** | 动 `wireframe/` 里任何代码之前 |
 | `DECISIONS-TO-CONFIRM.md` | 这套规范里**按推荐值先定下、还没被人确认**的决策 | 你觉得某条规则不合理时——先看它是不是待确认项 |
 
 ## 编译期校验
 
-区域白名单在 `wireframe/src/ui/region.tsx`（资产层）里是 TypeScript 联合类型。写一个不在表里的区域名会**直接类型报错**。展示层 `wire.tsx` 只把这个类型转发出去，**白名单只有这一份**。
+区域白名单在 `src/ui/region.tsx`（资产层，**在线框目录之外**）里是 TypeScript 联合类型。写一个不在表里的区域名会**直接类型报错**。展示层 `wireframe/src/wire.tsx` 只把这个类型转发出去，**白名单只有这一份**。
 
 ```bash
-cd wireframe && pnpm typecheck
+pnpm typecheck
 ```
 
-同类手法还用在别处（这几个住展示层 `wire.tsx`）：`TableColumnKind` 里没有 `actions`、`PageWithInspector` 里只有 `'list'`、`InspectorKind` 里只有 `'content-item'`——**这些缺失都是刻意的**，规则由类型系统把关，不靠人记。看到「好像漏了一个」时先读 `layout.md` 对应小节，再决定是不是真要加。
+同类手法还用在别处（这几个住展示层 `wireframe/src/wire.tsx`）：`TableColumnKind` 里没有 `actions`、`PageWithInspector` 里只有 `'list'`、`InspectorKind` 里只有 `'content-item'`——**这些缺失都是刻意的**，规则由类型系统把关，不靠人记。看到「好像漏了一个」时先读 `layout.md` 对应小节，再决定是不是真要加。
