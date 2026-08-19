@@ -76,6 +76,8 @@ That also solves two more problems:
 
 ## Implement the degradation rules for real
 
+**This section is in the wrong package and it is known.** The ruling on issue #1 put degradation rules in the asset layer; they sit here only because that layer has no `Shell` yet. Do the work as written, and when `Shell` exists move it rather than duplicating it — ADR-0003, deferred item 9.
+
 If the spec has size-degradation rules, **implement them; don't leave them in the document** — a rule in a document never gets verified.
 
 How:

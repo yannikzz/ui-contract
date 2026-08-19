@@ -51,5 +51,7 @@ Note the vocabulary: this is the wireframe **exposing holes**, at construction t
 - [ ] Every region renders through `AnnotatedRegion`, with ids imported from the asset layer
 - [ ] No region name is declared in the wireframe
 - [ ] The asset layer's brand is overridden to neutral, and the directory `CLAUDE.md` says that is deliberate
-- [ ] Degradation rules are implemented and their live computation is on screen
+- [ ] Degradation rules are implemented and their live computation is on screen — **this one is on loan**, see below
 - [ ] Stated plainly what was verified and what wasn't
+
+The degradation item was ruled to belong to the asset layer, not here. It stays for now because the asset layer has no `Shell` to carry it yet, so dropping it would mean nobody implements the rules at all. Recorded as item 9 in ADR-0003's deferred list; when `Shell` lands, this moves with it.

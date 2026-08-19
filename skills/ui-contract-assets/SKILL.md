@@ -31,6 +31,8 @@ For the deliverable's language and terminology, call the Skill tool with "delive
 
 `Shell` and `Slot` are named in the architecture but **do not exist yet**. Say so rather than improvising them: a structural component invented here, without a spec clause behind it, is the drift this layer exists to prevent.
 
+One thing is waiting on them: implementing the spec's size-degradation rules was ruled to belong to this layer, and is parked in `ui-contract-wireframe` only because there is no `Shell` to hold it. Whoever builds `Shell` takes that with it — ADR-0003, deferred item 9.
+
 ## Where it goes
 
 Into the project's existing source tree, beside the code that will import it — not into a separate directory, and **not** into the wireframe. The wireframe imports *from* here; nothing here imports from the wireframe.
