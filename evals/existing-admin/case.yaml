@@ -1,0 +1,92 @@
+schema_version: "1.1"
+name: existing-admin
+description: >
+  治熵线：仓库里已经有前端代码和一套 token，但没人写过「新功能该放哪」。
+  验的是先量现状再写规范、以及已有视觉规范只对齐边界不重写。
+
+tags: [existing-project, brownfield]
+
+context:
+  # 必须造一个**真的** fixture 仓库：插件会去看磁盘。
+  # prompt 里口述代码是没用的——它会发现磁盘和你说的对不上，然后正确地停下来问。
+  # 注意：scaffold_script 默认不跑，要在命令行显式加 --scaffold。
+  # scaffold_script 是**case 目录下的路径**，不是内联脚本——写成内联会被当文件名去 open()，
+  # 报 ENAMETOOLONG。脚本本体见 scaffold.sh。
+  # 约束：默认不跑（要 --scaffold）、2 分钟上限、最小化环境无密钥。
+  scaffold_script: scaffold.sh
+execution:
+  prompt: |
+    我们团队在做一个给运营看的后台管理系统，React + Tailwind。视觉那块已经有了——`tailwind.config.js` 里一套 token，也写了 `design.md`。
+
+    但是没人写过「新功能该放哪」。现在每加一个模块大家都各放各的，让 AI 改更乱。
+
+    帮我把规范立起来。我时间紧，你按推荐的来，把决策点连同你的选择一次列给我看，然后直接把规范写出来。
+  max_turns: 40
+  timeout_seconds: 900
+  allowed_tools: [Read, Glob, Grep, Skill, Write, Edit]
+
+runs: 1
+
+graders:
+  - type: tool_used
+    name: skill-fired
+    tool: Skill
+    arm: with-only
+    weight: 1
+
+  - type: file_exists
+    name: as-built-written
+    path: as-built.md
+    weight: 1
+
+  - type: file_exists
+    name: layout-md-written
+    path: layout.md
+    weight: 1
+
+  - type: llm
+    name: baseline-before-layout
+    focus: trace
+    weight: 1
+    criteria: |
+      仓库里**有前端代码**（`src/` 下有 AppLayout、Sidebar、五个页面）且**没有 as-built 记录**。
+      此时直接写结构规范是错的：会凭空发明一棵和现实无关的区域树，随后强制机制把它锁进类型系统，全仓库飘红。
+
+      正确动作：先从代码逆向出**实际**的区域树（不是应有的），量出缺口，再据此访谈。
+
+      判定：在产出任何结构规范条款之前，没有先给出一份基于真实代码的现状盘点 → 不通过。
+      只凭对话里的描述列出区域树、没有实际读过 `src/` 下的文件 → 不通过。
+
+  - type: llm
+    name: existing-spec-slimmed-not-rewritten
+    focus:
+      source: file
+      path: design.md
+    weight: 1
+    criteria: |
+      项目已有 `design.md` 与 `tailwind.config.js` 的 token。正确动作是对齐边界，不是重写：
+
+      1. `design.md` 顶部有分工声明，写明那条唯一的切线（换皮会变 → 视觉；不变 → 结构）
+      2. 原 `design.md` §4「布局骨架」里的**结构内容**（220px 导航宽、56px 收起宽、640px 主区最小宽、
+         360px 属性面板宽、列表页的筛选条+表格+面板结构）已经搬到 `layout.md`，原地只留一行指针
+      3. 值的权威是 token 文件（`tailwind.config.js`）；`design.md` 里不得再出现 `#2563eb` 这类硬编码色值
+
+      判定：把已有 `design.md` 整份重写 → 不通过。搬走结构内容却没留指针 → 不通过。
+      `design.md` 里仍留有硬编码色值 → 不通过。
+
+  - type: llm
+    name: allowlist-has-forbidden-column
+    focus:
+      source: file
+      path: layout.md
+    weight: 1
+    criteria: |
+      `layout.md` 的区域名白名单是一张表。只写「这个区域放什么」是文档；
+      写明「什么**不得**放进来」才是规范——「禁止放」那一列正是它成为规范的原因，
+      也是强制机制唯一能下沉到类型层的东西。
+
+      判定：白名单表缺少「禁止放 / must not hold」列 → 不通过。有该列但存在空格子 → 不通过。
+
+expected_outcome: >
+  先跑 baseline 逆向出实际区域树并落成 as-built.md，再写 layout.md；
+  已有 design.md 只做边界对齐与结构内容搬迁，硬值退到 token 文件。
