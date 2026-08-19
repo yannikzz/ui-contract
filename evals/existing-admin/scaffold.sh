@@ -1,3 +1,4 @@
+#!/bin/sh
 set -eu
 mkdir -p src/layouts src/components src/pages
 

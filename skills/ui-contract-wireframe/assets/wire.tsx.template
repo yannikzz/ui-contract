@@ -12,7 +12,7 @@
  */
 import { createContext, useContext, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { ReactNode, RefObject } from 'react'
+import type { CSSProperties, ReactNode, RefObject } from 'react'
 
 // TODO point this at the project's asset layer (the file produced by ui-contract-assets).
 // The wireframe imports from the asset layer; never the reverse.
@@ -94,12 +94,15 @@ export function AnnotatedRegion({
   id,
   children,
   className = '',
+  style,
   label,
   elRef,
 }: {
   id: RegionId
   children?: ReactNode
   className?: string
+  /** Computed structural values — a degradation rule has to be visibly live, not a fixed class */
+  style?: CSSProperties
   /** Overrides the badge label (e.g. a region's collapsed form) */
   label?: string
   elRef?: RefObject<HTMLDivElement | null>
@@ -110,6 +113,7 @@ export function AnnotatedRegion({
     <Region
       id={id}
       elRef={elRef}
+      style={style}
       className={`${className} ${on ? 'relative outline-1 outline-dashed outline-sky-500/50' : ''}`}
     >
       {on && <RegionLabel id={id} text={label ?? meta.label} desc={meta.desc} />}
