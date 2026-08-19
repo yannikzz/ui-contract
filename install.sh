@@ -29,14 +29,24 @@ case "${1:-claude}" in
   windsurf) PARENT="./.windsurf/skills" ;;
   cline)    PARENT="./.cline/skills" ;;
   -h|--help)
-    sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'
     exit 0 ;;
   *)        PARENT="$1" ;;
 esac
 
 # Running from a clone? Copy locally. Otherwise fetch the tarball.
-SELF_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-if [ -d "$SELF_DIR/skills" ]; then
+#
+# Two guards, because the README documents a `curl ... | sh` one-liner. Piped in,
+# $0 is "sh" and $SELF_DIR resolves to the *caller's* working directory — so a
+# bare `skills/` there (common for the people this plugin is for) would make the
+# script install their own skills instead of downloading this repo. Require $0 to
+# be a real file, and require a marker that only this repo has.
+if [ -f "$0" ]; then
+  SELF_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+else
+  SELF_DIR=""
+fi
+if [ -n "$SELF_DIR" ] && [ -f "$SELF_DIR/skills/ui-contract/SKILL.md" ]; then
   SRC="$SELF_DIR/skills"
   CLEANUP=""
 else
@@ -52,8 +62,20 @@ else
 fi
 
 # The package list has exactly one source: the disk. Nothing here is hardcoded.
-NAMES=$(cd "$SRC" && for d in */; do [ -f "$d/SKILL.md" ] && basename "$d"; done)
-COUNT=$(echo "$NAMES" | grep -c .)
+# The trailing `true` matters: under `set -eu` the loop's exit code is the last
+# test's, so a final directory without a SKILL.md would kill the script silently.
+NAMES=$(cd "$SRC" || exit 1; for d in */; do [ -f "$d/SKILL.md" ] && basename "$d"; done; true)
+[ -n "$NAMES" ] || { echo "No skill packages found under $SRC" >&2; exit 1; }
+COUNT=$(echo "$NAMES" | grep -c . || true)
+
+# The replace branch below runs `rm -rf "$PARENT/$n"` and then copies from
+# "$SRC/$n". If those are the same directory, the copy source is deleted first.
+SRC_ABS=$(CDPATH= cd -- "$SRC" && pwd)
+DEST_ABS=$(mkdir -p "$PARENT" && CDPATH= cd -- "$PARENT" && pwd)
+if [ "$SRC_ABS" = "$DEST_ABS" ]; then
+  echo "Source and destination are the same directory ($DEST_ABS). Nothing to do." >&2
+  exit 1
+fi
 
 EXISTING=""
 for n in $NAMES; do [ -e "$PARENT/$n" ] && EXISTING="$EXISTING $n"; done
