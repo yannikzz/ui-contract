@@ -161,7 +161,16 @@ b=re.sub(r'^#[^\n]*\n','',g.split('---',2)[2].lstrip('\n'))
 if norm('\n'.join(blk))!=norm(b):
     print('  \033[31m✗\033[0m case.yaml 的内联判据与 greenfield-mobile/graders/decision-tree-total.md 已经分家')
     sys.exit(1)
-print('  \033[32m✓\033[0m 两份判据仍逐字同源')
+print('  \033[32m✓\033[0m 两份 decision-tree-total 判据仍逐字同源')
+gm=open('evals/greenfield-mobile/graders/traces-in-artifact.md',encoding='utf-8').read()
+pa=re.search(r'name: traces-in-artifact[\s\S]*?pattern: "([^"]*)"', y)
+pb=re.search(r'^pattern: "([^"]*)"', gm, re.M)
+if not pa or not pb:
+    print('  \033[31m✗\033[0m 两处 traces-in-artifact 的 pattern 至少有一处读不出来'); sys.exit(1)
+if pa.group(1)!=pb.group(1):
+    print(f'  \033[31m✗\033[0m traces-in-artifact 的 pattern 已经分家: {pa.group(1)!r} vs {pb.group(1)!r}')
+    sys.exit(1)
+print('  \033[32m✓\033[0m 两处 traces-in-artifact 的 pattern 一致')
 P17
 
 echo "13. 包体量（ADR-0003：某包 SKILL.md 长期不足 30 行，说明切早了，应并回上游包）"

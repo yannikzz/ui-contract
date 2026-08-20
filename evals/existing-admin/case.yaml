@@ -123,17 +123,19 @@ graders:
   # 「追踪表到底有没有落进产物」是机械的，正则就够。这个用例 runs: 1（第 11 条，
   # 成本），单票 llm 判据没有平均可言，所以机械的那半先用正则钉死——绿了不代表
   # 上面那条会绿，但红了就能立刻分清是「没写进去」还是「写了但追得不够」。
-  # greenfield-mobile 不加这条：它默认跑 3 次，llm 判据还有平均可依。
-  # 判的是「敌意输入」这半而不是「附录 C」这个标题：只写个 `## 附录 C TODO`
+  # 判的是追踪的**类型词**而不是「附录 C」这个标题：只写个 `## 附录 C TODO`
   # 也能命中标题，那样这条就成了它自己要防的那种「看着像在检查」的检查。
+  # 词表是量出来的，不是猜的：2026-08-20 那次实跑，三份产物全部写「恶意」，
+  # 而大纲的英文原词是 hostile、示例里写的是「敌意」——只押一个词会三次全假阴。
   # 剩下的漏网诚实记在这里：一个有小标题、底下表格是空的附录仍然会过——
   # 行够不够、每行有没有落到叶子，正则判不了，那半归上面那条 llm 判据。
+  # 与 greenfield-mobile/graders/traces-in-artifact.md 同源，由不变量 17 对账。
   - type: regex
     name: traces-in-artifact
     target:
       source: file
       path: layout.md
-    pattern: "敌意|hostile"
+    pattern: "敌意|恶意|hostile"
     match: contains
     weight: 1
 
