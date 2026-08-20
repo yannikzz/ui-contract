@@ -121,6 +121,13 @@ for s in ui-contract-baseline ui-contract-layout ui-contract-design ui-contract-
   grep -q "paths table" "skills/$s/SKILL.md" 2>/dev/null && ok "$s" || no "$s 未声明从 config 读落点"
 done
 
+echo "15. 决策树的追踪要求落进产物，不只要求「做过」（issue #5：做没做在输出里看不出来）"
+grep -q '^## Appendix C' skills/ui-contract-layout/layout-md-outline.md \
+  && ok "大纲有 Appendix C（追踪表的落点）" || no "layout-md-outline.md 无 Appendix C，追踪结果没有产物落点"
+N=$(grep -c 'Appendix C' skills/ui-contract-layout/SKILL.md)
+[ "$N" -ge 2 ] && ok "完工清单的两条追踪都指向落点" \
+                || no "ui-contract-layout 完工清单只有 $N 处提到 Appendix C（敌意/普通两条都要指）"
+
 echo "13. 包体量（ADR-0003：某包 SKILL.md 长期不足 30 行，说明切早了，应并回上游包）"
 for d in skills/*/; do
   n=$(wc -l < "$d/SKILL.md"); b=$(basename "$d")

@@ -1,6 +1,6 @@
 # layout.md skeleton
 
-Ten chapters plus two appendices. Chapters can be merged or renamed, but **no chapter's question may be dropped** — each missing chapter is one more category of thing agents will invent for themselves.
+Ten chapters plus three appendices. Chapters can be merged or renamed, but **no chapter's question may be dropped** — each missing chapter is one more category of thing agents will invent for themselves.
 
 Open with three sentences telling agents how to use the document:
 
@@ -54,7 +54,9 @@ Five ways it breaks. Every one of these shipped inside a tree whose author had a
 
 ### Verify it by trying to break it
 
-Trace the finished tree with inputs picked to be hostile, and write down where each one lands:
+Trace the finished tree with inputs picked to be hostile, and **record where each one lands in Appendix C**.
+
+Tracing in the conversation and not in the document is the same as not tracing. The next person to edit the tree cannot tell a branch that was shaped to stop a specific bad input from a branch somebody wrote off the cuff — so they "tidy it up", and the input it existed to catch walks straight through. Nothing in the output reveals that the verification ever happened, which is why this has to be an artifact requirement and not a habit:
 
 1. **A one-off action belonging to no object** — export everything, bulk import, contact support. The most common gap, and the source of the worst observed failure: a confident "put it in settings".
 2. **Something that plausibly fits two regions** — checks that leaves are single-valued.
@@ -63,7 +65,7 @@ Trace the finished tree with inputs picked to be hostile, and write down where e
 
 A friendly input passes on any tree, hole included. That is precisely how this defect survives review: "can it place a new metric card" gets asked, "can it place the export button" doesn't.
 
-**Then trace three or four ordinary requirements too, and require each to land on a region name.** Totality is trivially satisfiable by stopping on everything, and the hostile traces above won't catch that — they'd all pass. A tree that sends everyday work to §9 isn't a contract, it's a permission queue: the user arrived because "where does this go" had no answer, and "file an application" is not an answer. When an ordinary input stops, the tree is usually missing a whole class rather than facing a genuinely new region — controls (search, filter, sort) are the class most often absent, because they aren't a facet of any object and aren't a destination, so they fall through every branch.
+**Then trace three or four ordinary requirements too, and require each to land on a region name — those go in Appendix C as well.** Totality is trivially satisfiable by stopping on everything, and the hostile traces above won't catch that — they'd all pass. A tree that sends everyday work to §9 isn't a contract, it's a permission queue: the user arrived because "where does this go" had no answer, and "file an application" is not an answer. When an ordinary input stops, the tree is usually missing a whole class rather than facing a genuinely new region — controls (search, filter, sort) are the class most often absent, because they aren't a facet of any object and aren't a destination, so they fall through every branch.
 
 ## §2 Region-name allowlist
 
@@ -153,6 +155,18 @@ List the questions **explicitly out of scope** and where they belong instead (vi
 Four columns: was | became | why overturned.
 
 **Never delete when overturning a conclusion.** Overturned judgments are easier to re-tread than current ones, because they look reasonable (they looked reasonable to you too, once).
+
+## Appendix C — Traces
+
+The §1 verification, written down. Four columns: input | hostile or ordinary | where it landed | what the trace exposed.
+
+Both kinds must be present. Hostile-only proves nothing about a tree that stops on everything; ordinary-only proves nothing about the holes. Requirements:
+
+- **Every row names a leaf** — a region name from §2, or the explicit stop. "Roughly the inspector" is not a landing.
+- **Record the traces that found something, not only the ones that passed.** A trace whose "what it exposed" column is empty on every row means either a perfect tree or a trace that was written after the fact to look like one, and a reader cannot tell which. The rows that changed the tree are the ones worth keeping.
+- **When a trace lands on the stop but another chapter says the thing has a home, the tree is what's wrong** — fix the tree, then record both the finding and the fix here. Do not record a known hole and leave it.
+
+This appendix goes stale as the tree changes, and that is acceptable: it is dated evidence of one verification pass, not a rule. Re-trace when the trunk changes, and append rather than rewrite.
 
 ---
 

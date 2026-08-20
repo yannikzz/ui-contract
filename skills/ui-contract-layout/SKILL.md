@@ -55,9 +55,9 @@ Region **descriptions** say **what goes here / what must not** — never "what t
 ## Before you call this document done
 
 - [ ] No color / font-size / radius / spacing values anywhere
-- [ ] Traced the decision tree with **hostile** inputs — a one-off action belonging to no object, something that fits two regions, something arriving at a full cap, something that plainly doesn't belong — and each landed on exactly one region name or the explicit stop
+- [ ] Traced the decision tree with **hostile** inputs — a one-off action belonging to no object, something that fits two regions, something arriving at a full cap, something that plainly doesn't belong — and each landed on exactly one region name or the explicit stop. **The traces are written into Appendix C**, not just performed in the conversation — a trace that leaves no trace in the artifact is indistinguishable from one that never happened
 - [ ] The fallback is *stop → §9*, not a real region, and it doesn't route back into the tree
-- [ ] Traced three or four **ordinary** requirements and watched each land on a region name (stopping on everything passes the hostile traces too — and turns the contract into a permission queue)
+- [ ] Traced three or four **ordinary** requirements and watched each land on a region name (stopping on everything passes the hostile traces too — and turns the contract into a permission queue) — **also in Appendix C**, alongside the hostile ones
 - [ ] Every allowlist row has a "must not hold" cell, none of them empty
 - [ ] Every anti-pattern has a reason and a replacement
 - [ ] Every region description says "what goes here / what must not", not "what this is"
