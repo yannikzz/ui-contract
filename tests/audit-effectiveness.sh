@@ -76,7 +76,12 @@ run_case 1 "检查 6 · 白名单里的区域名从没被渲染" \
   inspector: {\""
 
 echo "C. 无契约时的退出码"
-run_case 2 "没有 layout.md → exit 2（没东西可检，不是漂移）" "rm -f layout.md"
+run_case 2 "没有 layout.md、也没有 config.md → exit 2（真的没东西可检）" "rm -f layout.md"
+# 「没东西可检」和「配置说有、脚本找不到」必须分开。共用 exit 2 时后者会伪装成前者：
+# 输出是一句平静的 "there is no contract to check"，读起来像通过，实际是路径失配。
+# 夹具本身不含 config.md（它刻意最小），所以这一条在临时副本里现造一个。
+run_case 3 "没有 layout.md 但有 config.md → exit 3（路径表与脚本对不上）" \
+  "mkdir -p docs/ui-contract && printf '# UI contract — configuration\n' > docs/ui-contract/config.md && rm -f layout.md"
 
 printf '\n'
 [ $FAIL -eq 0 ] && printf '  \033[32m%s 个用例全部符合预期（%s）\033[0m\n' "$CASES" "$(basename "$SH")" \

@@ -1,7 +1,7 @@
 # UI contract — configuration
 
-> Written by `ui-contract-setup`. Records **authorisations and file locations only** — no rules.
-> The specs themselves are authoritative for what is correct.
+> Written by `ui-contract-setup`. Records **authorisations, file locations, and what was
+> not verified** — no rules. The specs themselves are authoritative for what is correct.
 
 ## Starting point
 
@@ -55,3 +55,18 @@ Both specs sit **side by side at the same level** (usually the repo root) so the
 |---|---|
 | **Strategy** | freeze line / migrate first / hybrid |
 | **Recorded in** | an ADR, because it is hard to reverse, excluded real alternatives, and has a nameable revisit condition |
+
+## Not verified this round
+
+Conclusions reached **without evidence** — reached by inference, or by following a recommendation because the user was in a hurry. Not rules: rules live in the specs. This section records **the delivery's verification boundary**, so the next reader can tell a measured value from a plausible one.
+
+Leave it out only when there is genuinely nothing in it. An empty section is honest; a missing one reads as "everything was checked".
+
+| # | What was not verified | What it affects | How to clear it |
+|---|---|---|---|
+| | | | |
+
+The two that show up almost every time, because an agent structurally cannot do them:
+
+- **Rendered output was not looked at.** Density, whether a column still fits once a panel squeezes it — these can only be seen. Say so and point at what the user should open.
+- **Values were not measured off a design.** A spec whose numbers are a placeholder scale is a different artifact from one whose numbers came off a mockup, and only this section records which one was delivered.
