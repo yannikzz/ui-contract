@@ -118,7 +118,7 @@ export function InspectorSlot({
         )}
         {state === '正常' && tab === '变更历史' && (
           <div className="py-1">
-            {/* 过程性事件的落位：一天几十条，进主区会把主线冲散（§1.1 短路 4） */}
+            {/* 过程性事件的落位：一天几十条，进主区会把主线冲散（§1.1 短路「过程性事件」） */}
             {INSPECTOR_HISTORY.map((h, i) => (
               <div key={i} className="flex gap-2 border-l border-neutral-200 py-1.5 pl-3 text-xs">
                 <span className="w-14 shrink-0 text-neutral-400">{h.t}</span>

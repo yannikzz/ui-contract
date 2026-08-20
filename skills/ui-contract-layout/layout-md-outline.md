@@ -29,7 +29,7 @@ The entry point for the whole document. Must answer: given a new interface requi
 
 Structure:
 
-1. **Short-circuits** (3–5) — the cases where the answer is obvious; catch them first. Typically: process events, long content that needs width, action buttons.
+1. **Short-circuits** (3–6) — the cases where the answer is obvious; catch them first. Typically: process events, long content that needs width, action buttons. Rows get inserted into this list as traces find holes, so **cite a short-circuit by its condition, never by its position** — here and in code. A `§1.1 short-circuit 3` written into a component comment goes silently wrong the moment a row lands above it, and nothing reports it.
 2. **The trunk** (4–6 questions) — drawn as an ASCII tree, where every leaf is a **specific region name**, not a description.
 3. **What to do when nothing matches** — write "stop" explicitly, and point to §9. That sentence matters more than the whole tree: without it, an agent picks the closest-looking region and stuffs the thing in.
 4. **A reverse checklist** — "if you're about to do any of the following, you've already gone off course" — 4–6 of the most common overreaches.
