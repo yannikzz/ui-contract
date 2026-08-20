@@ -10,10 +10,12 @@ Real output from this skill, not hand-written illustrations. Reading one is the 
 
 ```
 admin-console/
-├── layout.md                  564 lines — the structural spec
+├── layout.md                  607 lines — the structural spec
 ├── design.md                  350 lines — the visual spec
 ├── CLAUDE.md                   48 lines — repo-root enforcement
-├── DECISIONS-TO-CONFIRM.md    108 lines — 22 decision points with choices and costs
+├── docs/ui-contract/                    — config + decision records; the specs themselves stay at the root
+│   ├── config.md               70 lines — start point, authoritative paths table, and what was not verified
+│   └── adr/layout/0001-0010            — one record per heavyweight structural decision: why, what was excluded, when to revisit
 ├── src/ui/region.tsx          176 lines — asset layer: 24-name region allowlist as a union type + metadata + the structural container. Production code, deliberately outside the wireframe
 └── wireframe/                          — runnable low-fidelity wireframe, throwaway
     ├── src/wire.tsx           301 lines — presentation layer: annotation wrapper + neutral parts + the other hard rules as types
@@ -30,11 +32,13 @@ admin-console/
 | `layout.md` §1 | The placement decision tree, ending in specific region names, with an explicit "stop" branch and a reverse self-check list |
 | `layout.md` §2 | The allowlist — note that **every row has a "must not hold" cell**. That column is what makes it a spec rather than a manual |
 | `layout.md` §4.3 | "The wizard page has no property panel" written as a **hard rule enforced by the type system**, not as "we haven't built it yet" |
+| `layout.md` Appendix C | **The §1 traces, written down** — nine inputs walked through the decision tree, four hostile and five ordinary. Two of the nine walked straight through it: a page-level action had no leaf anywhere in the tree even though three other chapters promised it one, and a trunk branch had no else. Neither hole was visible by reading the document — it has a tree, an explicit stop, and a reverse checklist. **Having a tree and having a total tree are different things, and only inputs separate them** |
 | `layout.md` Appendix B | Overturned decisions — including B-1, which records that duplicate "Trash" was judged a mockup artifact **and states the condition under which that judgement should be reversed** |
 | `src/ui/region.tsx` | The allowlist as `RegionId` — the one place it is declared, and deliberately outside `wireframe/` so regenerating the throwaway layer cannot take it along. `wire.tsx` only re-exports the type |
 | `wireframe/src/wire.tsx` | `TableColumnKind` deliberately omitting `actions` and `PageWithInspector` containing only `'list'` — violations become unwritable |
 | `wireframe/CLAUDE.md` | The deliberate-tradeoffs list, which exists to stop the next agent from "fixing" things left out on purpose |
-| `DECISIONS-TO-CONFIRM.md` | Every row states the choice, the cost, and which sections get disturbed if it's reversed |
+| `docs/ui-contract/adr/layout/` | Ten records, each stating the decision, **the alternatives excluded and why**, the cost knowingly accepted, and a named revisit condition. They point at `layout.md` clauses and never restate them, so they are structurally incapable of contradicting the spec |
+| `docs/ui-contract/config.md` | The paths table every unit reads instead of guessing — and a **Not verified this round** section, which is what separates a measured value from a plausible one |
 
 ### Verified
 
