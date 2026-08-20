@@ -82,6 +82,14 @@ run_case 2 "没有 layout.md、也没有 config.md → exit 2（真的没东西�
 # 夹具本身不含 config.md（它刻意最小），所以这一条在临时副本里现造一个。
 run_case 3 "没有 layout.md 但有 config.md → exit 3（路径表与脚本对不上）" \
   "mkdir -p docs/ui-contract && printf '# UI contract — configuration\n' > docs/ui-contract/config.md && rm -f layout.md"
+# 反方向才是会**绿着挂**的那个：config 把规范搬走了，根目录还留着一份旧的，
+# 于是下面每条检查都认认真真审了一份被弃用的文件，最后打印 "No drift found."
+# 注意夹具里这一行的第三列（Default）仍然写着 `layout.md`——脚本只读第二列（Path），
+# 读错列的话这条用例会绿，这条用例存在的意义就是钉住这一点。
+run_case 3 "有 layout.md，但 config 的路径表指向别处 → exit 3（别审一份没人认的文件）" \
+  "mkdir -p docs/ui-contract && printf '| 结构规范 | \`docs/spec/layout.md\` | \`layout.md\` at the repo root |\n' > docs/ui-contract/config.md"
+run_case 0 "config 的路径表与脚本一致时不误报（这条检查不许喊狼来了）" \
+  "mkdir -p docs/ui-contract && printf '| 结构规范 | \`layout.md\` | \`layout.md\` at the repo root |\n' > docs/ui-contract/config.md"
 
 printf '\n'
 [ $FAIL -eq 0 ] && printf '  \033[32m%s 个用例全部符合预期（%s）\033[0m\n' "$CASES" "$(basename "$SH")" \
