@@ -88,6 +88,11 @@ run_case 3 "没有 layout.md 但有 config.md → exit 3（路径表与脚本对
 # 读错列的话这条用例会绿，这条用例存在的意义就是钉住这一点。
 run_case 3 "有 layout.md，但 config 的路径表指向别处 → exit 3（别审一份没人认的文件）" \
   "mkdir -p docs/ui-contract && printf '| 结构规范 | \`docs/spec/layout.md\` | \`layout.md\` at the repo root |\n' > docs/ui-contract/config.md"
+# setup 允许项目给规范改名，所以「路径表指向另一个文件名」和「指向另一个目录」是
+# 两件事——后者脚本的旧路径会落空，前者旧路径照样指着一个真文件，于是七条检查全跑完、
+# 报 "No drift found."。按 Path 列去猜「哪个路径长得像 layout.md」正好漏掉这一种。
+run_case 3 "路径表把规范改了名，旧 layout.md 还在原地 → exit 3（最会假绿的一种）" \
+  "mkdir -p docs/ui-contract && printf '| 结构规范 | \`UI-STRUCTURE.md\` | \`layout.md\` at the repo root |\n' > docs/ui-contract/config.md"
 run_case 0 "config 的路径表与脚本一致时不误报（这条检查不许喊狼来了）" \
   "mkdir -p docs/ui-contract && printf '| 结构规范 | \`layout.md\` | \`layout.md\` at the repo root |\n' > docs/ui-contract/config.md"
 

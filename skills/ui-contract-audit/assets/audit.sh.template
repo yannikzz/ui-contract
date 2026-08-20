@@ -37,16 +37,20 @@ flatten_sources(){
     -exec sh -c 'printf "%s\t" "$1"; tr "\n" " " < "$1"; echo' _ {} \; 2>/dev/null
 }
 
-# Where the config says the structural spec lives. Only the Path column is read: the
-# Default column keeps naming `layout.md` long after the spec has moved, and matching
-# against that would make the check below unable to fail. Every table's Path column is
-# read, not just the paths table's — narrowing to one table needs its heading, and the
-# heading is written in the deliverable's language. The cost is that a config naming
-# two different layout.md locations will not trip this; it still never cries wolf.
+# Where the config says the structural spec lives. The row is found by its **Default**
+# column and the path is then read out of the **Path** column beside it. That way round
+# on purpose: the default text names `layout.md` no matter what the project renamed the
+# file to, and no matter which language the row's label is written in. Searching the
+# Path column for "something ending in layout.md" instead would miss the case that
+# matters most — a project that renamed its spec, where the stale path at the top of
+# this script still resolves to a real file and every check below runs happily on it.
+# Limit worth knowing: rewrite the Default column and this finds nothing and stays
+# quiet. It degrades to no check, never to a wrong one.
 config_layout_paths(){
   [ -f "$CONFIG" ] || return 0
-  awk -F'|' 'NF>=4 && match($3, /`[^`]*layout\.md`/) { print substr($3, RSTART+1, RLENGTH-2) }' \
-    "$CONFIG" | sort -u
+  awk -F'|' 'NF>=4 && $4 ~ /`[^`]*layout\.md`/ && match($3, /`[^`]*`/) {
+    print substr($3, RSTART+1, RLENGTH-2)
+  }' "$CONFIG" | sort -u
 }
 CONFIGURED=$(config_layout_paths)
 
