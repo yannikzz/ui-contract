@@ -12,13 +12,13 @@ Real output from this skill, not hand-written illustrations. Reading one is the 
 admin-console/
 ├── layout.md                  607 lines — the structural spec
 ├── design.md                  350 lines — the visual spec
-├── CLAUDE.md                   48 lines — repo-root enforcement
+├── CLAUDE.md                   49 lines — repo-root enforcement
 ├── docs/ui-contract/                    — config + decision records; the specs themselves stay at the root
 │   ├── config.md               70 lines — start point, authoritative paths table, and what was not verified
 │   └── adr/layout/0001-0010            — one record per heavyweight structural decision: why, what was excluded, when to revisit
 ├── src/ui/region.tsx          176 lines — asset layer: 24-name region allowlist as a union type + metadata + the structural container. Production code, deliberately outside the wireframe
 └── wireframe/                          — runnable low-fidelity wireframe, throwaway
-    ├── src/wire.tsx           301 lines — presentation layer: annotation wrapper + neutral parts + the other hard rules as types
+    ├── src/wire.tsx           300 lines — presentation layer: annotation wrapper + neutral parts + the other hard rules as types
     ├── src/structure.ts       114 lines — structural parameters + degradation as a pure function
     ├── src/App.tsx            384 lines — shell + archetype routing + demo toggles
     ├── src/pages/*.tsx                 — one file per page archetype
