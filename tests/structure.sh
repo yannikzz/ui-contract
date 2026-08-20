@@ -128,6 +128,21 @@ N=$(grep -c 'Appendix C' skills/ui-contract-layout/SKILL.md)
 [ "$N" -ge 2 ] && ok "完工清单的两条追踪都指向落点" \
                 || no "ui-contract-layout 完工清单只有 $N 处提到 Appendix C（敌意/普通两条都要指）"
 
+echo "16. 体检技能讲清了 exit 2 与 exit 3 的分别（脚本拦得住，技能不讲的话 agent 照样会说那句话）"
+python3 - <<'P16' || FAIL=1
+import re,sys
+s=open('skills/ui-contract-audit/SKILL.md',encoding='utf-8').read()
+bad=0
+if re.search(r'^\| 3 \|', s, re.M): print('  \033[32m✓\033[0m 退出码表里有 exit 3')
+else:
+    print('  \033[31m✗\033[0m SKILL.md 没有 exit 3 这一行——技能不讲，脚本的分辨就只活在产物里'); bad=1
+row=re.search(r'^\| No `layout\.md`[^\n]*\|', s, re.M)
+if row and 'config' in row.group(0): print('  \033[32m✓\033[0m 前置门第一行按 config.md 是否存在分了叉')
+else:
+    print('  \033[31m✗\033[0m 前置门第一行没有区分「有没有 config.md」，会教 agent 说出 exit 3 要拦的那句话'); bad=1
+sys.exit(bad)
+P16
+
 echo "13. 包体量（ADR-0003：某包 SKILL.md 长期不足 30 行，说明切早了，应并回上游包）"
 for d in skills/*/; do
   n=$(wc -l < "$d/SKILL.md"); b=$(basename "$d")

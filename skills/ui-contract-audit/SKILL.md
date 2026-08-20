@@ -15,9 +15,21 @@ For the deliverable's language and terminology, call the Skill tool with "delive
 
 | Condition | Action |
 |---|---|
-| No `layout.md` | **Report "there is no contract to check" and stop.** Offer to build one; don't invent one to check against |
+| No `layout.md`, and no `config.md` either | **Report "there is no contract to check" and stop.** Offer to build one; don't invent one to check against |
+| No `layout.md`, but `config.md` exists | **Do not say "there is no contract to check."** Somebody ran setup, so a contract was configured and the paths simply do not point at it. Report the path mismatch and fix the paths |
 | `layout.md` exists, no asset layer | **Check the document layer only**, and say which checks were skipped and why |
 | Code contains region markers but no `layout.md` | Report it as the finding it is: the code has a structure nobody wrote down |
+
+The script encodes that first split as two different exit codes, and **they must not be merged back into one**:
+
+| Exit | Means |
+|---|---|
+| 0 | no drift found |
+| 1 | drift found |
+| 2 | nothing to check — no `layout.md`, and no config claiming there is one |
+| 3 | a contract *is* configured, but the paths in the script and the paths table disagree — in either direction |
+
+`2` and `3` read almost the same in a terminal and are opposite conclusions: `2` says this project has no contract, `3` says it has one and this script is pointed at the wrong place. Sharing an exit code makes a broken setup look like a clean project, which is the one failure this whole unit exists to prevent. Keep them apart when you adapt the template, and report exit 3 as a finding, never as "nothing to check".
 
 ## It reports; it does not fix
 
