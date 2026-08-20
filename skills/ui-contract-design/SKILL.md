@@ -37,7 +37,10 @@ Appendices that record **mockup** reality (value-drift mapping tables and the li
 
 ## When there is no token file yet
 
-Say so, in the report and in the document. Write the token references as they should be, and state explicitly that the referenced file does not exist yet and the gap has to be closed before the spec is usable.
+Say so **in the document, not only in the report** — the reader who never sees the report is the one this has to reach. Write the token references as they should be, and two things with them:
+
+- **Name no path that is not on disk.** Write "the token file is the value authority; this project does not have one yet" rather than pointing at `src/tokens.css` and hoping. Following a pointer to a missing file is how a reader concludes the whole spec is stale.
+- **Say who closes the gap.** No unit here generates the token file — the asset layer produces structural components only. Whoever builds it fills in the values under the names written here.
 
 Do **not** silently invent values back into `design.md` to make it self-contained. A document that quietly re-absorbs its values is exactly the second value authority this rule exists to prevent.
 
@@ -47,4 +50,5 @@ Do **not** silently invent values back into `design.md` to make it self-containe
 - [ ] Structural content has been moved out and only a one-line pointer remains
 - [ ] Every region name matches the allowlist; no old component-style naming survives in the normative body
 - [ ] Mockup-reality appendices were left alone
+- [ ] If no token file exists yet, `design.md` says so in its own body, and no path to a missing file is written anywhere in it
 - [ ] Reported to the user: which sections were touched, how many names were replaced, what was deliberately left alone

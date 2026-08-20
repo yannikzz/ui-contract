@@ -16,6 +16,8 @@ Put a blockquote right under the title stating: what this document owns, what `l
 
 Its purpose is that an agent reading either document knows where the other half is.
 
+**When the project has no token file yet**, that blockquote states the gap instead of naming a file: the token file is the value authority, this project does not have one, the names below are written as they should be, and whoever builds it fills the values in under those names. A pointer to a path that is not on disk reads as a stale spec; a stated gap reads as an honest one. See `SKILL.md` §When there is no token file yet.
+
 ## §1 Design philosophy
 
 Roughly three core principles, each a one-sentence claim plus two or three sentences of elaboration. Good principles can be used to **judge new situations**, not just describe the current one.
@@ -110,7 +112,7 @@ Also flag which of the converged items **actually change how things look**, and 
 ## When a visual spec already exists (start C)
 
 1. **Add the division-of-labor statement** (see Opening). Change nothing else yet.
-1b. **Move values out to the token file.** Every literal in the normative body becomes a token reference. If the project already has a token source (`tailwind.config.*`, `tokens.css`, a theme file), that is the token file — do not create a second one. If it has none, **say so explicitly to the user**: this document will reference tokens that do not exist yet, and the gap has to be closed before the spec is usable.
+1b. **Move values out to the token file.** Every literal in the normative body becomes a token reference. If the project already has a token source (`tailwind.config.*`, `tokens.css`, a theme file), that is the token file — do not create a second one. If it has none, **say so in the document as well as to the user**, and write no path to a file that isn't there — see `SKILL.md` §When there is no token file yet.
 2. **Move structural content out**: find the sections that describe region trees, column widths, page archetypes; move the structure into `layout.md`, leaving behind only spacing/feel values plus a one-line "structure: see layout.md §X". Rename the section too if its title promised structure ("Layout skeleton" → "Skeleton spacing and feel").
 3. **Align region names with the allowlist**: replace old component-style names (camel-cased widget names) with allowlist names. This step is easy to half-finish — grep out every old name and replace them one by one, touching **only the normative body**; leave mockup-reality appendices as they are.
 4. Report to the user afterwards: which sections you touched, how many region names you replaced, and what you deliberately left alone.

@@ -29,7 +29,7 @@ Every other unit reads this table instead of assuming. Fill it in even when the 
 |---|---|---|
 | Structural spec | | `layout.md` at the repo root |
 | Visual spec | | `design.md` at the repo root |
-| Token file | | the project's existing token source |
+| Token file | | the project's existing token source; if there is none, write **none yet** — never a path that is not on disk |
 | Asset layer | | inside the project's production tree |
 | Wireframe | | its own directory |
 | As-built record | | `as-built.md` at the repo root |
