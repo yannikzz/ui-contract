@@ -173,6 +173,13 @@ if pa.group(1)!=pb.group(1):
 print('  \033[32m✓\033[0m 两处 traces-in-artifact 的 pattern 一致')
 P17
 
+echo "18. 体检模板里没有「行式匹配整个标签」的检查（同一个坑踩过两次，且两次输出都正常）"
+# 模板自己在文件头写着：凡是看调用点的检查都必须一次看见整个标签，因为属性一多
+# prettier 就换行。检查 2b 违反了这条，绿着漏了很久——注释拦不住第三次，这条能。
+# 判据：带 -r 的 grep（逐文件行式扫描）不许带 `<`（标签模式）。要匹配标签就走
+# flatten_sources。不带 `<` 的 -r grep 是找裸标识符，不受这条约束。
+X=$(grep -n 'grep -r' skills/ui-contract-audit/assets/audit.sh.template | grep '<')
+[ -z "$X" ] && ok "看调用点的检查都走 flatten_sources" || no "行式匹配标签，调用点一换行就全瞎: $X"
 echo "13. 包体量（ADR-0003：某包 SKILL.md 长期不足 30 行，说明切早了，应并回上游包）"
 for d in skills/*/; do
   n=$(wc -l < "$d/SKILL.md"); b=$(basename "$d")
