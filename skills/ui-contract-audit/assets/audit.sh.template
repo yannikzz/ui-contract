@@ -71,7 +71,13 @@ B=$(printf '%s\n%s\n' "$B" "$B2" | grep -v '^$')
 echo "2b. No hand-written region markers bypassing the container"
 # A literal data-region attribute in a tag means somebody wrote a raw element
 # instead of going through the container, which skips the type check entirely.
-B=$(grep -rnE '<[a-z][^>]*data-region="' "$SRC" 2>/dev/null)
+#
+# This reads call sites, so it goes through flatten_sources like checks 1 and 2 —
+# it was line-wise, and a hand-written marker is precisely the tag prettier wraps:
+# `<div` on one line, `data-region="…"` on the next. The realistic shape of the
+# bypass was the one shape this check could not see.
+B=$(flatten_sources | grep -E '<[a-z][^>]*data-region="' \
+    | cut -f1 | sort -u | sed 's/^/hand-written data-region marker: /')
 [ -z "$B" ] && ok "every marker goes through the container" || drift "$B"
 
 echo "3. No hardcoded color values in feature code (they belong to the token file)"
