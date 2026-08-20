@@ -143,6 +143,27 @@ else:
 sys.exit(bad)
 P16
 
+echo "17. 两处同源的 decision-tree-total 判据逐字一致（手抄的第二份迟早要说谎）"
+python3 - <<'P17' || FAIL=1
+import re,sys
+def norm(s): return re.sub(r'\s+','',s.replace('**',''))
+y=open('evals/existing-admin/case.yaml',encoding='utf-8').read()
+try:
+    i=y.index('name: decision-tree-total'); j=y.index('criteria: |', i)
+except ValueError:
+    print('  \033[31m✗\033[0m case.yaml 里找不到 decision-tree-total 的 criteria'); sys.exit(1)
+blk=[]
+for line in y[j:].split('\n')[1:]:
+    if line.strip() and not line.startswith('      '): break
+    blk.append(line)
+g=open('evals/greenfield-mobile/graders/decision-tree-total.md',encoding='utf-8').read()
+b=re.sub(r'^#[^\n]*\n','',g.split('---',2)[2].lstrip('\n'))
+if norm('\n'.join(blk))!=norm(b):
+    print('  \033[31m✗\033[0m case.yaml 的内联判据与 greenfield-mobile/graders/decision-tree-total.md 已经分家')
+    sys.exit(1)
+print('  \033[32m✓\033[0m 两份判据仍逐字同源')
+P17
+
 echo "13. 包体量（ADR-0003：某包 SKILL.md 长期不足 30 行，说明切早了，应并回上游包）"
 for d in skills/*/; do
   n=$(wc -l < "$d/SKILL.md"); b=$(basename "$d")
