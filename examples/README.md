@@ -37,7 +37,7 @@ admin-console/
 | `src/ui/region.tsx` | The allowlist as `RegionId` — the one place it is declared, and deliberately outside `wireframe/` so regenerating the throwaway layer cannot take it along. `wire.tsx` only re-exports the type |
 | `wireframe/src/wire.tsx` | `TableColumnKind` deliberately omitting `actions` and `PageWithInspector` containing only `'list'` — violations become unwritable |
 | `wireframe/CLAUDE.md` | The deliberate-tradeoffs list, which exists to stop the next agent from "fixing" things left out on purpose |
-| `docs/ui-contract/adr/layout/` | Ten records, each stating the decision, **the alternatives excluded and why**, the cost knowingly accepted, and a named revisit condition. They point at `layout.md` clauses and never restate them, so they are structurally incapable of contradicting the spec |
+| `docs/ui-contract/adr/layout/` | Ten records, each stating the decision, **the alternatives excluded and why**, the cost knowingly accepted, and a named revisit condition. They state the decision and point at the clauses that carry it — 0006 cites §5.4 rather than copying its three tests — so `layout.md` stays the single authority for what is currently correct |
 | `docs/ui-contract/config.md` | The paths table every unit reads instead of guessing — and a **Not verified this round** section, which is what separates a measured value from a plausible one |
 
 ### Verified
