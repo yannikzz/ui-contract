@@ -119,6 +119,21 @@ graders:
 
       判定：缺 1 → 不通过。缺 2 或缺 3 → 不通过（只做其中一半也不通过）。
 
+  # 第 8 条：能机械判的别交给 judge。上面那条判的是「追得够不够狠」，需要判断；
+  # 「追踪表到底有没有落进产物」是机械的，正则就够。这个用例 runs: 1（第 11 条，
+  # 成本），单票 llm 判据没有平均可言，所以机械的那半先用正则钉死——绿了不代表
+  # 上面那条会绿，但红了就能立刻分清是「没写进去」还是「写了但追得不够」。
+  # greenfield-mobile 不加这条：它默认跑 3 次，llm 判据还有平均可依。
+  # 已知的漏网：agent 若把附录改名成「附录三」而不是「附录 C」，这条会假阴。
+  - type: regex
+    name: traces-in-artifact
+    target:
+      source: file
+      path: layout.md
+    pattern: "附录 ?C|Appendix ?C"
+    match: contains
+    weight: 1
+
   - type: regex
     name: allowlist-has-forbidden-column
     target:
