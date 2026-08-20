@@ -121,6 +121,58 @@ for s in ui-contract-baseline ui-contract-layout ui-contract-design ui-contract-
   grep -q "paths table" "skills/$s/SKILL.md" 2>/dev/null && ok "$s" || no "$s 未声明从 config 读落点"
 done
 
+echo "15. 决策树的追踪要求落进产物，不只要求「做过」（issue #5：做没做在输出里看不出来）"
+grep -q '^## Appendix C' skills/ui-contract-layout/layout-md-outline.md \
+  && ok "大纲有 Appendix C（追踪表的落点）" || no "layout-md-outline.md 无 Appendix C，追踪结果没有产物落点"
+N=$(grep -c 'Appendix C' skills/ui-contract-layout/SKILL.md)
+[ "$N" -ge 2 ] && ok "完工清单的两条追踪都指向落点" \
+                || no "ui-contract-layout 完工清单只有 $N 处提到 Appendix C（敌意/普通两条都要指）"
+
+echo "16. 体检技能讲清了 exit 2 与 exit 3 的分别（脚本拦得住，技能不讲的话 agent 照样会说那句话）"
+python3 - <<'P16' || FAIL=1
+import re,sys
+s=open('skills/ui-contract-audit/SKILL.md',encoding='utf-8').read()
+bad=0
+if re.search(r'^\| 3 \|', s, re.M): print('  \033[32m✓\033[0m 退出码表里有 exit 3')
+else:
+    print('  \033[31m✗\033[0m SKILL.md 没有 exit 3 这一行——技能不讲，脚本的分辨就只活在产物里'); bad=1
+row=re.search(r'^\| No `layout\.md`[^\n]*\|', s, re.M)
+if row and 'config' in row.group(0): print('  \033[32m✓\033[0m 前置门第一行按 config.md 是否存在分了叉')
+else:
+    print('  \033[31m✗\033[0m 前置门第一行没有区分「有没有 config.md」，会教 agent 说出 exit 3 要拦的那句话'); bad=1
+sys.exit(bad)
+P16
+
+echo "17. 两处同源的 decision-tree-total 判据逐字一致（手抄的第二份迟早要说谎）"
+python3 - <<'P17' || FAIL=1
+import re,sys
+def norm(s): return re.sub(r'\s+','',s.replace('**',''))
+y=open('evals/existing-admin/case.yaml',encoding='utf-8').read()
+try:
+    i=y.index('name: decision-tree-total'); j=y.index('criteria: |', i)
+except ValueError:
+    print('  \033[31m✗\033[0m case.yaml 里找不到 decision-tree-total 的 criteria'); sys.exit(1)
+blk=[]
+for line in y[j:].split('\n')[1:]:
+    if line.strip() and not line.startswith('      '): break
+    blk.append(line)
+g=open('evals/greenfield-mobile/graders/decision-tree-total.md',encoding='utf-8').read()
+b=re.sub(r'^#[^\n]*\n','',g.split('---',2)[2].lstrip('\n'))
+if norm('\n'.join(blk))!=norm(b):
+    print('  \033[31m✗\033[0m case.yaml 的内联判据与 greenfield-mobile/graders/decision-tree-total.md 已经分家')
+    sys.exit(1)
+print('  \033[32m✓\033[0m 两份 decision-tree-total 判据仍逐字同源')
+gm=open('evals/greenfield-mobile/graders/traces-in-artifact.md',encoding='utf-8').read()
+pa=re.search(r'name: traces-in-artifact[\s\S]*?pattern: "([^"]*)"', y)
+pb=re.search(r'^pattern: "([^"]*)"', gm, re.M)
+if not pa or not pb:
+    print('  \033[31m✗\033[0m 两处 traces-in-artifact 的 pattern 至少有一处读不出来'); sys.exit(1)
+if pa.group(1)!=pb.group(1):
+    print(f'  \033[31m✗\033[0m traces-in-artifact 的 pattern 已经分家: {pa.group(1)!r} vs {pb.group(1)!r}')
+    sys.exit(1)
+print('  \033[32m✓\033[0m 两处 traces-in-artifact 的 pattern 一致')
+P17
+
 echo "18. 体检模板里没有「行式匹配整个标签」的检查（同一个坑踩过两次，且两次输出都正常）"
 # 模板自己在文件头写着：凡是看调用点的检查都必须一次看见整个标签，因为属性一多
 # prettier 就换行。检查 2b 违反了这条，绿着漏了很久——注释拦不住第三次，这条能。
@@ -128,7 +180,6 @@ echo "18. 体检模板里没有「行式匹配整个标签」的检查（同一�
 # flatten_sources。不带 `<` 的 -r grep 是找裸标识符，不受这条约束。
 X=$(grep -n 'grep -r' skills/ui-contract-audit/assets/audit.sh.template | grep '<')
 [ -z "$X" ] && ok "看调用点的检查都走 flatten_sources" || no "行式匹配标签，调用点一换行就全瞎: $X"
-
 echo "13. 包体量（ADR-0003：某包 SKILL.md 长期不足 30 行，说明切早了，应并回上游包）"
 for d in skills/*/; do
   n=$(wc -l < "$d/SKILL.md"); b=$(basename "$d")

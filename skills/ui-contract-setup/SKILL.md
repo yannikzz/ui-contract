@@ -49,3 +49,4 @@ Everything else waits. In particular, **do not ask about legacy strategy here** 
 - If a config file already exists, **update it in place**; do not create a second one
 - **Skip sections that are already settled** — don't re-ask what the file already answers
 - The repo-root `CLAUDE.md` gets **one pointer line**, not a copy of the config
+- Fill in **Not verified this round** before you say you are done. Anything reached by inference rather than by reading it off the disk or off a design goes there — it is the one section that tells the next reader which conclusions have evidence behind them. Skipping it is what makes a guess indistinguishable from a measurement six months later

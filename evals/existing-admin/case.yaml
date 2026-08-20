@@ -94,6 +94,51 @@ graders:
       判定：把已有 `design.md` 整份重写 → 不通过。搬走结构内容却没留指针 → 不通过。
       `design.md` 里仍留有硬编码色值 → 不通过。
 
+  # #5 的判据要求两个用例都判这条。grader 原先只装在 greenfield-mobile 上，
+  # 于是「治熵线产出的 layout.md 有没有追踪痕迹」从来没被量过——而追踪的价值
+  # 在治熵线上只多不少：那里的树是对着既有代码逆向出来的，最容易留洞。
+  # 判据与 greenfield-mobile/graders/decision-tree-total.md 保持一致，故意逐字同源。
+  - type: llm
+    name: decision-tree-total
+    focus:
+      source: file
+      path: layout.md
+    weight: 1
+    criteria: |
+      结构规范的第一章必须是落位决策树，且必须是**全函数**：任何输入恰好到达一个区域名
+      或那个显式的 stop，不能到达零个，也不能到达两个。
+
+      必须同时满足：
+
+      1. 有一条 fallback，且 fallback 是 **stop**（指向「本规范不决定」那一章），
+         不是某个真实区域，也不绕回树里
+      2. 树被**敌意输入**追踪过：不属于任何对象的一次性动作、同时符合两个区域的东西、
+         到达容量上限的东西、明显不属于本产品的东西
+      3. 树也被**普通输入**追踪过，且每条都落到了区域名上——全部 stop 掉的树同样能通过
+         敌意追踪，但那把契约变成了审批队列
+
+      判定：缺 1 → 不通过。缺 2 或缺 3 → 不通过（只做其中一半也不通过）。
+
+  # 第 8 条：能机械判的别交给 judge。上面那条判的是「追得够不够狠」，需要判断；
+  # 「追踪表到底有没有落进产物」是机械的，正则就够。这个用例 runs: 1（第 11 条，
+  # 成本），单票 llm 判据没有平均可言，所以机械的那半先用正则钉死——绿了不代表
+  # 上面那条会绿，但红了就能立刻分清是「没写进去」还是「写了但追得不够」。
+  # 判的是追踪的**类型词**而不是「附录 C」这个标题：只写个 `## 附录 C TODO`
+  # 也能命中标题，那样这条就成了它自己要防的那种「看着像在检查」的检查。
+  # 词表是量出来的，不是猜的：2026-08-20 那次实跑，三份产物全部写「恶意」，
+  # 而大纲的英文原词是 hostile、示例里写的是「敌意」——只押一个词会三次全假阴。
+  # 剩下的漏网诚实记在这里：一个有小标题、底下表格是空的附录仍然会过——
+  # 行够不够、每行有没有落到叶子，正则判不了，那半归上面那条 llm 判据。
+  # 与 greenfield-mobile/graders/traces-in-artifact.md 同源，由不变量 17 对账。
+  - type: regex
+    name: traces-in-artifact
+    target:
+      source: file
+      path: layout.md
+    pattern: "敌意|恶意|hostile"
+    match: contains
+    weight: 1
+
   - type: regex
     name: allowlist-has-forbidden-column
     target:

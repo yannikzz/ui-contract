@@ -3,11 +3,16 @@
 #
 # Lives in the user's repo, runs without an agent, and is safe in CI.
 # Exit 0 = no drift found. Exit 1 = drift found. Exit 2 = nothing to check.
+# Exit 3 = a contract is configured but this script is not looking at it — the paths
+#          below and the config's paths table disagree, in either direction. Not the
+#          same as "nothing to check": a green-looking exit 2 there would hide a broken
+#          setup, and a green-looking exit 0 would hide an audit of an abandoned file.
 #
 # TODO adjust the paths below to this project.
 set -u
 LAYOUT="layout.md"
 DESIGN="design.md"
+CONFIG="docs/ui-contract/config.md"   # written by ui-contract-setup; its paths table is authoritative — read below, not just tested for
 SRC="src"
 REGION_TYPE="src/ui/region.tsx"   # the asset layer file that declares RegionId
 TOKENS="src/tokens.css"           # the token file — values are supposed to live here
@@ -32,7 +37,48 @@ flatten_sources(){
     -exec sh -c 'printf "%s\t" "$1"; tr "\n" " " < "$1"; echo' _ {} \; 2>/dev/null
 }
 
-[ -f "$LAYOUT" ] || { echo "No $LAYOUT — there is no contract to check."; exit 2; }
+# Where the config says the structural spec lives. The row is found by its **Default**
+# column and the path is then read out of the **Path** column beside it. That way round
+# on purpose: the default text names `layout.md` no matter what the project renamed the
+# file to, and no matter which language the row's label is written in. Searching the
+# Path column for "something ending in layout.md" instead would miss the case that
+# matters most — a project that renamed its spec, where the stale path at the top of
+# this script still resolves to a real file and every check below runs happily on it.
+# Limit worth knowing: rewrite the Default column and this finds nothing and stays
+# quiet. It degrades to no check, never to a wrong one.
+config_layout_paths(){
+  [ -f "$CONFIG" ] || return 0
+  awk -F'|' 'NF>=4 && $4 ~ /`[^`]*layout\.md`/ && match($3, /`[^`]*`/) {
+    print substr($3, RSTART+1, RLENGTH-2)
+  }' "$CONFIG" | sort -u
+}
+CONFIGURED=$(config_layout_paths)
+
+if [ ! -f "$LAYOUT" ]; then
+  # Two different failures, and they must not share an exit code. If a config file
+  # exists, somebody ran setup — a contract was configured, and the paths at the top
+  # of this script simply do not point at it. Reporting that as "nothing to check"
+  # is the failure mode this whole script exists to catch: it reads as fine.
+  if [ -f "$CONFIG" ]; then
+    echo "No $LAYOUT, but $CONFIG exists."
+    [ -n "$CONFIGURED" ] && echo "Its paths table names: $(echo $CONFIGURED)"
+    echo "The paths at the top of this script disagree with the config's paths table."
+    echo "Fix the paths here; do not delete this check."
+    exit 3
+  fi
+  echo "No $LAYOUT — there is no contract to check."
+  exit 2
+fi
+
+# The mirror of the branch above, and the one that fails *green*: the config moved the
+# spec, a stale copy is still sitting at $LAYOUT, so every check below happily audits
+# the abandoned file and prints "No drift found." Same broken setup, opposite symptom.
+if [ -n "$CONFIGURED" ] && ! printf '%s\n' "$CONFIGURED" | grep -qxF "$LAYOUT"; then
+  echo "$LAYOUT exists, but $CONFIG's paths table names: $(echo $CONFIGURED)"
+  echo "Auditing $LAYOUT would be auditing a file the config does not point at."
+  echo "Fix the paths here; do not delete this check."
+  exit 3
+fi
 
 echo "1. Region names in code are inside the allowlist"
 if [ -f "$REGION_TYPE" ]; then
