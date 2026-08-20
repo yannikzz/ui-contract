@@ -62,8 +62,16 @@ run_case 1 "检查 2 · 多行调用点里用 as any 绕过 RegionId" \
   "sub src/App.tsx 'id=\"app-shell\"' 'id={(\"app-shell\" as string) as any}'"
 run_case 1 "检查 2 · 用 as RegionId 强转" \
   "sub src/App.tsx 'id=\"nav\" className' 'id={x as RegionId} className'"
-run_case 1 "检查 2b · 手写 data-region 绕过结构容器" \
+run_case 1 "检查 2b · **单行**手写 data-region 绕过结构容器" \
   "sub src/App.tsx '<Region id=\"inspector\"' '<div data-region=\"inspector\"'"
+# 手写 marker 的真实形态就是多行的：属性一超过一个，prettier 就把标签拆开，
+# 于是 `<div` 和 `data-region="…"` 落在两行，行式匹配一个都看不见。
+# 检查 1 早就为此配了单行 / 多行两个用例；2b 当初只注入了单行那种，
+# 于是它在「能失败」这件事上其实从没被证明过。
+run_case 1 "检查 2b · **多行**手写 data-region 绕过结构容器" \
+  "sub src/App.tsx '<Region id=\"inspector\"' '<div
+            data-region=\"inspector\"
+           '"
 run_case 1 "检查 3 · 非 token 的样式表里有硬编码色值" \
   "printf '.card { background: #123456; }\n' > src/feature.css"
 run_case 1 "检查 4 · 视觉规范里写死了色值" \
