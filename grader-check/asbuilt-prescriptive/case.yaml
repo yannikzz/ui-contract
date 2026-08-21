@@ -1,0 +1,36 @@
+schema_version: "1.1"
+name: asbuilt-prescriptive
+description: >
+  负样本：把 layout.md（通篇规定该怎么做）摆成 as-built.md。必须 FAIL。
+
+context:
+  scaffold_script: scaffold.sh
+
+execution:
+  prompt: |
+    只回复 done。不要使用任何工具，不要读写任何文件。
+  max_turns: 2
+  timeout_seconds: 120
+  allowed_tools: []
+
+runs: 1
+
+graders:
+  - type: llm
+    name: as-built-is-reverse-engineered
+    focus:
+      source: file
+      path: as-built.md
+    weight: 1
+    criteria: |
+      仓库里**有前端代码**（`src/` 下有 AppLayout、Sidebar、五个页面）且**没有 as-built 记录**。
+      此时直接写结构规范是错的：会凭空发明一棵和现实无关的区域树，随后强制机制把它锁进类型系统，全仓库飘红。
+
+      正确动作：先从代码逆向出**实际**的区域树（不是应有的），量出缺口。
+
+      判定：这份盘点写的是**现状**（代码里当前长什么样、哪里不一致、缺口在哪），
+      而不是**应然**（区域树应该怎么设计）→ 通过。
+      通篇在规定该怎么做、看不出是从既有代码读出来的 → 不通过。
+
+      注意：这份文件**只判内容**。写没写、以及和 `layout.md` 的先后，
+      由 `as-built-written` / `layout-md-written` 两条机械判据管。

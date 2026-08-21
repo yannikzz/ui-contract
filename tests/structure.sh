@@ -143,34 +143,52 @@ else:
 sys.exit(bad)
 P16
 
-echo "17. 两处同源的 decision-tree-total 判据逐字一致（手抄的第二份迟早要说谎）"
+echo "17. 同一条判据的每一份拷贝仍然一致（手抄的第二份迟早要说谎）"
+# 判据住在三种地方：evals/*/graders/*.md、evals/*/case.yaml 的内联、以及 grader-check/
+# 夹具里的内联。夹具的全部价值在于「验的是线上那一条」，抄歪了比没有夹具更坏。
+# 口径：忽略空白与 **，并剥掉 markdown grader 的标题行——case.yaml 内联的那份不含标题，
+# 这个差异是被容忍的（judge 实际收到的文本因此有细微不同，但没有证据表明它有影响）。
 python3 - <<'P17' || FAIL=1
-import re,sys
+import re,sys,glob
 def norm(s): return re.sub(r'\s+','',s.replace('**',''))
-y=open('evals/existing-admin/case.yaml',encoding='utf-8').read()
-try:
-    i=y.index('name: decision-tree-total'); j=y.index('criteria: |', i)
-except ValueError:
-    print('  \033[31m✗\033[0m case.yaml 里找不到 decision-tree-total 的 criteria'); sys.exit(1)
-blk=[]
-for line in y[j:].split('\n')[1:]:
-    if line.strip() and not line.startswith('      '): break
-    blk.append(line)
-g=open('evals/greenfield-mobile/graders/decision-tree-total.md',encoding='utf-8').read()
-b=re.sub(r'^#[^\n]*\n','',g.split('---',2)[2].lstrip('\n'))
-if norm('\n'.join(blk))!=norm(b):
-    print('  \033[31m✗\033[0m case.yaml 的内联判据与 greenfield-mobile/graders/decision-tree-total.md 已经分家')
-    sys.exit(1)
-print('  \033[32m✓\033[0m 两份 decision-tree-total 判据仍逐字同源')
-gm=open('evals/greenfield-mobile/graders/traces-in-artifact.md',encoding='utf-8').read()
-pa=re.search(r'name: traces-in-artifact[\s\S]*?pattern: "([^"]*)"', y)
-pb=re.search(r'^pattern: "([^"]*)"', gm, re.M)
-if not pa or not pb:
-    print('  \033[31m✗\033[0m 两处 traces-in-artifact 的 pattern 至少有一处读不出来'); sys.exit(1)
-if pa.group(1)!=pb.group(1):
-    print(f'  \033[31m✗\033[0m traces-in-artifact 的 pattern 已经分家: {pa.group(1)!r} vs {pb.group(1)!r}')
-    sys.exit(1)
-print('  \033[32m✓\033[0m 两处 traces-in-artifact 的 pattern 一致')
+
+def defs_in_yaml(text, where):
+    out=[]
+    for blk in re.split(r'\n  - type: ', text)[1:]:
+        n=re.search(r'name: ([\w-]+)', blk)
+        if not n: continue
+        mp=re.search(r'pattern: "([^"]*)"', blk)
+        if mp: out.append((n.group(1),'pattern',mp.group(1),where)); continue
+        mc=re.search(r'criteria: \|\n((?:      [^\n]*\n|\n)*)', blk)
+        if mc: out.append((n.group(1),'criteria',mc.group(1),where))
+    return out
+
+found=[]
+for f in sorted(glob.glob('evals/*/graders/*.md')):
+    src=open(f,encoding='utf-8').read()
+    name=f.split('/')[-1][:-3]
+    fm=src.split('---')[1]
+    mp=re.search(r'^pattern: "([^"]*)"', fm, re.M)
+    if mp: found.append((name,'pattern',mp.group(1),f))
+    else:
+        body=re.sub(r'^#[^\n]*\n','',src.split('---',2)[2].lstrip('\n'))
+        found.append((name,'criteria',body,f))
+for f in sorted(glob.glob('evals/*/case.yaml'))+sorted(glob.glob('grader-check/*/case.yaml')):
+    found+=defs_in_yaml(open(f,encoding='utf-8').read(), f)
+
+by={}
+for name,kind,val,where in found: by.setdefault((name,kind),[]).append((val,where))
+bad=0; checked=0
+for (name,kind),vals in sorted(by.items()):
+    if len(vals)<2: continue
+    checked+=1
+    base,bw=vals[0]
+    for val,w in vals[1:]:
+        same = (val==base) if kind=='pattern' else (norm(val)==norm(base))
+        if not same:
+            print(f'  \033[31m✗\033[0m {name} 的 {kind} 已经分家: {bw} vs {w}'); bad=1
+if bad: sys.exit(1)
+print(f'  \033[32m✓\033[0m {checked} 条有多份拷贝的判据仍然一致')
 P17
 
 echo "18. 体检模板里没有「行式匹配整个标签」的检查（同一个坑踩过两次，且两次输出都正常）"

@@ -129,6 +129,7 @@ Deliverables are written in whatever language you're speaking. `ui-contract-glos
 skills/                 The 15 packages. Only this directory is shipped to users
 tests/run.sh            Structure invariants + proof the health check can fail — free, seconds
 evals/                  Two end-to-end scenarios (greenfield / existing project)
+grader-check/           Fixtures that check the graders themselves — no agent runs, cents per check
 examples/admin-console/ A complete three-artifact set, type-checked and building
 docs/adr/               Decisions about developing this plugin
 .claude-plugin/         Marketplace + plugin manifests
@@ -148,7 +149,9 @@ claude plugin eval . --ablation with-without   # behaviour, costs money
 
 `evals/` holds two scenarios — one greenfield, one existing project — covering the two entry paths. `--ablation with-without` runs a genuine no-plugin control arm; an earlier hand-rolled control was contaminated because a subagent sees the skill's description in its listing even without invoking it.
 
-Three things deliberately have no automated coverage, listed in `evals/README.md`. Read that before trusting a green run.
+`grader-check/` is the layer below: it checks whether the graders can tell right from wrong at all. The agent runs nothing — real artifacts are placed into the sandbox by the scaffold — so one check costs cents instead of the $8 a full run costs. Every grader gets a matching pair: an artifact that must pass and one that must fail. That pair is the point. One grader was failing 15 votes in a row and got diagnosed as "too strict" purely because nobody had ever shown it a negative — the fix that looked right made it pass everything instead, including the negative.
+
+Four things deliberately have no automated coverage, listed in `evals/README.md`. Read that before trusting a green run.
 
 ## Contributing
 

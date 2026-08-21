@@ -1,0 +1,26 @@
+schema_version: "1.1"
+name: traces-missing
+description: >
+  负样本：2026-08-19 实跑产物，#5 修复前，一条追踪都没有。必须 FAIL。
+
+context:
+  scaffold_script: scaffold.sh
+
+execution:
+  prompt: |
+    只回复 done。不要使用任何工具，不要读写任何文件。
+  max_turns: 2
+  timeout_seconds: 120
+  allowed_tools: []
+
+runs: 1
+
+graders:
+  - type: regex
+    name: traces-in-artifact
+    target:
+      source: file
+      path: layout.md
+    pattern: "敌意|恶意|hostile"
+    match: contains
+    weight: 1
