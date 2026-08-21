@@ -205,9 +205,15 @@ echo "19. design 单元写死了 tokens.input.json 的身份（不写死它就�
 # 判的是**身份表那两行**，不是三个词在全文任意位置各出现一次：`value authority`
 # 在这份文件里本来就为 token 文件出现过好几次，散着数词的写法三个条件都能被
 # 不相关的正文满足——那样这条断言就成了它自己要防的那种「看着像在检查」的检查。
+#
+# 第二版仍然不够：它只要求「某一行同时含两组词」，而一句随口的散文就能满足
+# （量过：把整张表删掉、末尾补一句 "tokens.input.json is an input record. The
+# token file holds values that are currently correct." ——断言照样绿）。所以锚点
+# 现在钉在**表格结构**上：必须是以 `|` 开头的表行，且必须带上冲突判定那一列。
+# 「谁说了算」正是靠那一列表达的，一句散文说不出 does not count / wins。
 D="skills/ui-contract-design/SKILL.md"
-R1=$(grep -c 'tokens\.input\.json.*input record' "$D")
-R2=$(grep -c 'token file.*currently correct' "$D")
+R1=$(grep -cE '^\| *`tokens\.input\.json` *\|.*input record.*\| *does not count *\|' "$D")
+R2=$(grep -cE '^\| *the token file *\|.*currently correct.*\| *wins *\|' "$D")
 if [ "$R1" -ge 1 ] && [ "$R2" -ge 1 ]; then
   ok "design/SKILL.md 有身份表：JSON 是输入记录、token 文件是当前正确的值"
 else
@@ -266,10 +272,21 @@ if not m:
 rest = s[:m.start()] + s[m.end():]
 # 标注层是**声明出来的**例外，按模板里的哨兵剔除整块——不是靠猜哪些颜色名该放过。
 # 猜颜色名的版本第一次跑就漏判了 sky-*（区域徽标与虚线框），而那正是合法的那批。
+# 声明出来的例外，其边界本身也得守住：哨兵只是两行注释，挪一下不需要任何理由，
+# 在 review 里长得像格式调整。量过：把 END 那行搬到文件末尾，整份文件就都进了
+# 豁免区，块外注入 bg-blue-600 照样 exit 0——这条断言是 ADR-0006 推翻「线框里
+# 没有颜色」之后唯一的机械守卫，它一失效，那条 ADR 的两句承诺同时落空。
+# 所以两件事一起判：哨兵各恰好一次（多一对就能圈住任意代码），且块外必须还有
+# 产品组件（块内是 inspect 装置，块外是产品表面；产品表面没了就是被整个吞掉）。
+nb, ne = len(re.findall(r'INSPECT CHROME BEGIN', s)), len(re.findall(r'INSPECT CHROME END', s))
+if nb != 1 or ne != 1:
+    print(f'  \033[31m✗\033[0m 哨兵必须各恰好一次（BEGIN {nb} / END {ne}）——多一对就能把任意代码圈进豁免区'); sys.exit(1)
 a = re.search(r'INSPECT CHROME BEGIN(.*?)INSPECT CHROME END', rest, re.S)
 if not a:
     print('  \033[31m✗\033[0m 模板里没有 INSPECT CHROME 哨兵——例外必须是声明的，不是猜的'); sys.exit(1)
 rest = rest[:a.start()] + rest[a.end():]
+if not re.search(r'^export function', rest, re.M):
+    print('  \033[31m✗\033[0m 哨兵块外没有产品组件了——把 END 推到文件尾等于全文豁免'); sys.exit(1)
 leaks = re.findall(r'#[0-9a-fA-F]{3,8}\b|\brgba?\(|\boklch\(|\bhsla?\(|\b(?:bg|text|border|ring|fill|stroke)-(?:red|blue|green|yellow|amber|orange|purple|pink|indigo|teal|cyan|violet|rose|lime|emerald|sky|fuchsia|slate|zinc|stone|gray|grey|neutral)-\d{2,3}', rest)
 if leaks:
     print(f'  \033[31m✗\033[0m NEUTRAL 之外出现颜色值: {sorted(set(leaks))[:8]}'); bad=1
