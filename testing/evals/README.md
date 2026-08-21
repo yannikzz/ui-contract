@@ -8,9 +8,13 @@
 | `greenfield-originate` | 0-1 线的 `originate` 分叉（连视觉规范都没有） | 视觉规范被**生成**出来；命名声明表落进产物；规范里不留硬值 |
 | `existing-admin` | 治熵线（有前端代码 + 已有 token） | 先跑 baseline 再写规范；不凭空发明区域树 |
 
-⚠ **`greenfield-originate` 从未实跑过。** 它是随 issue #11 一起写的，写完没有跑——跑一次 eval 要花钱。
+> **2026-08-21 已实跑，欠账部分结清**（$5.73 / 2 次有效 run，详见「greenfield-originate 首跑」一节）。
+> 四条判据在真实产物上全部 PASS，其中三条随后用 `grader-check/` 的夹具**正负双向**验过。
+> 仍未结清的两笔写在那一节里：`skill-fired` 没有负样本，插件的 Δ 没有量到。
+
+它是随 issue #11 一起写的，写完没有跑——跑一次 eval 要花钱。
 在它跑过之前，它的四条判据都是**推理出来的**，不是量出来的，而这个仓库刚因为「从假象数据推结论」
-吃过亏（见下面的十二个坑）。这笔欠账记在 issue #6，下次因为任何原因跑 eval 时一并结清。
+吃过亏（见下面的十二个坑）。
 
 它为什么是新用例而不是往 `greenfield-mobile` 加判据：那个用例的 prompt 只要「界面结构的规范」，
 产不产 `design.md` 不在它的射程内。把视觉判据挂上去，测的是一件那个 case 没做的事——
@@ -151,6 +155,51 @@ CLAUDE_CODE_WALNUT_SPIRE=1 claude plugin eval . \
 `no-desktop-skeleton` 这次 2/3（run 1 挂）。加上历史，这条纪律的实际稳定度是 7/9。
 
 另有一条量出来的**稳定性**数据，不是缺陷但值得记：`no-desktop-skeleton` 在六次 run 里挂过一次（第二次实跑的 run 1）。这条判据刻意严格到「连提都不能提」——手机端规范里出现「侧边栏」，哪怕是在否定它，也算参照系跑偏。所以 5/6 是这条纪律当前的实际稳定度，不是 6/6。
+
+## greenfield-originate 首跑（2026-08-21，$5.73）
+
+只跑这一个用例、`--runs 3`。**第 3 次 run 与整个对照臂没跑成**：外层 shell 被一个 10 分钟的
+超时砍掉，而 README 开头就写着一次实跑要四十分钟——两次有效 run 花了 $5.73，40 分钟。
+这不是 harness 的坑，是跑的人没读自己写的字。
+
+**四条判据在真实产物上全部 PASS**，两次 run 一致（29 / 30 轮）：
+
+| 判据 | run1 | run2 | 量到了什么 |
+|---|---|---|---|
+| `design-md-written` | PASS | PASS | 规范确实被**生成**出来了；run1 还产出了 `tokens.input.json`（`originate` 第 4 步落地），run2 没有 |
+| `naming-declared` | PASS | PASS | 声明表真的落进产物：68 / 70 处关键词，**一行一个 token**，不是散文碰巧命中 |
+| `no-literal-values-in-design` | PASS | PASS | 两份规范里色值 **0 处** |
+| `skill-fired` | Skill ×7 | Skill ×7 | 插件确实触发 |
+
+`naming-declared` 那条是这次最该验的：判据押三个固定 ASCII 词，而 prompt 是中文、产物也跟着
+是中文。两份产物不但把关键词写成了 ASCII，还各自**主动写下了那句告诫**——「三个关键词保持
+ASCII 原样，即使文档其余部分是中文」。那句话是 `design-md-outline.md` 里的，它传导到了产物。
+不跑的话，这条判据会不会像当年 `traces-in-artifact` 押「敌意」而产物写「恶意」那样三票全假阴，
+只能靠猜。
+
+### 三条已双向验过，一条没有
+
+按「没有负样本的验证不叫验证」，实跑只给正样本，所以随后用 `grader-check/` 补了负样本
+（$0.73 / 44 秒，八个 case 全部符合预期，见 [grader-check/README.md](../grader-check/README.md)）：
+
+| 判据 | 负样本从哪来 | 结果 |
+|---|---|---|
+| `naming-declared` | `examples/admin-console/design.md`——真实产出，产出时声明表这个概念还不存在 | 双向正确 |
+| `no-literal-values-in-design` | `existing-admin` 夹具里的「现状」`design.md`，含 9 处色值 | 双向正确 |
+| `design-md-written` | **不用造**：被打断的 run3 没写出 `design.md`，判据如实判 FAIL | 双向正确 |
+| `skill-fired` | **没有** | 只有正样本 |
+
+`skill-fired` 的负样本就是对照臂——没有插件时 `Skill` 不该被调用。对照臂没跑成，所以这条
+判据至今只被证明「插件在时它会绿」，没被证明「插件不在时它会红」。**这是四条里唯一一条
+判别力未知的**，与它是 harness 内建类型无关：`decision-tree-total` 当年也是绿着的。
+
+### 两笔仍然欠着
+
+- **`skill-fired` 的负样本**，理由如上。它跟着对照臂一起来。
+- **Δ 没有量到。** 对照臂一次都没跑，所以「装了这个插件比不装强多少」在 `originate` 分支上
+  仍然是零数据。本次那个 0.67 的 overallScore 是被打断的 run3 拉的，**不是质量信号，别引用它**。
+
+补齐这两笔要再跑一次带对照臂的完整实跑，按本次单价约 $6–9。
 
 ## 刻意没有覆盖的
 
