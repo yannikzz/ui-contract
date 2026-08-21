@@ -45,7 +45,12 @@ CLAUDE_CODE_WALNUT_SPIRE=1 claude plugin eval . \
   治熵线用例正是拿它当起点。
 
 ⚠ 第四条判据 `skill-fired` **这里验不了**：夹具里 agent 一步不跑，`Skill` 自然不会被调用，
-正负两样本会长得一模一样。它的负样本只能来自 eval 的对照臂。
+正负两样本会长得一模一样。
+
+它也**不能靠 eval 的对照臂来验**——这一点是补跑之后才知道的：这类判据在两个臂里都被排除出
+分数（见 `evals/README.md` §`tool_used: Skill` 默认不计分），对照臂的结果里根本没有这一行。
+它最后是按 **trace 里的事实**结清的：with 臂 `Skill` 调用 2/7/2 次，对照臂 0/0/0 次，
+而判据问的是「≥1 次」。
 
 两条判据是**在这里第一次被真正验证**的：`as-built-is-reverse-engineered` 拆出来之后一直没跑过
 （`testing/evals/README.md` 第 12 条记着这笔欠账），`traces-in-artifact` 的词表是从保留产物量出来的、
