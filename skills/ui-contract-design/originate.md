@@ -71,6 +71,8 @@ Call the Skill tool with "frontend-design". Its job is to turn the chosen direct
 2. A template that differs on every run is not a template.
 3. v1 (what the agent derived) and the final version (what the user tuned) become **two revisions of one file, and therefore diffable**. ADR-0001 决定 B hangs its revisit condition on "the proportion of generated brands the user overrides" — a number that has never had a source. This diff is that source.
 
+**Write the file before moving to Step 3.** Not "plan to write it", not "describe it in `design.md`" — the file on disk, now. This paragraph used to end at reason 3, and the measurement is unambiguous about what that cost: across five real runs `design.md` landed 5/5 while `tokens.input.json` landed 2/5, and the three runs that skipped it had mentioned the file 12 and 8 times in their own traces first. Reasoning about the file is not writing it, and reason 3 above is void without it — a revisit condition whose only data source exists 40% of the time is not a revisit condition.
+
 ---
 
 ## Step 3 — the instrument

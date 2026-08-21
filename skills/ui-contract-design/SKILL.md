@@ -78,4 +78,5 @@ Do **not** silently invent values back into `design.md` to make it self-containe
 - [ ] Every row marked `borrowed` is actually in the borrowed set; no `sidebar-*` and no `chart-*` among them
 - [ ] Chapters the borrowed set does not cover say so, and their names follow the pairing rule
 - [ ] On the `originate` branch: the three directions differ on at least two axes, and each cost is a consequence in this product rather than an adjective
+- [ ] On the `originate` branch: the derived values were **written to `tokens.input.json`** — the actual file on disk, not only described in `design.md` — because ADR-0001 决定 B hangs its revisit condition on how often a user overrides a generated brand, and the diff between this file's first version and the tuned one is that number's only source. A run that reasons about the file and never writes it leaves that condition with no data at all
 - [ ] Reported to the user: which sections were touched, how many names were replaced, what was deliberately left alone
