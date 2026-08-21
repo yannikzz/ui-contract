@@ -57,8 +57,9 @@ graders:
     before: { tool: Skill, input_match: 'ui-contract-baseline' }
     after:  { tool: Skill, input_match: 'ui-contract-layout' }
     weight: 1
-    # UNVERIFIED: 只有 2026-08 那两次实跑的观察支持它，没有量过负方向。
-    # `tool_order` 与 `tool_used` 一样无法用冻结轨迹做夹具（见 README）。
+    # VERIFIED 2026-08-21，双向：with 臂 `Skill@23 precedes Skill@31`，
+    # 对照臂 `"before" tool Skill never called`。它是这次网关 3 里唯一被完整验掉的新判据——
+    # `tool_order` 无法用冻结轨迹做夹具（重放的历史判据看不见，见 README），只能这么验。
   # 拆成两条：机械的部分交给 regex，判断的部分只看一份 8 千字的文件。
   - type: regex
     name: as-built-cites-real-code

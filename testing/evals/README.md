@@ -201,6 +201,105 @@ ASCII 原样，即使文档其余部分是中文」。那句话是 `design-md-ou
 
 补齐这两笔要再跑一次带对照臂的完整实跑，按本次单价约 $6–9。
 
+## 三个用例全跑（2026-08-21，$10.18 / 4.5 小时 / 18 次 run）
+
+**这是两次跑拼起来的**，时间戳对不上是正常的：第一次在 `existing-admin` 跑完两臂后被手工中断
+（SIGINT → `partialReason: "interrupted"`，$3.93 / 115 分钟），第二次用 `--case 'greenfield-*'`
+续跑剩下两个用例（$6.25 / 157 分钟，exit 0）。**`plugin eval` 没有 resume**，从中断处继续的
+唯一办法就是 `--case` 过滤掉已经跑完的用例——重跑已完成的用例只是白花钱。
+
+### 先说结论：汇总里的平均分不能引用
+
+18 次 run 里 **7 次是零轮**（`turns=0` / `$0.00`），成因见下一节，与插件质量无关。
+它们照样进了分母，所以 `overallScore 0.42` / `meanDelta 0.42` 这类数字**是被污染的**。
+
+只看真正跑起来的 run：
+
+| 用例 | with（有效 run） | without（有效 run） | Δ |
+|---|---|---|---|
+| `existing-admin` | 0.875（41 轮） | 0（18 轮） | **+0.875** |
+| `greenfield-mobile` | 0.75 · 0.75（20 / 21 轮） | 0（3 轮） | **+0.75** |
+| `greenfield-originate` | 1.00（24 轮） | 0 · 0 · 0（5 / 4 / 4 轮） | **+1.00** |
+
+对照臂**每一次有效 run 都是 0 分**，没有一次侥幸产出——这一点比 Δ 的具体数值更有说服力，
+因为它是九次独立采样的一致结果（含第一次跑的那一次）。
+
+### 零轮 run 的成因查清了，是机器睡眠
+
+第一次跑在 10:18 之后连续七次 `turns=0 / $0.00`，当时只能看出是「时间上的硬断点」，
+`authRejected` 为 `None`，排除了鉴权。第二次跑里 harness 直接把原因写出来了：
+
+```
+err = exit 1: API Error: Your computer went to sleep mid-response.
+```
+
+**机器睡了。** 所以不要改 `timeout_seconds`——900 秒对一次正常 run（20 轮 / 419 秒）是够的，
+改它等于用配置去补一次环境故障，下次还会误导人。长跑之前先关掉睡眠。
+
+顺带一个反直觉的观察：`greenfield-originate` 的 with run1 **报了 `timed out after 900s`，
+却拿了满分 1.00**——它在被砍之前已经把 `design.md` 写完了。**超时不等于没产出**，
+判据看的是磁盘不是退出状态。
+
+### 这次跑到的最重要的一件事：per-skill 判据抓到了通用判据看不见的东西
+
+`greenfield-mobile` 的 with run2：
+
+```
+✓ skill-fired         Skill called 2x     ← 通用判据：绿
+✗ layout-skill-fired  Skill called 0x     ← 点名判据：红
+✓ layout-md-written   layout.md exists
+✓ no-desktop-skeleton pattern absent as expected
+✓ no-visual-values-in-structure
+```
+
+**插件确实跑了，但跑的不是 `ui-contract-layout`**，而 `layout.md` 照样写出来了、
+两条内容判据照样过。这正是这个仓库反复栽的那一类失效：**输出看起来完全正常**。
+在这条点名判据存在之前，这次 run 在记分板上和 run1 长得一模一样。
+
+这也是 `CLAUDE.md` 记的第一次事故的同一形状——「四个提问单元漏掉调用行，行为看着完全正常」。
+两年前那次是靠人读代码发现的，这次是判据发现的。
+
+⚠ **但它没有改变分数**：点名判据是 `tool_used` on `Skill` 且没写 `arm`，被 harness 归为
+with-only，**两个臂都不计分**（见下面「`tool_used: Skill` 默认不计分」）。它只是个指示灯。
+要让它计分得写 `arm: both`，而那会让对照臂必挂——这笔取舍还没定，记在 issue #6。
+
+### 三条新判据的验证状态更新
+
+| 判据 | 正方向 | 负方向 | 结论 |
+|---|---|---|---|
+| `baseline-before-layout`（`tool_order`） | ✓ `Skill@23 precedes Skill@31` | ✓ 对照臂 `"before" tool Skill never called` | **双向已验**，可以摘掉 `UNVERIFIED:` |
+| `design-skill-fired` | ✓ 3/3 次 with run 都命中 | ✗ 见下 | 正方向已验 |
+| `layout-skill-fired` | ✓ 1/3（run2 如实报红、run3 是睡眠） | ✗ 见下 | 正方向已验 |
+
+### 一个结清条件被证伪：`skill-fired` 的负样本**不可能**来自对照臂
+
+issue #6 第 6 笔原本写着「结清条件：任何一次跑完对照臂的网关 3」。**这次跑完了对照臂，
+而它仍然拿不到负样本**——因为 with-only 判据是被**丢掉**的，不是被拿去对照臂跑然后判红的。
+对照臂的判据清单里根本没有它：
+
+```
+[without] run1: design-md-written / naming-declared / no-literal-values-in-design
+          ← skill-fired 与 design-skill-fired 都不在列
+```
+
+官方原文说的是 *dropped from the without-arm*，我此前把它读成了「在对照臂会红」。
+**唯一能拿到负样本的办法是给它写 `arm: both`**，代价是对照臂必挂一条。这笔取舍未定，
+已改写进 issue #6。
+
+### 两条稳定度数据
+
+- `no-desktop-skeleton`：这次 with 臂两次有效 run 全过，累计 **7/8**（此前 5/6）。
+- `traces-in-artifact`：这次 `greenfield-mobile` 两次有效 run **全挂**（`pattern not found`），
+  而第一次跑的那次是过的，累计 **1/3**。这条是 2026-08-20 才把词表从「敌意」扩成
+  `敌意|恶意|hostile` 的，扩完在 `existing-admin` 上稳定命中、在 `greenfield-mobile` 上不稳定。
+  **样本还太小，判不出是产品倾向还是判据太窄**，记进 issue #6 与 `no-desktop-skeleton` 同档。
+
+### 四十分钟这个数字要改
+
+README 顶部长期写着「四十分钟」。实测 **18 次 run 花了 4.5 小时**，其中还有 7 次是零轮空转。
+按有效 run 的实际耗时（168–1729 秒，中位数约 400 秒）重算，一次干净的全量大约 **2 小时**。
+放后台跑，别用带超时的外层 shell——上一次网关 3 就是死在 10 分钟超时上。
+
 ## 刻意没有覆盖的
 
 只机械化了 2 个场景。以下四条**全程无人守**，是明确接受的代价：
