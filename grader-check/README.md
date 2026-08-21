@@ -33,6 +33,20 @@ CLAUDE_CODE_WALNUT_SPIRE=1 claude plugin eval . \
 | `traces-missing` | 2026-08-19 实跑产物，#5 修复前，一条追踪都没有 | 同上 | FAIL |
 | `asbuilt-descriptive` | 实跑产出的真 `as-built.md`，写的是现状 | `as-built-is-reverse-engineered` | PASS |
 | `asbuilt-prescriptive` | 拿 `layout.md` 冒充 `as-built.md`，通篇是应然 | 同上 | FAIL |
+| `naming-declared-present` | 2026-08-21 `greenfield-originate` 首跑产物，声明表齐备（68 处关键词） | `naming-declared` | PASS |
+| `naming-declared-missing` | `examples/admin-console` 的真实产出，产出时声明表这个概念还不存在（0 处） | 同上 | FAIL |
+| `design-values-clean` | 同一份首跑产物，色值 0 处（值都在 token 文件里） | `no-literal-values-in-design` | PASS |
+| `design-values-literal` | `existing-admin` 夹具里的「现状」`design.md`，9 处硬编码色值 | 同上 | FAIL |
+
+后四个是 `greenfield-originate` 实跑之后补的，八个 case 一起跑 **$0.73 / 44 秒**，全部符合预期。
+两个负样本都不是手搓的，这是刻意的：
+- `naming-declared-missing` 的「没有声明表」是**时间造成的**——那份产物早于声明表这个概念，
+  `examples/README.md` 里记着它落后两个 ADR。ground truth 来自它的出生日期，不是来自 `sed`。
+- `design-values-literal` 的「含色值」是它的**本质属性**——它扮演的就是一个还没被规范化的项目，
+  治熵线用例正是拿它当起点。
+
+⚠ 第四条判据 `skill-fired` **这里验不了**：夹具里 agent 一步不跑，`Skill` 自然不会被调用，
+正负两样本会长得一模一样。它的负样本只能来自 eval 的对照臂。
 
 两条判据都是**在这里第一次被真正验证**的：`as-built-is-reverse-engineered` 拆出来之后一直没跑过
 （`evals/README.md` 第 12 条记着这笔欠账），`traces-in-artifact` 的词表是从保留产物量出来的、
