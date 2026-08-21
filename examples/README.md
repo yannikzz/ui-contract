@@ -2,6 +2,20 @@
 
 Real output from this skill, not hand-written illustrations. Reading one is the fastest way to understand what the skill actually produces.
 
+⚠ **`admin-console` predates ADR-0005 and ADR-0006, and has not been regenerated.** It therefore does not show two things the skill now produces:
+
+| Not in the example | Added by |
+|---|---|
+| The naming declaration table in `design.md`, and borrowed token names | [ADR-0005](../docs/adr/0005-originate-instrument-and-borrowed-token-names.md) |
+| The skin preview in the wireframe — `NEUTRAL`, `SKIN`, `useSkinVars`, `SkinBanner`, and the `INSPECT CHROME` block | [ADR-0006](../docs/adr/0006-wireframe-skin-preview.md) |
+| The skin **editor** — `useSkin`, `SkinEditor`, `toHex` | [ADR-0007](../docs/adr/0007-wireframe-edit-panel-emits-a-prompt.md) |
+
+Those names are listed one by one on purpose: `tests/structure.sh` reads this paragraph. Every symbol the template exports has to appear either in the example's `wire.tsx` or here. **Falling behind is allowed; falling behind silently is not.**
+
+**It is deliberately not hand-patched to close that gap.** Editing it to look like current output would make the first line of this file false — the example's only value is that a real run produced it. A stated gap is honest; a hand-written illustration claiming to be real output is not. Closing it properly means re-running the skill.
+
+Related, and visible in the example itself: its declared token source is a `@theme` block **inside the throwaway wireframe directory** with no colour scale at all (`docs/ui-contract/config.md`, 本轮未验证 #5). So even with a skin preview bolted on, there would be nothing for it to read. That is the same token-file gap [ADR-0004](../docs/adr/0004-token-file-gap-stated-not-pointed.md) is about.
+
 ## admin-console
 
 **Prompt:** a user describing two Figma screenshots of an admin system in text — a 220px nav in three groups, a filter bar over a table, a 360px property panel that slides out on row click, plus a second screenshot showing a bulk-import page with no property panel and a three-step wizard. The user also mentioned that "Trash" appeared twice in the nav and suspected copy-paste.
@@ -59,5 +73,6 @@ so the compile-time layer genuinely holds.
 
 ### Caveats
 
-- The rendered output was never viewed by a human. Layout correctness and density are unverified — see the "toggle → what it verifies" table in `wireframe/README.md`.
+- **Rendered output: viewed 2026-08-21, by an agent driving a browser — not by a human.** `pnpm dev` was started and the P1 list page screenshotted at 1464px. What that confirms: it renders with no console errors, the density is real (20 rows, long Chinese titles, six columns), and the live degradation readout is present and reporting (`外壳实测 1464 · 导航 220 (full) · 主区 1244 · 阈值 640 · 降级: 未触发`). What it does **not** confirm: the other three archetypes, the degradation cascade at narrower clamps, or any aesthetic judgement. Those still need a person — see the "toggle → what it verifies" table in `wireframe/README.md`.
+- The old wording here was "never viewed by a human", which quietly implied *nobody could*. With browser tooling available an agent can look, and it should — the wrap-up advice in `ui-contract-wireframe` still assumes it cannot, and that assumption is now wrong more often than it is right.
 - This was produced in a single non-interactive pass (the user said "I'm in a hurry, go with your recommendations"). A real run interviews the user one question at a time, so the decision table would be shorter and the answers would be theirs.

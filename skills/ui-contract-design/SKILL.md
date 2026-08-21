@@ -1,11 +1,18 @@
 ---
 name: ui-contract-design
-description: Align an existing visual spec (design.md) against the structural spec - add the division-of-labor statement, move structural content out leaving a pointer, replace old component-style names with allowlist names, and move literal values into the token file so design.md holds rules rather than values. Use when a project has visual conventions that need to become a spec with a clean boundary.
+description: Align an existing visual spec (design.md) against the structural spec - add the division-of-labor statement, move structural content out leaving a pointer, replace old component-style names with allowlist names, and move literal values into the token file so design.md holds rules rather than values. Use when a project has visual conventions that need to become a spec with a clean boundary. Or originate one when there are none at all - choose a brand direction on attributes rather than colours, derive the values, tune them on a page. Chinese: 生成品牌/配色规范/token 命名/主题调校.
 ---
 
 # Visual spec — `design.md`
 
 Produces one artifact: `design.md`, plus references into the project's **token file**. Skeleton in [design-md-outline.md](design-md-outline.md). **Read it.**
+
+Two branches, same artifact and same completion criteria — so this is one unit, not two:
+
+| What the project has | Branch |
+|---|---|
+| A visual spec, a token source, or mockups | **align** — this file, below |
+| None of those | **originate** — [originate.md](originate.md). **Read it before asking anything.** |
 
 For the interview discipline, call the Skill tool with "decision-interview".
 For which document a thing belongs in, call the Skill tool with "ui-contract-glossary".
@@ -20,9 +27,8 @@ For handling change requests, call the Skill tool with "spec-before-code".
 |---|---|
 | `layout.md` does not exist | **Stop.** The allowlist is what region names get aligned against; without it this step produces a second vocabulary. Call the Skill tool with "ui-contract-layout" first |
 | `design.md` exists but `layout.md` does not | **Stop and say so.** Aligning a boundary against a document that doesn't exist means inventing the other half |
-| No visual conventions exist anywhere — no `design.md`, no token source, no mockups | **Stop and say so plainly.** Generating a brand from nothing is a separate capability that this version does not have. Tell the user what it would involve and let them decide, rather than producing a default palette they will accept without choosing |
-
-That last row is not a temporary gap to paper over. A default palette the user rubber-stamps is no longer their spec — which is the failure this whole method exists to prevent.
+| No visual conventions exist anywhere — no `design.md`, no token source, no mockups | **Go to `originate.md`.** Do not start from this file's align procedure — there is nothing to align against |
+| Nothing exists **and** the user asks for "something that looks good, you pick" | Still `originate.md`, still the interview. **Do not hand over a default palette.** A palette the user rubber-stamps is no longer their spec, which is the failure this whole method exists to prevent |
 
 ## This step aligns; it does not rewrite
 
@@ -33,7 +39,24 @@ If the project already has a visual spec, **do not rewrite it.** Four things:
 3. **Move literal values out to the token file.** Hex codes, px sizes, radius literals become token references. If the project already has a token source (`tailwind.config.*`, `tokens.css`, a theme file), **that is the token file** — do not create a second one.
 4. **Align region names with the allowlist.** Old component-style names (camel-cased widget names) must be replaced with allowlist names, or an agent reading both docs gets two vocabularies — and the allowlist mechanism fails on the spot.
 
+**Token names are not part of that.** Region names get aligned; token names do not. Record what the project already calls them in the declaration table, marked `this project`, and change nothing. Renaming tokens turns a boundary alignment into a repo-wide rename that touches every consumer — a change request, which goes through `spec-before-code`.
+
 Appendices that record **mockup** reality (value-drift mapping tables and the like) **stay untouched** — they document the mockup, not the spec.
+
+## The document is the name authority
+
+The token file holds the **values**; this document settles which **names** exist. Say so in the opening blockquote, and carry the declaration table (`design-md-outline.md` §Opening) with it.
+
+This has to be written down for the same reason the value authority is: without it, a borrowed naming convention quietly becomes the authority instead, and **nothing in the output shows it** — a token file produced either way is byte-for-byte the same. The health check reads its whitelist from that table, so a missing table degrades the check to nothing.
+
+The same applies to `tokens.input.json` when the `originate` branch produced one:
+
+| | Records | On conflict |
+|---|---|---|
+| `tokens.input.json` | where the user left the knobs (an input record) | does not count |
+| the token file | the values that are currently correct | wins |
+
+Its keys are the names from the declaration table. Per-stack mapping changes the format, never the names.
 
 ## When there is no token file yet
 
@@ -51,4 +74,8 @@ Do **not** silently invent values back into `design.md` to make it self-containe
 - [ ] Every region name matches the allowlist; no old component-style naming survives in the normative body
 - [ ] Mockup-reality appendices were left alone
 - [ ] If no token file exists yet, `design.md` says so in its own body, and no path to a missing file is written anywhere in it
+- [ ] The declaration table is present in the opening section, one row per token, each row marked `borrowed` / `this project` / `not used` — **those three keywords in ASCII even in a non-English deliverable**, because the health check anchors on them and a translation silently turns the check off
+- [ ] Every row marked `borrowed` is actually in the borrowed set; no `sidebar-*` and no `chart-*` among them
+- [ ] Chapters the borrowed set does not cover say so, and their names follow the pairing rule
+- [ ] On the `originate` branch: the three directions differ on at least two axes, and each cost is a consequence in this product rather than an adjective
 - [ ] Reported to the user: which sections were touched, how many names were replaced, what was deliberately left alone

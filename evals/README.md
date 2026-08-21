@@ -1,11 +1,20 @@
 # Eval 场景
 
-两条起点各一个，覆盖 `ui-contract` 的两大场景：
+两条起点，三个用例——0-1 线两个，因为它有两条动词分叉：
 
 | 用例 | 起点 | 验的是 |
 |---|---|---|
 | `greenfield-mobile` | 0-1 线（一句话想法，无代码无稿） | 不把桌面端的骨架套到手机上；决策树是全函数 |
+| `greenfield-originate` | 0-1 线的 `originate` 分叉（连视觉规范都没有） | 视觉规范被**生成**出来；命名声明表落进产物；规范里不留硬值 |
 | `existing-admin` | 治熵线（有前端代码 + 已有 token） | 先跑 baseline 再写规范；不凭空发明区域树 |
+
+⚠ **`greenfield-originate` 从未实跑过。** 它是随 issue #11 一起写的，写完没有跑——跑一次 eval 要花钱。
+在它跑过之前，它的四条判据都是**推理出来的**，不是量出来的，而这个仓库刚因为「从假象数据推结论」
+吃过亏（见下面的十二个坑）。这笔欠账记在 issue #6，下次因为任何原因跑 eval 时一并结清。
+
+它为什么是新用例而不是往 `greenfield-mobile` 加判据：那个用例的 prompt 只要「界面结构的规范」，
+产不产 `design.md` 不在它的射程内。把视觉判据挂上去，测的是一件那个 case 没做的事——
+判据必挂，而挂的原因与插件质量无关。这正是坑 3 的同一个形状。
 
 跑：
 
@@ -21,7 +30,7 @@ CLAUDE_CODE_WALNUT_SPIRE=1 claude plugin eval . \
 | `CLAUDE_CODE_WALNUT_SPIRE=1` | `plugin eval` 被一个默认关闭、按组织灰度的 feature gate 挡着。这个变量是官方给收不到灰度的机器留的口子；**不要设在仓库的 `.claude/settings.json` 里**，committed 的值通常不生效 |
 | `--scaffold` | `existing-admin` 靠 `scaffold_script` 造 fixture 仓库，默认**不跑**（它会以你的身份执行作者提供的 bash）。不加这个开关，治熵线用例面对的是空目录 |
 | `--allow-tools Write Edit` | `Write` / `Edit` 是 gated tool，`allowed_tools` 里列了还不够。不给，agent 写不出规范文件 |
-| `--max-cost-usd` | 单次 run 约 $0.6–3.7。两用例两臂共 8 次 run，实测总额 $10.4——给 $10 会被砍在半路，见第 11 条 |
+| `--max-cost-usd` | 单次 run 约 $0.6–3.7。**两**用例两臂共 8 次 run，实测总额 $10.4——给 $10 会被砍在半路，见第 11 条。加上 `greenfield-originate` 是 12 次 run；按同一单价外推约 $15.6，**这是外推值不是实测值**，跑之前别当数字用 |
 
 `--ablation with-without` 会**真的把插件摘掉**跑一遍对照臂。这修掉了历史上一个已知的测量假象：手工造对照组时，子 agent 的可用技能清单里仍带着本插件的完整 description，等于把架构泄露给了对照组。
 

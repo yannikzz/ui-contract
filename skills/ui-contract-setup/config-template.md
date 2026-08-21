@@ -15,7 +15,7 @@
 | Kind | Path | Notes |
 |---|---|---|
 | Visual spec | | |
-| Token source | | `tailwind.config.*` / `tokens.css` / theme file — this becomes **the** token file |
+| Token source | | `tailwind.config.*` / `tokens.css` / theme file — this becomes **the** token file. Note its **format** too, not just its path |
 | Structural doc | | |
 | Frontend code | | stack, whether TypeScript is in use |
 | Repo-root agent instructions | | `CLAUDE.md` / `AGENTS.md` |
@@ -30,6 +30,7 @@ Every other unit reads this table instead of assuming. Fill it in even when the 
 | Structural spec | | `layout.md` at the repo root |
 | Visual spec | | `design.md` at the repo root |
 | Token file | | the project's existing token source; if there is none, write **none yet** — never a path that is not on disk |
+| Token file — **format** | | how values are written there: CSS custom properties / `theme.extend` / a theme object. `none yet` if there is no token file. **Do not leave blank** — every unit that writes tokens reads this, and an agent inferring it from the file leaves no trace that it inferred |
 | Asset layer | | inside the project's production tree |
 | Wireframe | | its own directory |
 | As-built record | | `as-built.md` at the repo root |

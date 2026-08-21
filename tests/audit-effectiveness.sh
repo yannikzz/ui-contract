@@ -33,6 +33,31 @@ PY
 }
 
 CASES=0
+# run_case 只看退出码。**warn 不改退出码**，所以一条只报 warn 的检查用 run_case
+# 是证明不了的——它挂了和它没挂，退出码一模一样。而「看起来在工作、其实永远返回绿」
+# 正是这份测试的由来，加了 warn 档就等于给那个病根开了一个新入口。这一版看输出。
+# needle 以 `!` 开头表示「必须**不**出现」——用来钉住「不许喊狼来了」的那一半。
+run_out(){ # run_out <期望退出码> <必须出现|!必须不出现> <说明> <注入命令>
+  want=$1; needle=$2; name=$3; mutate=$4
+  CASES=$((CASES+1))
+  W=$(mktemp -d) || { no "$name: mktemp 失败"; return; }
+  cp -R "$FIXTURE"/. "$W"/ && cp "$TEMPLATE" "$W/audit.sh" || { no "$name: 夹具准备失败"; rm -rf "$W"; return; }
+  if ! ( cd "$W" && eval "$mutate" ); then
+    no "$name: 注入本身失败（夹具里的锚点变了？）"; rm -rf "$W"; return
+  fi
+  OUT=$( cd "$W" && "$SH" ./audit.sh 2>&1 ); got=$?
+  rm -rf "$W"
+  if [ "$got" -ne "$want" ]; then
+    no "$name — 期望 exit ${want}，实得 exit ${got}"; return
+  fi
+  case "$needle" in
+    '!'*) if printf '%s' "$OUT" | grep -qF "${needle#!}"; then
+            no "$name — 输出里不该出现「${needle#!}」"; else ok "$name"; fi ;;
+    *)    if printf '%s' "$OUT" | grep -qF "$needle"; then ok "$name"
+          else no "$name — 输出里没有「$needle」"; fi ;;
+  esac
+}
+
 run_case(){ # run_case <期望退出码> <说明> <注入命令>
   want=$1; name=$2; mutate=$3
   CASES=$((CASES+1))
@@ -78,10 +103,29 @@ run_case 1 "检查 4 · 视觉规范里写死了色值" \
   "printf '\n正文色 #445566。\n' >> design.md"
 run_case 1 "检查 5 · 白名单某行没写「禁止放什么」" \
   "sub layout.md '| \`inspector\` | 单对象属性 | 列表、批量动作 |' '| \`inspector\` | 单对象属性 |  |'"
+run_case 1 "检查 8 · 一对 surface/-foreground 的对比度低于 design.md 的阈值" \
+  "sub src/tokens.css '--card-foreground: #1a1a1a;' '--card-foreground: #f2f2f2;'"
 run_case 1 "检查 6 · 白名单里的区域名从没被渲染" \
   "sub src/ui/region.tsx \"  | 'inspector'\" \"  | 'inspector'
   | 'never-rendered-anywhere'\" && sub src/ui/region.tsx '  inspector: {' \"  'never-rendered-anywhere': { label: 'X', desc: '禁止 X。' },
   inspector: {\""
+
+echo "B2. warn 档的检查（退出码证明不了，只能看输出）"
+# 干净夹具一条 warn 都不该有。少了这条，下面两条「能响」就没有意义——
+# 一条永远在响的检查和一条永远不响的检查，同样没人会再读它的输出。
+run_out 0 '!warning(s)' "基线 · 干净夹具零 warn（这两条检查不许喊狼来了）" "true"
+run_out 0 'declared but not in the token file' \
+  "检查 7 · 声明表里有、token 文件里没有（断链）" \
+  "printf '| \`ghost-token\` | this project |\n' >> design.md"
+run_out 0 'in the token file but not declared' \
+  "检查 7 · token 文件里有、声明表里没有（漏声明）" \
+  "printf '  --undeclared-token: #333333;\n' >> src/tokens.css"
+# 这条钉住的是一个**刻意的降级**：脚本只读得懂十六进制，而借来的那套命名当前
+# 写成 oklch()。看不见的时候必须报 skip，不许打绿勾——绿勾在这里就是假绿，
+# 正是这份脚本存在的理由。改这条之前先想清楚你是不是把假绿放了进来。
+run_out 0 'non-hex notations are not read here' \
+  "检查 8 · token 全是 oklch 时报 skip，不许打绿勾" \
+  "sub src/tokens.css '--card: #ffffff;' '--card: oklch(1 0 0);' && sub src/tokens.css '--card-foreground: #1a1a1a;' '--card-foreground: oklch(0.2 0 0);'"
 
 echo "C. 无契约时的退出码"
 run_case 2 "没有 layout.md、也没有 config.md → exit 2（真的没东西可检）" "rm -f layout.md"

@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Theme studio</title>
+<!--
+  Value-tuning instrument for the `originate` branch. Standalone page: open it
+  with a browser, no server and no build.
+
+  THREE THINGS THIS FILE DELIBERATELY DOES NOT CONTAIN
+  ────────────────────────────────────────────────────
+  1. Token names. The knobs are built from the keys of the JSON you load. A
+     built-in name list would be this plugin deciding the project's naming —
+     a second vocabulary beside design.md's declaration table, which is the
+     name authority. `ROLE` below maps generic sample roles to this project's
+     names and ships EMPTY on purpose; fill it from the declaration table.
+  2. Information-architecture carriers — page chrome of any kind. The sample is
+     generic controls only. Ship IA here and every project that installs this
+     plugin receives a page shape it never chose. The excluded elements are
+     named in originate.md, not here: this file must not contain those words
+     even in a comment, or the assertion that keeps them out cannot be written.
+  3. Structural parameters. Column widths, minimum widths and gutters belong to
+     layout.md; changing one goes through spec-before-code, not through a slider.
+
+  THE JSON IS AN INPUT RECORD, NOT THE VALUE AUTHORITY.
+  tokens.input.json says where the user left the knobs. The token file says what
+  is currently correct. They disagree — the token file wins.
+-->
+<style>
+  :root{
+    --ui-bg:#fbfbfc; --ui-fg:#16181d; --ui-line:#e2e4ea; --ui-panel:#fff;
+    --ui-dim:#6b7280; --ui-warn:#b45309; --ui-bad:#b91c1c; --ui-good:#15803d;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --ui-bg:#101215; --ui-fg:#e8eaee; --ui-line:#2a2e36; --ui-panel:#181b20;
+           --ui-dim:#9aa1ad; --ui-warn:#d99b3f; --ui-bad:#f08a84; --ui-good:#6ec48a; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+       background:var(--ui-bg);color:var(--ui-fg)}
+  .shell{display:grid;grid-template-columns:minmax(260px,320px) 1fr;min-height:100vh}
+  @media (max-width:820px){ .shell{grid-template-columns:1fr} }
+  .knobs{border-right:1px solid var(--ui-line);padding:16px;overflow:auto;
+         background:var(--ui-panel)}
+  .stage{padding:24px;overflow:auto}
+  h1{font-size:15px;margin:0 0 4px}
+  .sub{color:var(--ui-dim);font-size:12px;margin:0 0 14px}
+  .row{display:flex;align-items:center;gap:8px;margin:6px 0}
+  .row label{flex:1;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+             overflow-wrap:anywhere}
+  .row input[type=color]{width:34px;height:26px;padding:0;border:1px solid var(--ui-line);
+                         border-radius:4px;background:none}
+  .row input[type=text]{width:130px;font:12px ui-monospace,SFMono-Regular,Menlo,monospace;
+                        padding:3px 5px;border:1px solid var(--ui-line);border-radius:4px;
+                        background:var(--ui-bg);color:var(--ui-fg)}
+  .row input[type=range]{width:110px}
+  .bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .bar button{font:12px inherit;padding:5px 9px;border:1px solid var(--ui-line);
+              border-radius:5px;background:var(--ui-bg);color:var(--ui-fg);cursor:pointer}
+  .empty{color:var(--ui-dim);font-size:12px;padding:10px 0}
+  .contrast{margin-top:14px;border-top:1px solid var(--ui-line);padding-top:10px}
+  .contrast h2{font-size:12px;margin:0 0 6px;text-transform:uppercase;
+               letter-spacing:.05em;color:var(--ui-dim)}
+  .c-row{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:2px 0;
+         font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .pass{color:var(--ui-good)} .fail{color:var(--ui-bad)}
+
+  /* ── Sample. Every colour below reads a --tk-* variable that `apply()` sets
+     from ROLE + the loaded JSON. Nothing here names a token. ── */
+  .sample{background:var(--tk-pageBg,transparent);color:var(--tk-pageFg,inherit);
+          padding:20px;border:1px solid var(--ui-line);border-radius:8px}
+  .card{background:var(--tk-cardBg,transparent);color:var(--tk-cardFg,inherit);
+        border:1px solid var(--tk-line,var(--ui-line));border-radius:var(--tk-radius,8px);
+        padding:16px;margin-bottom:14px}
+  .btn{font:inherit;padding:7px 13px;border-radius:var(--tk-radius,8px);cursor:pointer;
+       border:1px solid transparent}
+  .btn-1{background:var(--tk-primaryBg,#444);color:var(--tk-primaryFg,#fff)}
+  .btn-2{background:var(--tk-mutedBg,transparent);color:var(--tk-mutedFg,inherit);
+         border-color:var(--tk-line,var(--ui-line))}
+  .btn-3{background:transparent;color:var(--tk-mutedFg,inherit)}
+  .btn:focus-visible{outline:2px solid var(--tk-focus,#69f);outline-offset:2px}
+  .field{font:inherit;padding:7px 9px;border-radius:var(--tk-radius,8px);
+         border:1px solid var(--tk-line,var(--ui-line));
+         background:var(--tk-cardBg,transparent);color:var(--tk-cardFg,inherit)}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--tk-line,var(--ui-line))}
+  th{color:var(--tk-mutedFg,inherit);font-weight:600}
+  .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;
+       background:var(--tk-mutedBg,transparent);color:var(--tk-mutedFg,inherit)}
+  .tag-danger{background:var(--tk-dangerBg,transparent);color:var(--tk-dangerFg,inherit)}
+  .badge{display:inline-block;min-width:20px;text-align:center;padding:1px 6px;
+         border-radius:999px;font-size:12px;
+         background:var(--tk-primaryBg,#444);color:var(--tk-primaryFg,#fff)}
+  .longstr{overflow-wrap:anywhere;color:var(--tk-mutedFg,inherit);font-size:13px}
+  .state{border:1px dashed var(--tk-line,var(--ui-line));border-radius:var(--tk-radius,8px);
+         padding:14px;text-align:center;color:var(--tk-mutedFg,inherit);font-size:13px}
+  .states{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .sec{font-size:12px;text-transform:uppercase;letter-spacing:.05em;
+       color:var(--ui-dim);margin:18px 0 8px}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="knobs">
+    <h1>Theme studio</h1>
+    <p class="sub">Knobs come from the file you load. This page ships with none.</p>
+    <div class="bar">
+      <button id="load">Load JSON…</button>
+      <button id="save">Export JSON</button>
+      <input id="file" type="file" accept="application/json,.json" hidden>
+    </div>
+    <div id="fields"><p class="empty">No tokens loaded yet.</p></div>
+    <div class="contrast">
+      <h2>Contrast — minimum <span id="min"></span>:1</h2>
+      <div id="cresult"><p class="empty">Loads with the tokens.</p></div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="sample">
+      <div class="sec">Actions</div>
+      <div class="bar">
+        <button class="btn btn-1">Primary action</button>
+        <button class="btn btn-2">Secondary</button>
+        <button class="btn btn-3">Tertiary</button>
+      </div>
+
+      <div class="sec">Input</div>
+      <div class="bar">
+        <input class="field" placeholder="Text input">
+        <select class="field"><option>Select an option</option><option>Another</option></select>
+      </div>
+
+      <div class="sec">Card and table</div>
+      <div class="card">
+        <strong>Card title</strong>
+        <p class="longstr">A body line inside a card, long enough to wrap onto a second
+          line so line height and measure are visible rather than guessed.</p>
+        <table>
+          <thead><tr><th>Name</th><th>State</th><th>Count</th></tr></thead>
+          <tbody>
+            <tr><td>First row</td><td><span class="tag">Idle</span></td><td><span class="badge">3</span></td></tr>
+            <tr><td>Second row</td><td><span class="tag tag-danger">Failed</span></td><td><span class="badge">12</span></td></tr>
+            <tr><td class="longstr">Averyveryverylongunbrokenidentifierthatmustnotpushthetableoutofitscolumn</td>
+                <td><span class="tag">Idle</span></td><td><span class="badge">0</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sec">Non-happy paths</div>
+      <div class="states">
+        <div class="state">Empty — nothing here yet</div>
+        <div class="state">Loading…</div>
+        <div class="state">Part of this failed to load</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── TODO — fill from design.md's declaration table ─────────────────────────
+   The keys are sample ROLES and are fixed: the sample has to know which token
+   paints which part. The values are THIS PROJECT'S token names, read out of
+   the declaration table. Shipping them filled in would be this plugin naming
+   the project's tokens, and design.md would stop being the name authority.
+   Leave a role empty if the project has no token for it — the sample falls
+   back to a neutral value and says nothing about the brand.            */
+const ROLE = {
+  pageBg:'', pageFg:'',
+  cardBg:'', cardFg:'',
+  primaryBg:'', primaryFg:'',
+  mutedBg:'', mutedFg:'',
+  dangerBg:'', dangerFg:'',
+  line:'', focus:'', radius:'',
+}
+
+/* TODO — the minimum contrast ratio for body text, copied from design.md §2.
+   Ships as null ON PURPOSE. design.md states this number once, and "once" has
+   to mean once: a plausible default here (4.5 is the obvious one) would be a
+   second statement of it, and a forgotten copy would validate silently against
+   a number nobody chose. Unset, the panel says so instead of showing ticks. */
+const CONTRAST_MIN = null
+
+let tokens = {}
+const $ = s => document.querySelector(s)
+$('#min').textContent = CONTRAST_MIN === null ? '—' : CONTRAST_MIN
+
+/* Resolve any CSS colour — hex, rgb(), hsl(), oklch(), a keyword — to rgb by
+   asking the browser. Parsing colour syntax by hand is how a checker quietly
+   stops understanding whatever notation the project actually uses. */
+const probe = document.createElement('span')
+probe.style.display = 'none'
+document.body.appendChild(probe)
+const cnv = document.createElement('canvas'); cnv.width = cnv.height = 1
+const cx = cnv.getContext('2d', { willReadFrequently: true })
+function toRgb(v){
+  if (typeof v !== 'string' || !v.trim()) return null
+  /* Two sentinels, not one reset. Clearing the property first does NOT make the
+     computed colour empty — it falls back to the inherited one, which is a
+     perfectly valid rgb, so every invalid value read back as a colour and
+     `isColour` was true for everything. Measured, not reasoned: a `radius` of
+     "8px" got a colour swatch instead of a slider.
+     An invalid value leaves whichever sentinel was set standing, so the two
+     reads differ; a valid one overwrites both and they agree. */
+  const s1 = 'rgb(1, 2, 3)', s2 = 'rgb(4, 5, 6)'
+  probe.style.color = s1; probe.style.color = v
+  const c1 = getComputedStyle(probe).color
+  probe.style.color = s2; probe.style.color = v
+  if (c1 !== getComputedStyle(probe).color) return null
+
+  /* Convert by PAINTING it, not by reading digits out of the computed string.
+     getComputedStyle keeps `oklch(...)` as `oklch(...)` — it only normalises to
+     rgb() for the legacy notations. Scraping numbers out of that string reads
+     lightness / chroma / hue as if they were r / g / b, which does not throw and
+     does not look wrong: measured on a real oklch set, every pair reported
+     exactly 1.00:1. A checker that returns plausible wrong numbers is worse
+     than one that returns none, and this is the one place oklch CAN be checked
+     — the health check's shell cannot read it at all.
+     Alpha is ignored: contrast against a translucent surface is undefined
+     without knowing what is behind it. */
+  cx.fillStyle = '#000000'
+  cx.fillStyle = c1
+  cx.clearRect(0, 0, 1, 1)
+  cx.fillRect(0, 0, 1, 1)
+  const d = cx.getImageData(0, 0, 1, 1).data
+  return [d[0], d[1], d[2]]
+}
+const isColour = v => typeof v === 'string' && toRgb(v) !== null && !/^\s*$/.test(v)
+const isLength = v => typeof v === 'string' && /^-?[\d.]+(px|rem|em|%)$/.test(v)
+
+function luminance([r,g,b]){
+  const f = x => { x /= 255; return x <= 0.03928 ? x/12.92 : Math.pow((x+0.055)/1.055, 2.4) }
+  return 0.2126*f(r) + 0.7152*f(g) + 0.0722*f(b)
+}
+function ratio(a,b){
+  const A = toRgb(a), B = toRgb(b)
+  if (!A || !B) return null
+  const [x,y] = [luminance(A), luminance(B)].sort((p,q) => q-p)
+  return (x + 0.05) / (y + 0.05)
+}
+
+/* Contrast pairs are DERIVED, not listed: a token `X` with a sibling
+   `X-foreground` is a surface and its text. That is the pairing rule from
+   design.md, and deriving it here is why this file needs no name list. */
+function pairs(){
+  const out = []
+  for (const k of Object.keys(tokens)){
+    const fg = k + '-foreground'
+    if (k.endsWith('-foreground')) continue
+    if (fg in tokens && isColour(tokens[k]) && isColour(tokens[fg])) out.push([k, fg])
+  }
+  const base = Object.keys(tokens).find(k => /^(background|page|surface)$/.test(k))
+  const baseFg = Object.keys(tokens).find(k => /^(foreground|text)$/.test(k))
+  if (base && baseFg && !out.some(p => p[0] === base)) out.push([base, baseFg])
+  return out
+}
+
+function apply(){
+  const r = document.documentElement
+  for (const [role, name] of Object.entries(ROLE)){
+    const v = name && tokens[name]
+    if (v == null) r.style.removeProperty('--tk-' + role)
+    else r.style.setProperty('--tk-' + role, String(v))
+  }
+  const box = $('#cresult'), ps = pairs()
+  if (CONTRAST_MIN === null){
+    box.innerHTML = '<p class="empty">No threshold set. Copy it from design.md §2 into '
+                  + 'CONTRAST_MIN — until then nothing here is validated.</p>'
+    return
+  }
+  if (!ps.length){ box.innerHTML = '<p class="empty">No surface / -foreground pairs found.</p>'; return }
+  box.innerHTML = ''
+  for (const [bg, fg] of ps){
+    const n = ratio(tokens[bg], tokens[fg])
+    const row = document.createElement('div')
+    row.className = 'c-row'
+    const okv = n !== null && n >= CONTRAST_MIN
+    row.innerHTML = '<span>' + bg + '</span><span class="' + (okv ? 'pass' : 'fail') + '">'
+      + (n === null ? 'n/a' : n.toFixed(2)) + (okv ? ' ✓' : ' ✗') + '</span>'
+    box.appendChild(row)
+  }
+}
+
+function build(){
+  const box = $('#fields')
+  box.innerHTML = ''
+  const keys = Object.keys(tokens)
+  if (!keys.length){ box.innerHTML = '<p class="empty">No tokens loaded yet.</p>'; return }
+  for (const k of keys){
+    const v = tokens[k]
+    const row = document.createElement('div'); row.className = 'row'
+    const lab = document.createElement('label'); lab.textContent = k; row.appendChild(lab)
+
+    const text = document.createElement('input')
+    text.type = 'text'; text.value = String(v)
+    text.oninput = () => { tokens[k] = text.value; sync(); apply() }
+
+    if (isColour(v)){
+      const sw = document.createElement('input'); sw.type = 'color'
+      const rgb = toRgb(v)
+      sw.value = rgb ? '#' + rgb.map(n => Math.round(n).toString(16).padStart(2,'0')).join('') : '#000000'
+      sw.oninput = () => { tokens[k] = sw.value; text.value = sw.value; apply() }
+      row.appendChild(sw)
+      row.appendChild(text)
+      row._sync = () => { const c = toRgb(tokens[k]); if (c) sw.value = '#' + c.map(n => Math.round(n).toString(16).padStart(2,'0')).join('') }
+    } else if (isLength(v)){
+      const unit = String(v).replace(/^-?[\d.]+/, '')
+      const rng = document.createElement('input'); rng.type = 'range'
+      rng.min = 0; rng.max = unit === 'rem' || unit === 'em' ? 6 : 64
+      rng.step = unit === 'rem' || unit === 'em' ? 0.125 : 1
+      rng.value = parseFloat(v)
+      rng.oninput = () => { tokens[k] = rng.value + unit; text.value = tokens[k]; apply() }
+      row.appendChild(rng); row.appendChild(text)
+      row._sync = () => { rng.value = parseFloat(tokens[k]) }
+    } else {
+      row.appendChild(text)
+    }
+    box.appendChild(row)
+  }
+}
+function sync(){ document.querySelectorAll('.row').forEach(r => r._sync && r._sync()) }
+
+$('#load').onclick = () => $('#file').click()
+$('#file').onchange = e => {
+  const f = e.target.files[0]; if (!f) return
+  const rd = new FileReader()
+  rd.onload = () => {
+    try { tokens = JSON.parse(rd.result) }
+    catch (err) { alert('Not valid JSON: ' + err.message); return }
+    build(); apply()
+  }
+  rd.readAsText(f)
+}
+$('#save').onclick = () => {
+  const blob = new Blob([JSON.stringify(tokens, null, 2) + '\n'], {type:'application/json'})
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = 'tokens.input.json'
+  a.click()
+  URL.revokeObjectURL(a.href)
+}
+</script>
+</body>
+</html>

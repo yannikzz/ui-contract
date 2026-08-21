@@ -198,6 +198,120 @@ echo "18. 体检模板里没有「行式匹配整个标签」的检查（同一�
 # flatten_sources。不带 `<` 的 -r grep 是找裸标识符，不受这条约束。
 X=$(grep -n 'grep -r' skills/ui-contract-audit/assets/audit.sh.template | grep '<')
 [ -z "$X" ] && ok "看调用点的检查都走 flatten_sources" || no "行式匹配标签，调用点一换行就全瞎: $X"
+echo "19. design 单元写死了 tokens.input.json 的身份（不写死它就是第二个值权威）"
+# 与检查 18 同源：同一类失效在这个仓库发生过两次，两次输出都完全正常。
+# 一份「用户拧到哪」的输入记录和一份「当前正确的值」的权威，磁盘上长得一样，
+# 谁说了算只活在文本里——所以那句话必须在，且必须是断言守着，不是注释守着。
+# 判的是**身份表那两行**，不是三个词在全文任意位置各出现一次：`value authority`
+# 在这份文件里本来就为 token 文件出现过好几次，散着数词的写法三个条件都能被
+# 不相关的正文满足——那样这条断言就成了它自己要防的那种「看着像在检查」的检查。
+D="skills/ui-contract-design/SKILL.md"
+R1=$(grep -c 'tokens\.input\.json.*input record' "$D")
+R2=$(grep -c 'token file.*currently correct' "$D")
+if [ "$R1" -ge 1 ] && [ "$R2" -ge 1 ]; then
+  ok "design/SKILL.md 有身份表：JSON 是输入记录、token 文件是当前正确的值"
+else
+  no "design/SKILL.md 的 tokens.input.json 身份表不完整（输入记录 $R1 行 / 值权威 $R2 行）"
+fi
+
+echo "20. 器具模板内没有内置 token 名清单（内置 = 替项目决定命名 = 第二套词汇）"
+# 名单住在 design-md-outline.md（起草底稿），权威住在 design.md 的声明表。
+# 器具**必须**从 design.md 反推。名单一旦存在，把它复制进器具的诱惑才真正出现,
+# 所以这条断言是在名单落地之后变得更重要，不是更不重要。
+# 判据是 ROLE 映射表的值必须全空：键是通用角色（sample 要知道哪个 token 画哪一块），
+# 值是项目自己的 token 名，由 agent 从声明表填。填好的模板不该进仓库。
+python3 - <<'P20' || FAIL=1
+import re,sys
+p='skills/ui-contract-design/assets/theme-studio.html.template'
+try: s=open(p,encoding='utf-8').read()
+except OSError: print('  \033[31m✗\033[0m 找不到 '+p); sys.exit(1)
+m=re.search(r'const ROLE\s*=\s*\{(.*?)\n\}', s, re.S)
+if not m:
+    print('  \033[31m✗\033[0m 模板里找不到 ROLE 映射表——它是「无内置名单」这件事的载体'); sys.exit(1)
+filled=[v for v in re.findall(r":\s*'([^']*)'", m.group(1)) if v.strip()]
+if filled:
+    print(f'  \033[31m✗\033[0m ROLE 里填了 token 名: {filled}——这就是内置名单'); sys.exit(1)
+print('  \033[32m✓\033[0m ROLE 全空，器具不带名单')
+P20
+
+echo "21. 器具模板里不出现 IA 载体（放了它就是向每个装了插件的项目发一份信息架构）"
+# 严格到「连提都不能提」，与 eval 的 no-desktop-skeleton 同一条理由：
+# 无论是在采纳还是在否定它，出现即说明参照系是别人的产品。要说明排除了哪些，
+# 写在 originate.md 里——那份文件不受这条断言约束，因为它不是发给项目的产物。
+X=$(grep -niE '<nav|sidebar|breadcrumb|<header|<footer' skills/ui-contract-design/assets/theme-studio.html.template 2>/dev/null)
+[ -z "$X" ] && ok "样张只有通用控件" || no "模板里有 IA 载体: $X"
+
+echo "22. 线框模板里颜色的**值**只在 NEUTRAL 一处（ADR-0006 把判据从「没有颜色」换成「没有颜色的值」）"
+# 一条被推翻的决定需要机械守卫，不是一句叮嘱。ADR-0001 当初禁掉换肤预览，
+# 靠的是「线框里没有颜色」——那条好守但也挡住了用户真正要看的东西。
+# 换成「没有颜色的值」之后，线框可以换肤而依然不可能成为第二个视觉真相源，
+# 但**只有这条断言在时才成立**：值一旦漏到 NEUTRAL 之外，两句话就同时失效。
+# 例外只有 inspect 装置那一块（标注层 + 换肤横幅）：它们不是产品表面，刻意不跟皮肤
+# 走，且由模板里的哨兵注释声明，不靠这里猜颜色名。横幅尤其不能跟——量到过：
+# 用 --wire-strong 画它，会被它正在警告的那套皮换肤，浅色主题下白底白字直接消失。
+#
+# **这条抓不到的**：往 NEUTRAL 里直接加一个品牌色。NEUTRAL 内是允许写值的——
+# 那是线框自己的灰——所以「加进去的是不是灰」这件事只能靠人评审。量过：注入
+# `'--wire-brand': '#2563eb'` 仍然 exit 0。不写下来的话，下一个读这条断言的人
+# 会以为它守住了整件事。
+python3 - <<'P22' || FAIL=1
+import re,sys
+p='skills/ui-contract-wireframe/assets/wire.tsx.template'
+try: s=open(p,encoding='utf-8').read()
+except OSError: print('  \033[31m✗\033[0m 找不到 '+p); sys.exit(1)
+bad=0
+m=re.search(r'export const NEUTRAL[^{]*\{(.*?)\n\}', s, re.S)
+if not m:
+    print('  \033[31m✗\033[0m 模板里找不到 NEUTRAL——它是「值只在一处」的载体'); sys.exit(1)
+rest = s[:m.start()] + s[m.end():]
+# 标注层是**声明出来的**例外，按模板里的哨兵剔除整块——不是靠猜哪些颜色名该放过。
+# 猜颜色名的版本第一次跑就漏判了 sky-*（区域徽标与虚线框），而那正是合法的那批。
+a = re.search(r'INSPECT CHROME BEGIN(.*?)INSPECT CHROME END', rest, re.S)
+if not a:
+    print('  \033[31m✗\033[0m 模板里没有 INSPECT CHROME 哨兵——例外必须是声明的，不是猜的'); sys.exit(1)
+rest = rest[:a.start()] + rest[a.end():]
+leaks = re.findall(r'#[0-9a-fA-F]{3,8}\b|\brgba?\(|\boklch\(|\bhsla?\(|\b(?:bg|text|border|ring|fill|stroke)-(?:red|blue|green|yellow|amber|orange|purple|pink|indigo|teal|cyan|violet|rose|lime|emerald|sky|fuchsia|slate|zinc|stone|gray|grey|neutral)-\d{2,3}', rest)
+if leaks:
+    print(f'  \033[31m✗\033[0m NEUTRAL 之外出现颜色值: {sorted(set(leaks))[:8]}'); bad=1
+skin=re.search(r'export const SKIN[^{]*\{(.*?)\n\}', s, re.S)
+if not skin:
+    print('  \033[31m✗\033[0m 模板里找不到 SKIN 映射表'); bad=1
+else:
+    filled=[v for v in re.findall(r":\s*'([^']*)'", skin.group(1)) if v.strip()]
+    if filled:
+        print(f'  \033[31m✗\033[0m SKIN 里填了 token 名: {filled}——design.md 才是名字权威'); bad=1
+if not bad: print('  \033[32m✓\033[0m 颜色值只在 NEUTRAL，SKIN 出厂全空')
+sys.exit(bad)
+P22
+
+echo "23. 示例要么跟上技能，要么在 README 里写明落后了（examples/README.md 第一句自称是真实产出）"
+# 这条是被一次真实的漏网催生的：改了 wire.tsx.template，示例没跟，
+# 而 examples/README.md 第一句「Real output from this skill」当场变成假话，
+# 全程没有任何东西响。README 的第一句是个会随时间自己变假的断言。
+#
+# **不强制同步。** 示例是实跑产出，手改它就把「真实产出」变成「手写插图」，
+# 毁掉它唯一的价值主张。强制的只是「落后必须是显式的」。
+# 方向是单向的：示例自己加的东西（Field / PageKind / TableColumn…）是项目适配，不判。
+python3 - <<'P23' || FAIL=1
+import re,sys
+T='skills/ui-contract-wireframe/assets/wire.tsx.template'
+E='examples/admin-console/wireframe/src/wire.tsx'
+R='examples/README.md'
+def exports(p):
+    return set(re.findall(r'^export (?:const|function|type)\s+([A-Za-z_][A-Za-z0-9_]*)',
+                          open(p,encoding='utf-8').read(), re.M))
+try:
+    t, e, rd = exports(T), exports(E), open(R,encoding='utf-8').read()
+except OSError as err:
+    print(f'  \033[31m✗\033[0m 读不到 {err.filename}'); sys.exit(1)
+missing = sorted(n for n in t - e if f'`{n}`' not in rd)
+if missing:
+    print(f'  \033[31m✗\033[0m 模板导出了这些、示例没有、README 也没写明: {missing}'); sys.exit(1)
+lag = sorted(t - e)
+print(f'  \033[32m✓\033[0m 示例落后 {len(lag)} 个符号，全部在 README 里点了名'
+      if lag else '  \033[32m✓\033[0m 示例与模板的导出一致')
+P23
+
 echo "13. 包体量（ADR-0003：某包 SKILL.md 长期不足 30 行，说明切早了，应并回上游包）"
 for d in skills/*/; do
   n=$(wc -l < "$d/SKILL.md"); b=$(basename "$d")

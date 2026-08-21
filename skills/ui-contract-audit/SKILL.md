@@ -29,6 +29,10 @@ The script encodes that first split as two different exit codes, and **they must
 | 2 | nothing to check — no `layout.md`, and no config claiming there is one |
 | 3 | a contract *is* configured, but the paths in the script and the paths table disagree — in either direction |
 
+A fourth tier sits **beside** the exit code rather than inside it. Clauses marked 🌡 in `design.md` are hypotheses, so they print a **warning** and leave the exit code alone: failing a build on a provisional clause hands whatever the clause borrowed a veto over the project's CI.
+
+The cost of that is real and is not hidden: **"warnings present, exit 0" is green in CI.** The count printed at the end is the only thing that keeps such a report from being read as clean. Never silence it, and never promote a warning to drift without first moving the clause to 🔒 in `design.md` — the marker is what decides the tier, not the script.
+
 `2` and `3` read almost the same in a terminal and are opposite conclusions: `2` says this project has no contract, `3` says it has one and this script is pointed at the wrong place. Sharing an exit code makes a broken setup look like a clean project, which is the one failure this whole unit exists to prevent. Keep them apart when you adapt the template, and report exit 3 as a finding, never as "nothing to check".
 
 ## It reports; it does not fix
@@ -48,15 +52,23 @@ The value of a health check is inversely proportional to what it costs to run. I
 | Hand-written markers bypassing the container | grep | full |
 | Hardcoded color values in feature code | regex | full |
 | `design.md` holding literal **colours** | regex | full |
+| Declaration table and token file name the same tokens | parse both, compare | full (**warn**) |
+| Surface / `-foreground` pairs clear the contrast threshold | compute the ratio | full, hex only |
 | Every allowlist row has a "must not hold" cell | parse the table | full |
 | Every declared name is findable in code | grep each name | full |
 | Have **sizes** moved to the token file? | semantic judgement | agent |
 | Is the decision tree still total for the last N features? | walk real commits through the tree | agent |
 | Do region descriptions say "what goes here" rather than "what this is"? | semantic judgement | agent |
 
-Seven of ten run automatically and fit in CI. **If that ratio drops much below eight tenths, this unit has degenerated into subjective re-reading and its value claim fails** — that is its stated revisit condition, not a slogan. It currently sits at seven tenths, and the reason is recorded rather than rounded away:
+Nine of twelve run automatically and fit in CI. **If that ratio drops much below eight tenths, this unit has degenerated into subjective re-reading and its value claim fails** — that is its stated revisit condition, not a slogan. It currently sits at three quarters, and the two reasons are recorded rather than rounded away:
 
 **Sizes cannot be checked by regex.** A visual spec legitimately discusses numbers — in prose ("no writing off-table px sizes in feature code"), and in anti-pattern rows ("six months in you'll have 13px / 13.5px / 15px at once"). Measured against a real spec, a px regex produced four hits and **all four were false positives**. A check that cries wolf on correct documents is worse than no check, because people stop reading the output. Colours stay automated: a hex code in a visual spec is unambiguous.
+
+**The contrast check reads hex only.** A project on a modern token convention writes its colours in `oklch()`, and the script cannot resolve those — so on such a project it finds no pairs at all. It reports that as **skipped, not passed**. A green tick there would be the precise failure this whole unit exists to catch, and the tuning instrument (`ui-contract-design`) is where those projects get contrast validated instead.
+
+**The declaration table is found by its three origin keywords**, not by its header row — a spec written in the user's language has a translated header. Those keywords (`borrowed` / `this project` / `not used`) are therefore required to stay ASCII, which `ui-contract-design` states beside the table. If somebody translates them anyway this check finds nothing and says so as a skip; it never reports a wrong answer, but it does go quiet, so a green run here is not proof that the naming is sound.
+
+**The threshold is read from `design.md`, never hardcoded.** It is found by its shape (`4.5:1`) rather than by the words around it, because the deliverable is written in the user's language. Rewrite the shape and the check goes quiet — it degrades to no check, never to a wrong one. Same property as the paths-table lookup, and for the same reason.
 
 **Do not grep for `data-region="..."` to find region names.** The runtime marker is written once, inside the container, as an expression. The only literal occurrence in a healthy tree is the annotation layer's own display text — grepping for it finds the label, not a region. Read the ids off the container's call sites instead; keep a separate grep for literal markers, because those mean somebody wrote a raw element and skipped the type check entirely.
 
@@ -65,6 +77,7 @@ Seven of ten run automatically and fit in CI. **If that ratio drops much below e
 The asset layer in this version ships only the allowlist type and the structural container. So:
 
 - The token-file checks run only if the project already has a token source
+- The declaration-table check needs both `design.md` and the token file; with either missing it skips and says which one
 - The "asset layer matches the region tree" check compares against the container, not against a shell
 - The two agent-judgement checks are available but must be requested; they are not part of the cheap path
 
@@ -74,6 +87,7 @@ Say which checks ran and which were skipped. A green report that silently skippe
 
 - [ ] The script actually ran, with real output pasted — not just written
 - [ ] Every skipped check is named, with the reason
+- [ ] If any warnings printed, they are reported as warnings — not folded into "no drift found" because the exit code was 0
 - [ ] Every finding names the clause it violates
 - [ ] Nothing was auto-fixed
 - [ ] The script is committed to the user's repo and works without an agent
