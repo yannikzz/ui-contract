@@ -1,5 +1,6 @@
 {
   "name": "yannikzz",
+  "description": "把界面约定写成规范再写代码：区域树、视觉 token、线框与体检，一套可被 agent 执行的 UI 契约方法。",
   "owner": {
     "name": "yannikzz",
     "url": "https://github.com/yannikzz"

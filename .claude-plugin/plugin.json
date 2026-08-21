@@ -31,5 +31,8 @@
     "./skills/ui-contract-enforce",
     "./skills/ui-contract-audit",
     "./skills/ui-contract"
-  ]
+  ],
+  "experimental": {
+    "evals": "testing/evals"
+  }
 }

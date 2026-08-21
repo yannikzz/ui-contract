@@ -1,13 +1,13 @@
 # 判据的判据
 
-`evals/` 判插件做得对不对。**这里判 `evals/` 的判据本身有没有判别力。**
+`testing/evals/` 判插件做得对不对。**这里判 `testing/evals/` 的判据本身有没有判别力。**
 
 agent 一步不跑：产物由 `scaffold_script` 直接摆进沙箱，case 的 prompt 只让模型回一句 done。
 所以一次验证是 **12 秒 / $0.1 量级**，而不是一次完整实跑的 $8 和四十分钟。
 
 ```sh
 CLAUDE_CODE_WALNUT_SPIRE=1 claude plugin eval . \
-  --eval-dir grader-check --scaffold --ablation none --runs 1 --no-publish
+  --eval-dir testing/grader-check --scaffold --ablation none --runs 1 --no-publish
 ```
 
 `--eval-dir` 指向这里，所以跑正经 eval 时不会带上它。`--ablation none` 是因为这里没有"插件有没有起作用"这回事——被测的是判据，不是插件。加 `--judge-model sonnet` 换 judge 模型。
@@ -35,7 +35,7 @@ CLAUDE_CODE_WALNUT_SPIRE=1 claude plugin eval . \
 | `asbuilt-prescriptive` | 拿 `layout.md` 冒充 `as-built.md`，通篇是应然 | 同上 | FAIL |
 
 两条判据都是**在这里第一次被真正验证**的：`as-built-is-reverse-engineered` 拆出来之后一直没跑过
-（`evals/README.md` 第 12 条记着这笔欠账），`traces-in-artifact` 的词表是从保留产物量出来的、
+（`testing/evals/README.md` 第 12 条记着这笔欠账），`traces-in-artifact` 的词表是从保留产物量出来的、
 判据本身也没跑过。各花 $0.1 量级，两条都双向正确。
 
 ## 夹具必须是真实产物，不能是手搓的
@@ -52,16 +52,16 @@ CLAUDE_CODE_WALNUT_SPIRE=1 claude plugin eval . \
 
 **这两个来源都不是持久的**：`trace.jsonl` 躺在系统临时目录里随时会被清，而 `results/` 在
 `.gitignore` 里——历史报告只活在跑过 eval 的那台机器上，不在仓库里。所以**量到一份有
-ground truth 的产物就立刻存进 `fixtures/`**，那是它唯一会被留下来的地方。
+ground truth 的产物就立刻存进 `testing/grader-check/fixtures/`**，那是它唯一会被留下来的地方。
 
 ## 量出来的结果：`decision-tree-total` 为什么被删
 
 下面这张表就是删它的依据。它判的是「追得够不够狠」，2026-08-21 已从两个用例移除，
 留下的 `traces-in-artifact` 只守「追踪有没有落进产物」。追踪**质量**从此没人守——
-这是明说的取舍，不是遗漏，见 `evals/README.md`「刻意没有覆盖的」。
+这是明说的取舍，不是遗漏，见 `testing/evals/README.md`「刻意没有覆盖的」。
 
 夹具留着不是为了考古：哪天想把这条判据以别的形态加回来（比如让追踪表单独成文件、
-judge 只看那一份），把它写进 `grader-check/` 跑一次就知道行不行，不必再花 $8。
+judge 只看那一份），把它写进 `testing/grader-check/` 跑一次就知道行不行，不必再花 $8。
 
 `decision-tree-total`（判据要 judge **逐行核对**一张追踪表）：
 
@@ -80,7 +80,7 @@ judge 只看那一份），把它写进 `grader-check/` 跑一次就知道行不
 | 同上 | sonnet | PASS ✓ | FAIL ✓ | 是 |
 
 **注意第二张表的负样本是 18851 字的长文件，judge 照样判对了。**
-所以"长输入 judge 就不行"是个不成立的概括——`evals/README.md` 第 8 条据此写的处方要重读。
+所以"长输入 judge 就不行"是个不成立的概括——`testing/evals/README.md` 第 8 条据此写的处方要重读。
 区别在判据要求的认知类型：**判整体气质很行，逐行核对不行。**
 
 ## 一个反直觉的量：判据不能改得更"友善"
@@ -92,6 +92,26 @@ judge 只看那一份），把它写进 `grader-check/` 跑一次就知道行不
 ## 加一条判据的夹具时
 
 判据是**抄**进 `case.yaml` 的，夹具的全部价值在于「判的是线上那一条」，抄歪了比没有夹具更坏。
-`tests/structure.sh` 的不变量 17 对这件事对账，跑 `./tests/run.sh` 就会查。
+`testing/structure/invariants.sh` 的不变量 17 对这件事对账，跑 `./testing/run.sh` 就会查。
 口径与既有两处一致：忽略空白与 `**`，并剥掉 markdown grader 的标题行
 （`graders/*.md` 的 body 含标题、`case.yaml` 内联的不含，这个差异是被容忍的）。
+
+
+## 这一层验不了什么（2026-08-21 实测）
+
+夹具的机制是「scaffold 把产物摆进沙箱 + agent 回一句 done」，所以它只对**看产物**的判据有效：
+`regex`、`file_exists`、`llm`（`focus: {source: file}`）。
+
+**看轨迹的判据在这里没有替身。** 试过用 `context.history_file` 重放一份含真实工具调用的
+transcript，让 `tool_used` 判它：
+
+```
+→ read-seen-in-replay: Read called 0x (expected 1..∞)     score 0.00
+```
+
+重放的历史判据看不见，只有新一轮的工具调用算数。所以 `tool_used` / `tool_order` / 以及
+`focus: trace` 的 llm 判据，正负双向**只能在真跑里量**。这不是还没找到方法，是量过的边界。
+
+另外：结构判据（`regex` / `tool_used` / `tool_order` / `file_exists`）本身**不花钱**，
+judge 一次都不调。这一层的 $0.06 全部花在那一次「回一句 done」的 agent run 上——
+**所以多条结构判据挂在同一个夹具 case 上，一次 $0.06 能验一批**，不必一条一个 case。

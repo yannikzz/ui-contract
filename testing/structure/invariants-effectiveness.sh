@@ -11,7 +11,7 @@
 #
 # 每个用例：整树拷一份 → 注入一处违规 → 跑 structure.sh → 期望的退出码必须出现。
 # 红的必须红，绿的必须绿——只测前者的话，一个 `exit 1` 就能骗过整份测试。
-cd "$(dirname "$0")/.." || exit 1
+cd "$(dirname "$0")/../.." || exit 1
 FAIL=0
 ok(){ printf '  \033[32m✓\033[0m %s\n' "$1"; }
 no(){ printf '  \033[31m✗\033[0m %s\n' "$1"; FAIL=1; }
@@ -19,7 +19,7 @@ no(){ printf '  \033[31m✗\033[0m %s\n' "$1"; FAIL=1; }
 D="skills/ui-contract-design/SKILL.md"
 T="skills/ui-contract-design/assets/theme-studio.html.template"
 W_TPL="skills/ui-contract-wireframe/assets/wire.tsx.template"
-for f in tests/structure.sh "$D" "$T" "$W_TPL" examples/README.md; do
+for f in testing/structure/invariants.sh "$D" "$T" "$W_TPL" examples/README.md; do
   [ -f "$f" ] || { no "找不到 $f"; exit 1; }
 done
 
@@ -45,7 +45,7 @@ run_case(){ # run_case <期望退出码> <说明> <注入命令>
   if ! ( cd "$W" && eval "$mutate" ); then
     no "$name: 注入本身失败（锚点变了？）"; rm -rf "$W"; return
   fi
-  ( cd "$W" && ./tests/structure.sh >/dev/null 2>&1 )
+  ( cd "$W" && ./testing/structure/invariants.sh >/dev/null 2>&1 )
   got=$?
   rm -rf "$W"
   if [ "$got" -eq "$want" ]; then ok "$name"
@@ -69,6 +69,23 @@ run_case 1 "22 · SKIN 出厂就填好了 token 名" \
   "sub $W_TPL \"'--wire-surface': ''\" \"'--wire-surface': 'background'\""
 run_case 1 "23 · 模板新增导出，示例与 README 都没提" \
   "printf '\nexport function InjectedThing() { return null }\n' >> $W_TPL"
+
+echo "B2. 24-27 各注入一处违规，必须转红"
+# 这四条是这次重构新加的。第 26 条的第一版就是指纹——它只认「不变量 N」「检查 N」，
+# 而**真实发生过的那种措辞**（「invariants.sh 加了第 24 条」）原样穿过去。
+# 下面第三个用例就是那一种，它是这四条里唯一有事故先例的。
+run_case 1 "24 · manifest 的 experimental.evals 指向不存在的目录" \
+  "sub .claude-plugin/plugin.json '\"evals\": \"testing/evals\"' '\"evals\": \"testing/nope\"'"
+run_case 1 "25 · 判据 input_match 点名了一个不存在的包" \
+  "sub testing/evals/greenfield-mobile/graders/layout-skill-fired.md 'ui-contract-layout\"' 'ui-contract-laypout\"'"
+run_case 1 "26 · ADR 说「invariants.sh 加了第 99 条」（PR #13 那种措辞）" \
+  "printf '\ninvariants.sh 加了第 99 条。\n' >> docs/adr/0006-wireframe-skin-preview.md"
+run_case 1 "26 · ADR 说「不变量 99」" \
+  "printf '\n不变量 99 守着这件事。\n' >> docs/adr/0006-wireframe-skin-preview.md"
+# 27 是 warn，按设计不改退出码——所以它的用例期望 0。这不是「这样做没问题」，
+# 是「这条检查明说了自己不判失败」，两者的区别在于后者是**声明过的**。
+run_case 0 "27 · ADR 提到一个不存在的路径 → warn，退出码不变（声明过的宽）" \
+  "printf '\n见 \`testing/nonexistent.sh\`。\n' >> docs/adr/0006-wireframe-skin-preview.md"
 
 echo "C. 断言自己的绕过口"
 # 19：把整张身份表删掉，末尾补一句随口的散文。第二版断言只要求「某一行同时含
@@ -97,6 +114,17 @@ export function Badge({ children }: { children: ReactNode }) {
 # 21 与 22 各自的名单/记法缺口：违规原封不动，只换一种写法。
 # 两条都是「名单式检查」的通病——名单永远差一个，所以补的时候连同**没补的**
 # 一起写进断言注释里，让下一个人看得见边界在哪，而不是以为它守住了全部。
+run_case 1 "22 · 把产品组件整段搬进哨兵块，在块内写死品牌色（一次搬一个）" \
+  "python3 - <<'INJ'
+import re
+p='skills/ui-contract-wireframe/assets/wire.tsx.template'
+s=open(p,encoding='utf-8').read()
+m=re.search(r'\nexport function Btn\(\{.*?\n\}\n', s, re.S)
+blk=m.group(0).rstrip('\n')+chr(10)+\"const BTN_BRAND = '#2563eb'\"+chr(10)
+s=s[:m.start()]+chr(10)+s[m.end():]
+s=s.replace('// ── INSPECT CHROME END', blk+'// ── INSPECT CHROME END',1)
+open(p,'w',encoding='utf-8').write(s)
+INJ"
 run_case 1 "21 · 用 <aside> 代替 <nav>（名单外的 IA 载体）" \
   "sub $T '<body' '<body><aside class=\"panel\">nav</aside'"
 run_case 1 "22 · 用 CSS 具名颜色写死值（记法外的颜色）" \

@@ -4,7 +4,7 @@
 # 单一来源是**磁盘**：skills/ 下每个含 SKILL.md 的目录就是一个包。
 # 两份 manifest 与 README 索引都只是它的投影，由第 1 项对账。
 # 这些不变量一旦破掉，插件会装不全、组合链会断、或索引会说谎。
-cd "$(dirname "$0")/.." || exit 1
+cd "$(dirname "$0")/../.." || exit 1
 FAIL=0
 ok(){ printf '  \033[32m✓\033[0m %s\n' "$1"; }
 no(){ printf '  \033[31m✗\033[0m %s\n' "$1"; FAIL=1; }
@@ -113,7 +113,7 @@ for s in ui-contract-setup ui-contract-baseline ui-contract-layout ui-contract-d
 done
 
 echo "12. 技能包内不含测试 / eval / examples（install.sh 整目录拷贝，会发给每个用户）"
-X=$(find skills -path '*/tests/*' -o -path '*/evals/*' -o -path '*/examples/*' 2>/dev/null)
+X=$(find skills -path '*/testing/*' -o -path '*/tests/*' -o -path '*/evals/*' -o -path '*/examples/*' 2>/dev/null)
 [ -z "$X" ] && ok "技能包只含运行时资产" || no "$X"
 
 echo "14. 能力包与事实包都从 config 读产物落点（落点一漂，入口/前置门/体检脚本同时失效）"
@@ -164,7 +164,7 @@ def defs_in_yaml(text, where):
     return out
 
 found=[]
-for f in sorted(glob.glob('evals/*/graders/*.md')):
+for f in sorted(glob.glob('testing/evals/*/graders/*.md')):
     src=open(f,encoding='utf-8').read()
     name=f.split('/')[-1][:-3]
     fm=src.split('---')[1]
@@ -173,7 +173,7 @@ for f in sorted(glob.glob('evals/*/graders/*.md')):
     else:
         body=re.sub(r'^#[^\n]*\n','',src.split('---',2)[2].lstrip('\n'))
         found.append((name,'criteria',body,f))
-for f in sorted(glob.glob('evals/*/case.yaml'))+sorted(glob.glob('grader-check/*/case.yaml')):
+for f in sorted(glob.glob('testing/evals/*/case.yaml'))+sorted(glob.glob('testing/grader-check/*/case.yaml')):
     found+=defs_in_yaml(open(f,encoding='utf-8').read(), f)
 
 by={}
@@ -296,6 +296,17 @@ if not a:
 rest = rest[:a.start()] + rest[a.end():]
 if not re.search(r'^export function', rest, re.M):
     print('  \033[31m✗\033[0m 哨兵块外没有产品组件了——把 END 推到文件尾等于全文豁免'); sys.exit(1)
+# 上面那条只判「块外还剩东西吗」，于是**一次搬一个**就穿过去了：把某个产品组件
+# 整段挪进哨兵块内、在里面写死品牌色，块外还有别的 export，照样 exit 0（量过）。
+# 存在性代替了完整性——规矩说的是「产品表面**全部**在豁免区外」。
+# 所以边界两侧都要判：块内允许的导出是**声明出来的**，多一个就得改这张名单，
+# 而改名单会出现在 diff 里。这条不替作者判断什么该进来，只强制这个决定被写下来。
+INSPECT_EXPORTS = {'LabelsProvider','useLabels','AnnotatedRegion','SkinBanner','SkinEditor','toHex'}
+inside = set(re.findall(r'^export (?:const|function|type)\s+([A-Za-z_][A-Za-z0-9_]*)', a.group(1), re.M))
+extra = sorted(inside - INSPECT_EXPORTS)
+if extra:
+    print(f'  \033[31m✗\033[0m 哨兵块内出现了未声明的导出: {extra}——产品组件搬进豁免区就能随便写颜色值；'
+          f'确实属于 inspect 装置的话，把名字加进 INSPECT_EXPORTS'); sys.exit(1)
 leaks = re.findall(r'#[0-9a-fA-F]{3,8}\b|\brgba?\(|\boklch\(|\bhsla?\(|\b(?:bg|text|border|ring|fill|stroke)-(?:red|blue|green|yellow|amber|orange|purple|pink|indigo|teal|cyan|violet|rose|lime|emerald|sky|fuchsia|slate|zinc|stone|gray|grey|neutral)-\d{2,3}', rest)
 # 上面那条只认记法（hex / 函数 / tailwind 色阶），于是 `color: 'crimson'` 从中间
 # 穿过去——同样是一个写死在线框里的颜色值，只是用词写的。量过：注入 crimson 仍
@@ -359,6 +370,120 @@ lag = sorted(t - e)
 print(f'  \033[32m✓\033[0m 示例落后 {len(lag)} 个符号，全部在 README 里点了名'
       if lag else '  \033[32m✓\033[0m 示例与模板的导出一致')
 P23
+
+echo "24. manifest 的 eval 目录与磁盘一致，且其下每个 case 都是真 case"
+# 网关 1（testing/preflight.sh）看不见这件事：`--max-cost-usd 0` 的 JSON 文档里
+# `cases: []`（量过），所以「有哪些 case 被发现了」在那一层是不可见的。
+# 目录写错时网关 1 会喊「一个 case 都没发现」，但**少了一个 case** 它一声不响。
+# 这一条判磁盘：manifest 指的目录要存在，其下每个非 results 的一级目录都要是真 case。
+python3 - <<'P24' || FAIL=1
+import json,os,sys
+d=json.load(open('.claude-plugin/plugin.json',encoding='utf-8'))
+ed=(d.get('experimental') or {}).get('evals')
+if not ed:
+    print('  \033[31m✗\033[0m plugin.json 没有 experimental.evals——eval 目录只能靠每次带 --eval-dir，迟早有人忘'); sys.exit(1)
+if not os.path.isdir(ed):
+    print(f'  \033[31m✗\033[0m experimental.evals 指向 {ed}，磁盘上没有'); sys.exit(1)
+bad=0; n=0
+for root in (ed, 'testing/grader-check'):
+    if not os.path.isdir(root): continue
+    for e in sorted(os.listdir(root)):
+        p=os.path.join(root,e)
+        if not os.path.isdir(p) or e in ('results','fixtures'): continue
+        if not (os.path.exists(f'{p}/prompt.md') or os.path.exists(f'{p}/case.yaml')):
+            print(f'  \033[31m✗\033[0m {p} 在 eval 目录下却既没有 prompt.md 也没有 case.yaml——它不会被当成 case，也不会有人发现'); bad=1
+        else: n+=1
+if bad: sys.exit(1)
+print(f'  \033[32m✓\033[0m experimental.evals = {ed}，两个套件共 {n} 个 case 全部成形')
+P24
+
+echo "25. eval 判据里点名的技能必须真实存在（技能改名后，断言会静默失配）"
+# 这一条守的是 per-skill 断言。它们有个官方内置的静默失效：`tool_used` on `Skill`
+# 不写 arm 时**自动是 with-only**，而 with-only 判据在 with-without 两个臂里都不计分
+# （官方原文：a `passed: false` with `scored: false` under a run scoring 1.0 is expected）。
+# 所以 input_match 里的技能名打错一个字符，判据静默失配、分数不动、退出码 0。
+#
+# 免费能判的就是名字本身：权威是 skills/ 目录，和不变量 1 同一个权威。
+# **判不到的**：正则本身写错（转义、JSON 形状）。那只能在真跑里正负双向量——
+# 量过 `context.history_file` 重放的历史判据看不见（`Read called 0x`），
+# 所以 tool_used / tool_order **无法**像 llm/regex 判据那样用 $0.06 的夹具验证。
+# 这条边界写在 testing/evals/README.md，判据旁边也各写了 UNVERIFIED:。
+python3 - <<'P25' || FAIL=1
+import os,re,sys,glob
+pkgs={d for d in os.listdir('skills') if os.path.exists(f'skills/{d}/SKILL.md')}
+files=sorted(glob.glob('testing/evals/*/graders/*.md'))+sorted(glob.glob('testing/evals/*/case.yaml')) \
+     +sorted(glob.glob('testing/grader-check/*/case.yaml'))
+named=set(); bad=0
+for f in files:
+    for m in re.finditer(r'input_match:\s*[\x27"](.+?)[\x27"]\s*$', open(f,encoding='utf-8').read(), re.M):
+        for cand in re.findall(r'[a-z][a-z0-9-]{3,}', m.group(1)):
+            if cand in ('skill','true','false','type','name'): continue
+            if cand in pkgs: named.add(cand)
+            elif cand.startswith('ui-contract') or cand in ('decision-interview','spec-before-code',
+                 'constraint-by-types','decision-record','deliverable-language'):
+                print(f'  \033[31m✗\033[0m {f}: input_match 点名了 `{cand}`，skills/ 下没有这个包'); bad=1
+if bad: sys.exit(1)
+if not named:
+    print('  \033[31m✗\033[0m 没有任何判据点名具体技能——`tool_used: Skill` 不带 input_match 只断言「某个技能跑了」，15 个包共用一条判据等于每个包都没有保障'); sys.exit(1)
+print(f'  \033[32m✓\033[0m {len(named)}/{len(pkgs)} 个包被 per-skill 断言点名，名字全部真实：{", ".join(sorted(named))}')
+print(f'  \033[33m!\033[0m 其余 {len(pkgs)-len(named)} 个包在行为层没有针对自己的断言（记在 issue #6）')
+P25
+
+echo "26. 文档里对检查编号的引用必须解析（PR #13 声称加了「第 24 条」，代码里从来没有过）"
+# 这一条与别的不同类：别的守代码，它守**叙述与代码的一致**。
+# CLAUDE.md 已经写了这条原则——「A hand-maintained list beside a script that checks
+# the same thing is a second source of truth, and the first time they disagree the
+# list becomes a lie.」ADR 正文与 PR 描述就是那份手抄清单，而它已经说过谎：
+# PR #13 正文写「structure.sh 加了第 24 条」并附了一组统计，两样都不存在。
+#
+# 锚点是**从代码抽出来的编号集合**：编号从本文件的 `echo "N.` 行抽，文档里的引用
+# 必须落在这个集合里。
+#
+# **第一版是指纹，我注入验出来的**：它只认「不变量 N」「检查 N」两种措辞，于是
+# 「invariants.sh 加了第 99 条」——**真实发生过的那一种**——原样穿过去。
+# 现在两条路一起认：(a) 与脚本名同行的任何「第 N 条」；(b) 任何位置的「不变量 N」
+# 「检查 N」。
+# **仍然抓不到的**（不写下来的话，下一个人会以为覆盖是完整的）：
+#   · 引用跨了行——「invariants.sh 里\n第 99 条……」
+#   · 完全不带这三种锚点的说法，比如「那条新加的断言」
+python3 - <<'P26' || FAIL=1
+import re,sys,glob
+src=open('testing/structure/invariants.sh',encoding='utf-8').read()
+have={int(n) for n in re.findall(r'^echo "(\d+)\.', src, re.M)}
+SCRIPT=re.compile(r'invariants\.sh|structure\.sh|结构不变量')
+bad=0
+for f in sorted(glob.glob('docs/adr/*.md'))+['README.md','CLAUDE.md','examples/README.md']:
+    try: lines=open(f,encoding='utf-8').read().splitlines()
+    except OSError: continue
+    for i,line in enumerate(lines,1):
+        refs=set()
+        if SCRIPT.search(line):                                  # (a) 与脚本名同行
+            refs |= {int(n) for n in re.findall(r'第\s*(\d+)\s*条', line)}
+        refs |= {int(n) for n in re.findall(r'(?:不变量|检查)\s*(\d+)', line)}   # (b) 显式措辞
+        for n in sorted(refs):
+            if n not in have:
+                print(f'  \033[31m✗\033[0m {f}:{i} 引用了不存在的检查编号 {n}（现有 {min(have)}–{max(have)}）'); bad=1
+if bad: sys.exit(1)
+print(f'  \033[32m✓\033[0m 文档里的检查编号引用全部解析（本文件现有 {len(have)} 条）')
+P26
+
+echo "27. ADR 里写到的仓库内路径仍然存在（改目录之后，已接受的记录不编辑，但过期要看得见）"
+# CLAUDE.md：「Accepted records are not edited.」那条规矩防的是悄悄改掉当初的决定，
+# 不是让路径永远正确。testing/ 这次改名让 0002/0003/0004/0006 的路径引用全部过期。
+# 修法是新立 ADR-0008 说明改名，旧记录一个字不动——但过期必须**可见**。
+# 所以这条是 warn 不是 fail：它不阻止任何事，只是不让过期变成静默。
+python3 - <<'P27'
+import re,glob,os
+stale=[]
+for f in sorted(glob.glob('docs/adr/*.md')):
+    for m in re.finditer(r'`((?:tests|evals|grader-check|testing|skills|docs|examples)/[A-Za-z0-9_./*-]+)`', open(f,encoding='utf-8').read()):
+        p=m.group(1)
+        if '*' in p: continue
+        if not os.path.exists(p): stale.append((os.path.basename(f), p))
+for f,p in sorted(set(stale)):
+    print(f'  \033[33m!\033[0m {f} 提到 `{p}`，磁盘上已经没有（已接受的记录不编辑——由 ADR-0008 承接）')
+print('  \033[32m✓\033[0m 已检查' if not stale else f'  \033[32m✓\033[0m 已检查（{len(set(stale))} 处过期，warn 不判失败）')
+P27
 
 echo "13. 包体量（ADR-0003：某包 SKILL.md 长期不足 30 行，说明切早了，应并回上游包）"
 for d in skills/*/; do

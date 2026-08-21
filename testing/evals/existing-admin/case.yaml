@@ -48,6 +48,17 @@ graders:
   # 而实际行为完全正确：`ui-contract-baseline` 在 `ui-contract-layout` 之前调用、
   # `as-built.md` 早于 `layout.md` 写出、`src/` 下 8 个文件都真读了。
   # 根因就是第 8 条那件事——judge 在超长 trace 上不可靠（12 次 Skill 调用 + 3.7 万字产出）。
+  #
+  # 当初写的是「拆成两条：机械的部分交给 regex」，但落地的 regex 判的是 `as-built.md`
+  # 里引没引到真代码——**调用顺序那一半没有被任何判据接住**，删掉的判据只补了一半。
+  # `tool_order` 就是那一半，官方现成类型，免费，一直没用过。
+  - type: tool_order
+    name: baseline-before-layout
+    before: { tool: Skill, input_match: 'ui-contract-baseline' }
+    after:  { tool: Skill, input_match: 'ui-contract-layout' }
+    weight: 1
+    # UNVERIFIED: 只有 2026-08 那两次实跑的观察支持它，没有量过负方向。
+    # `tool_order` 与 `tool_used` 一样无法用冻结轨迹做夹具（见 README）。
   # 拆成两条：机械的部分交给 regex，判断的部分只看一份 8 千字的文件。
   - type: regex
     name: as-built-cites-real-code

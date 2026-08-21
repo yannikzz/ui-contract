@@ -8,13 +8,13 @@
 #
 # 每个用例：拷夹具 → 注入一处违规 → 跑脚本 → 期望的退出码必须出现。
 # 红的必须红，绿的必须绿——只测前者的话，一个 `exit 1` 就能骗过整份测试。
-cd "$(dirname "$0")/.." || exit 1
+cd "$(dirname "$0")/../.." || exit 1
 FAIL=0
 ok(){ printf '  \033[32m✓\033[0m %s\n' "$1"; }
 no(){ printf '  \033[31m✗\033[0m %s\n' "$1"; FAIL=1; }
 
 TEMPLATE="skills/ui-contract-audit/assets/audit.sh.template"
-FIXTURE="tests/fixtures/audit-project"
+FIXTURE="testing/structure/fixtures/audit-project"
 [ -f "$TEMPLATE" ] || { no "找不到 $TEMPLATE"; exit 1; }
 [ -d "$FIXTURE" ]  || { no "找不到 $FIXTURE"; exit 1; }
 

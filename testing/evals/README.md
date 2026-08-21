@@ -16,12 +16,22 @@
 产不产 `design.md` 不在它的射程内。把视觉判据挂上去，测的是一件那个 case 没做的事——
 判据必挂，而挂的原因与插件质量无关。这正是坑 3 的同一个形状。
 
-跑：
+**先跑网关 1，它是免费的**——套件的 schema 与每条判据的 coherence，零 agent run，不到一秒：
+
+```sh
+./testing/preflight.sh
+```
+
+下面这些坑里的配置类问题，网关 1 会在花钱之前免费报出来。坑 4 尤其典型：那一条是花实跑的钱买来的，而 harness 一直在免费打印同一件事。
+
+全量跑（网关 3）：
 
 ```sh
 CLAUDE_CODE_WALNUT_SPIRE=1 claude plugin eval . \
   --ablation with-without --scaffold --allow-tools Write Edit --max-cost-usd 20
 ```
+
+eval 目录写在 `.claude-plugin/plugin.json` 的 `experimental.evals`（= `testing/evals`），所以**不用带 `--eval-dir`**。官方推荐先用 `--runs 1` 试跑一遍再全量。
 
 四个开关缺一不可：
 
@@ -30,7 +40,7 @@ CLAUDE_CODE_WALNUT_SPIRE=1 claude plugin eval . \
 | `CLAUDE_CODE_WALNUT_SPIRE=1` | `plugin eval` 被一个默认关闭、按组织灰度的 feature gate 挡着。这个变量是官方给收不到灰度的机器留的口子；**不要设在仓库的 `.claude/settings.json` 里**，committed 的值通常不生效 |
 | `--scaffold` | `existing-admin` 靠 `scaffold_script` 造 fixture 仓库，默认**不跑**（它会以你的身份执行作者提供的 bash）。不加这个开关，治熵线用例面对的是空目录 |
 | `--allow-tools Write Edit` | `Write` / `Edit` 是 gated tool，`allowed_tools` 里列了还不够。不给，agent 写不出规范文件 |
-| `--max-cost-usd` | 单次 run 约 $0.6–3.7。**两**用例两臂共 8 次 run，实测总额 $10.4——给 $10 会被砍在半路，见第 11 条。加上 `greenfield-originate` 是 12 次 run；按同一单价外推约 $15.6，**这是外推值不是实测值**，跑之前别当数字用 |
+| `--max-cost-usd` | 单次 run 约 $0.6–3.7。**两**用例两臂共 8 次 run，实测总额 $10.4——给 $10 会被砍在半路，见第 11 条。当前三个用例：`existing-admin` 有 `runs: 1`（2 次），另两个用默认 `runs: 3`（各 6 次），共 **14 次 run**，按同一单价外推 **$18.2**——贴着 $20 上限，**这是外推值不是实测值**。要留余量就用 `--runs 1` 试跑（6 次，外推 ~$7.8），别把 `runs: 1` 写进 case：官方明说 *A single run on a non-deterministic agent is noise*，那是拿信号换省钱 |
 
 `--ablation with-without` 会**真的把插件摘掉**跑一遍对照臂。这修掉了历史上一个已知的测量假象：手工造对照组时，子 agent 的可用技能清单里仍带着本插件的完整 description，等于把架构泄露给了对照组。
 
@@ -92,12 +102,12 @@ CLAUDE_CODE_WALNUT_SPIRE=1 claude plugin eval . \
 
 **这一改没有重跑验证**（两次跑已花 $18）。regex 那半是零成本验证过的——拿上一次 run 保留的真实产物比对，with 臂命中 33 次、对照臂根本没有这个文件。llm 那半只是把输入从超长 trace 换成一份短文件，方向上不会更差。
 
-> **2026-08-21 结清**：`as-built-is-reverse-engineered` 已用 `grader-check/` 的夹具**正反双向**验过，haiku 与 sonnet 都是 3/3 正确（正样本是实跑产出的真 `as-built.md`，负样本是拿 `layout.md` 冒充）。比原定的结清条件更强，且零 agent 成本。拆分是对的——但**理由和当时写的不一样**，见第 13 条。
+> **2026-08-21 结清**：`as-built-is-reverse-engineered` 已用 `testing/grader-check/` 的夹具**正反双向**验过，haiku 与 sonnet 都是 3/3 正确（正样本是实跑产出的真 `as-built.md`，负样本是拿 `layout.md` 冒充）。比原定的结清条件更强，且零 agent 成本。拆分是对的——但**理由和当时写的不一样**，见第 13 条。
 
 **13. judge 默认是 haiku，而"llm judge 不行"的结论从来没跟模型这个变量分开过。**
 `claude plugin eval` 有 `--judge-model`，**默认 haiku**——上面十二条里一条都没提过它。judge 成本只占总成本的 **2.2%**（$0.049 / $8.04），所以换模型的代价小到可以忽略，从来不是成本问题，是**没人想到它是个变量**。
 
-但换模型也不是解法。用 `grader-check/` 的零 agent 夹具正反两面各量一次（细节与完整表格见 [grader-check/README.md](../grader-check/README.md)）：
+但换模型也不是解法。用 `testing/grader-check/` 的零 agent 夹具正反两面各量一次（细节与完整表格见 [testing/grader-check/README.md](../grader-check/README.md)）：
 
 | 判据 | judge 要做什么 | 长输入 | 短输入 |
 |---|---|---|---|
@@ -154,15 +164,65 @@ CLAUDE_CODE_WALNUT_SPIRE=1 claude plugin eval . \
 前三条补它们要新增用例，成本随场景数线性涨。第四条是**新加的，性质不同**：它不是没人写，是
 写过一条判据（`decision-tree-total`）而它**不工作**，2026-08-21 删掉了。
 
-删的依据是 `grader-check/` 的正负夹具：那条判据在任何模型/任何输入长度下都分不开「追了」和
+删的依据是 `testing/grader-check/` 的正负夹具：那条判据在任何模型/任何输入长度下都分不开「追了」和
 「没追」，只是失效方向不同——haiku 永远挂、sonnet 永远绿。**一条不分黑白的判据比没有判据更坏，
 因为记分板上它看起来在守。** 现在守着的只剩 `traces-in-artifact` 正则（追踪有没有落进产物，
 正负双向验过），追踪**质量**明说没人守。
 
 要把它加回来：唯一量到有判别力的组合是「judge 只看一份短文件 + sonnet」，代价是追踪表得从
 `layout.md` 里搬出去单独成文件，而附录 B/C 就在规范里本身是有理由的设计。夹具还在，
-真想做的话跑一次 `grader-check/` 就知道行不行，不必再花 $8。
+真想做的话跑一次 `testing/grader-check/` 就知道行不行，不必再花 $8。
 
 **基线分数因此不可跨日期直接比**：两个用例各少了一条 weight 1 的判据，而那条是长期挂红的，
 所以之后的分数会比 2026-08-20 的 `existing-admin 0.80 / greenfield-mobile 0.67` 高，
 高出来的部分不是变好了。
+
+
+## 判据自己的验证状态
+
+一条判据「存在」、「能失败」、「换个写法也能失败」是三件事。`testing/grader-check/`
+能便宜地量前两件——但**只对一部分判据类型有效**，边界是量出来的不是推的。
+
+### `tool_used` / `tool_order` 无法用冻结轨迹验证（2026-08-21 实测）
+
+想法是：冻结一份真实的、里面有工具调用的 session transcript，用 `context.history_file`
+重放，让判据在 $0.06 的价位上判它。**不成立。**
+
+```yaml
+context: { history_file: history.jsonl }   # 一份真的、含 Read 调用的 transcript
+graders: [ { type: tool_used, tool: Read, min: 1 } ]
+```
+```
+→ read-seen-in-replay: Read called 0x (expected 1..∞)     score 0.00
+```
+
+重放进来的历史，判据看不见——只有**新一轮**的工具调用算数。所以这两类判据只能在真跑里
+正负双向量，没有便宜的替身。它们各自旁边都写了 `UNVERIFIED:`。
+
+### `tool_used: Skill` 默认不计分
+
+官方规则（`docs/reference/plugin-eval.md` § Graders）：`arm: with-only`，**以及每一条不写
+`arm` 的 `tool_used` on `Skill`**，在 `with-without` 的两个臂里都被排除出分数——
+原文 *a `passed: false` with `scored: false` under a run scoring 1.0 is expected*。
+
+后果：`input_match` 打错一个字符 → 判据静默失配 → 分数不动 → `--threshold` 不响 → 退出码 0。
+这正是本仓库的招牌失效模式，而它是 harness 按设计内置的。
+
+两件事接住它：
+
+- **免费**：不变量 25 判 `input_match` 里的技能名必须是 `skills/` 下真实存在的包。抓「改名后
+  断言没跟」，抓不到「正则本身写错」。
+- **要花钱**：`--ablation none` 下 *nothing is excluded*，同一条判据**会**计分。所以 per-skill
+  断言的正负双向只在这一层有意义。
+
+### per-skill 覆盖：15 个包，2 个被点名
+
+`skill-fired` 只断言「Skill 工具被调用过」，不问哪一个——15 个包共用那一条，等于每个包在行为层
+都没有针对自己的保障。现在 `ui-contract-layout`、`ui-contract-design` 各有一条点名判据，
+`existing-admin` 多一条 `tool_order` 守「先量现状再写规范」的时序（那一半在 2026-08-21 之前
+一直漏着：删掉的 llm 判据说要「机械的部分交给 regex」，落地的 regex 只判了引用真实组件名）。
+
+其余 13 个包仍然没有。不变量 25 每次跑都会把这个数字打出来，记在 issue #6。
+
+**按技能拆用例大部分做不到**：8 个能力包都有前置门（不变量 10），单独扔进空沙箱会**正确地**
+停下来说缺上游产物——判据必挂且与质量无关，正是坑 3 的形状。能独立测的是 5 个原语包与两个入口。
