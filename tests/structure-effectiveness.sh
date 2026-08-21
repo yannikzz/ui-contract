@@ -94,14 +94,22 @@ export function Badge({ children }: { children: ReactNode }) {
   const leak = \"#2563eb\"; void leak;
 // ── INSPECT CHROME END ──'"
 
+# 21 与 22 各自的名单/记法缺口：违规原封不动，只换一种写法。
+# 两条都是「名单式检查」的通病——名单永远差一个，所以补的时候连同**没补的**
+# 一起写进断言注释里，让下一个人看得见边界在哪，而不是以为它守住了全部。
+run_case 1 "21 · 用 <aside> 代替 <nav>（名单外的 IA 载体）" \
+  "sub $T '<body' '<body><aside class=\"panel\">nav</aside'"
+run_case 1 "22 · 用 CSS 具名颜色写死值（记法外的颜色）" \
+  "sub $W_TPL 'export function Badge({ children }: { children: ReactNode }) {' 'export function Badge({ children }: { children: ReactNode }) {
+  const leak = { color: \"crimson\" }; void leak;'"
+
 printf '\n'
-# 已知抓不到、且刻意不写成用例的四处——写成用例就得给它们一个期望退出码，
+# 已知抓不到、且刻意不写成用例的两处——写成用例就得给它们一个期望退出码，
 # 而 0 的意思是「这样做没问题」，那是假话；哪天有人把口子堵上，用例还会错误地转红。
 # 记在这里，因为不写下来的话，下一个读这份测试的人会以为覆盖是完整的：
 #   · 往 NEUTRAL 里加品牌色（NEUTRAL 内本来就允许写值，「加进去的是不是灰」只能人评审，PR #13 已声明）
-#   · 用 <aside> 之类不在第 21 条关键词名单里的 IA 载体
-#   · 用 crimson / white 这类 CSS 具名颜色写死值（第 22 条的正则只认 hex/rgb/oklch/hsl 与 tailwind 色阶）
-#   · 改现有导出的实现而不动它的名字（第 23 条只比对导出名的集合）
+#   · 改现有导出的实现而不动它的名字（第 23 条只比对导出名的集合。这一条
+#     是故意宽的：示例是实跑产出，逐行比对等于逐行逆向维护它，而这会把它变成手绘插图）
 [ $FAIL -eq 0 ] && printf '\033[32m%s 个用例：断言全部能按预期红/绿\033[0m\n' "$CASES" \
                 || printf '\033[31m有断言没按预期红/绿\033[0m\n'
 exit $FAIL

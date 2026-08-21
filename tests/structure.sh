@@ -244,7 +244,16 @@ echo "21. 器具模板里不出现 IA 载体（放了它就是向每个装了插
 # 严格到「连提都不能提」，与 eval 的 no-desktop-skeleton 同一条理由：
 # 无论是在采纳还是在否定它，出现即说明参照系是别人的产品。要说明排除了哪些，
 # 写在 originate.md 里——那份文件不受这条断言约束，因为它不是发给项目的产物。
-X=$(grep -niE '<nav|sidebar|breadcrumb|<header|<footer' skills/ui-contract-design/assets/theme-studio.html.template 2>/dev/null)
+# 名单式检查天生不全，所以名单里有什么、为什么少了什么，都得写下来。
+# 量过：第一版只有五个词，`<aside>` 一个标签就走过去了——而侧栏正是这条断言
+# 点名要挡的形状。补齐同类的 IA 区域词之后，仍有四个词**刻意没进名单**：
+#   · `shell`  —— 器具自己的两栏布局 class 就叫 `.shell`，加了当场假阳
+#   · `menu` / `banner` —— 下拉菜单、状态提示条都是通用控件，不是 IA 载体
+#   · `toolbar` —— 页面级工具栏是 IA，卡片内的操作条不是，一个词分不开这两件事
+#   · `<main`  —— 它是无障碍 landmark，不传递「导航长什么样」，加了只会逼器具
+#                 放弃语义标签，换来的不是更少的信息架构
+# 假阳比漏判贵：一条会误报的断言，第一次误报就会被加例外，例外一多就没人看了。
+X=$(grep -niE '<nav|<aside|sidebar|crumb|<header|<footer|drawer|topbar|tabbar|masthead|navigation|appbar' skills/ui-contract-design/assets/theme-studio.html.template 2>/dev/null)
 [ -z "$X" ] && ok "样张只有通用控件" || no "模板里有 IA 载体: $X"
 
 echo "22. 线框模板里颜色的**值**只在 NEUTRAL 一处（ADR-0006 把判据从「没有颜色」换成「没有颜色的值」）"
@@ -288,6 +297,28 @@ rest = rest[:a.start()] + rest[a.end():]
 if not re.search(r'^export function', rest, re.M):
     print('  \033[31m✗\033[0m 哨兵块外没有产品组件了——把 END 推到文件尾等于全文豁免'); sys.exit(1)
 leaks = re.findall(r'#[0-9a-fA-F]{3,8}\b|\brgba?\(|\boklch\(|\bhsla?\(|\b(?:bg|text|border|ring|fill|stroke)-(?:red|blue|green|yellow|amber|orange|purple|pink|indigo|teal|cyan|violet|rose|lime|emerald|sky|fuchsia|slate|zinc|stone|gray|grey|neutral)-\d{2,3}', rest)
+# 上面那条只认记法（hex / 函数 / tailwind 色阶），于是 `color: 'crimson'` 从中间
+# 穿过去——同样是一个写死在线框里的颜色值，只是用词写的。量过：注入 crimson 仍
+# exit 0。具名颜色不能光靠词形抓（`whitespace` 里有 white，变量名里什么都有），
+# 所以判的是**语境**：出现在颜色属性的值位置上，且那个词确实是 CSS 具名颜色。
+NAMED = set('''aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue
+blueviolet brown burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan
+darkblue darkcyan darkgoldenrod darkgray darkgreen darkgrey darkkhaki darkmagenta darkolivegreen
+darkorange darkorchid darkred darksalmon darkseagreen darkslateblue darkslategray darkslategrey
+darkturquoise darkviolet deeppink deepskyblue dimgray dimgrey dodgerblue firebrick floralwhite
+forestgreen fuchsia gainsboro ghostwhite gold goldenrod gray green greenyellow grey honeydew hotpink
+indianred indigo ivory khaki lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral
+lightcyan lightgoldenrodyellow lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen
+lightskyblue lightslategray lightslategrey lightsteelblue lightyellow lime limegreen linen magenta
+maroon mediumaquamarine mediumblue mediumorchid mediumpurple mediumseagreen mediumslateblue
+mediumspringgreen mediumturquoise mediumvioletred midnightblue mintcream mistyrose moccasin
+navajowhite navy oldlace olive olivedrab orange orangered orchid palegoldenrod palegreen
+paleturquoise palevioletred papayawhip peachpuff peru pink plum powderblue purple rebeccapurple red
+rosybrown royalblue saddlebrown salmon sandybrown seagreen seashell sienna silver skyblue slateblue
+slategray slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat white
+whitesmoke yellow yellowgreen'''.split())
+for w in re.findall(r'(?:^|[^A-Za-z-])(?:[A-Za-z]*[Cc]olor|background|fill|stroke|outline|boxShadow|textShadow)\s*:\s*[\'"]?([A-Za-z]{3,20})\b', rest, re.M):
+    if w.lower() in NAMED: leaks.append(w)
 if leaks:
     print(f'  \033[31m✗\033[0m NEUTRAL 之外出现颜色值: {sorted(set(leaks))[:8]}'); bad=1
 skin=re.search(r'export const SKIN[^{]*\{(.*?)\n\}', s, re.S)
