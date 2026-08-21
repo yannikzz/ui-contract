@@ -38,8 +38,7 @@ CLAUDE_CODE_WALNUT_SPIRE=1 claude plugin eval . \
 | `design-values-clean` | 同一份首跑产物，色值 0 处（值都在 token 文件里） | `no-literal-values-in-design` | PASS |
 | `design-values-literal` | `existing-admin` 夹具里的「现状」`design.md`，9 处硬编码色值 | 同上 | FAIL |
 
-后四个是 `greenfield-originate` 实跑之后补的，八个 case 一起跑 **$0.73 / 44 秒**，全部符合预期。
-两个负样本都不是手搓的，这是刻意的：
+后四个是 `greenfield-originate` 实跑之后补的。两个负样本都不是手搓的，这是刻意的：
 - `naming-declared-missing` 的「没有声明表」是**时间造成的**——那份产物早于声明表这个概念，
   `examples/README.md` 里记着它落后两个 ADR。ground truth 来自它的出生日期，不是来自 `sed`。
 - `design-values-literal` 的「含色值」是它的**本质属性**——它扮演的就是一个还没被规范化的项目，
@@ -48,9 +47,40 @@ CLAUDE_CODE_WALNUT_SPIRE=1 claude plugin eval . \
 ⚠ 第四条判据 `skill-fired` **这里验不了**：夹具里 agent 一步不跑，`Skill` 自然不会被调用，
 正负两样本会长得一模一样。它的负样本只能来自 eval 的对照臂。
 
-两条判据都是**在这里第一次被真正验证**的：`as-built-is-reverse-engineered` 拆出来之后一直没跑过
+两条判据是**在这里第一次被真正验证**的：`as-built-is-reverse-engineered` 拆出来之后一直没跑过
 （`testing/evals/README.md` 第 12 条记着这笔欠账），`traces-in-artifact` 的词表是从保留产物量出来的、
 判据本身也没跑过。各花 $0.1 量级，两条都双向正确。
+
+## 最近一次全量（2026-08-21，$0.62 / 66 秒 / 8 case，`--runs 1`）
+
+四对夹具**四对都分得开**，负样本一个都没漏：
+
+| 判据 | 正样本 | 负样本 | 判别力 |
+|---|---|---|---|
+| `as-built-is-reverse-engineered` | PASS ✓ | FAIL ✓（judge 3-0） | 有 |
+| `no-literal-values-in-design` | PASS ✓ | FAIL ✓ | 有 |
+| `naming-declared` | PASS ✓ | FAIL ✓ | 有 |
+| `traces-in-artifact` | PASS ✓ | FAIL ✓ | 有 |
+
+汇总表里负样本那几行的 `SCORE 0.00` 是**期望值**，不是失败——这一层「全部符合预期」的意思是
+四个 1.00 和四个 0.00 各自落在该落的位置上，不是八个都绿。
+
+`naming-declared` 到此双向都验过了。它是 PR #13 里唯一写着「正方向无样本，要等一次实跑」的那条；
+`db33a85` 那次实跑把样本买了回来，**此后复验永远 $0.07**。
+
+**harness 自己的告警在这次跑里出现了一次**，值得记：
+
+```
+asbuilt-prescriptive → judge votes: FAIL FAIL FAIL — note: long file (18851 chars);
+                       llm judges are noisy on long inputs, prefer a regex grader for large artifacts
+```
+
+这正是 issue #9 花 $18 才得出、而且得错了的那个诊断——harness 一直在免费打印它。
+但注意**这次它判对了**（负样本三票一致 FAIL），与下面那张表的结论一致：
+长度不是变量，**判整体气质很行，逐行核对不行**。
+
+`--runs 1` 意味着每条判据只有一票。这次四对全部干净分离、没有一个是 2:1 的边缘票，所以没有加跑；
+哪一对将来出现分歧票，用默认 `runs: 3` 单独重跑那个 case（`--case <name>`）。
 
 ## 夹具必须是真实产物，不能是手搓的
 
