@@ -114,6 +114,14 @@ Any of those is a reason. "It looked good" is not, and neither is silence. **If 
 applies, say so in `design.md` and mark the hue explicitly as the weakest value in the set** —
 that is honest, and it tells the user which knob to reach for first in Step 3.
 
+⚠ **State the basis without writing a value.** `design.md` carries no literal colours — not the
+chosen one, and not the default you are contrasting against. Both violations were measured on the
+first run after this section was written: one deliverable explained itself as "deeper and duller
+than Tailwind blue-500 (`#3b82f6`)", another named the hue it picked. Say it in words or in token
+names instead — "the category convention, pushed darker and less saturated" — and let
+`tokens.input.json` hold the number. The rule this collides with is not new; it is the one at the
+top of `SKILL.md`, and an explanation is not an exemption from it.
+
 ### Do not emit a framework default
 
 These are the values that appear when the derivation did not happen. Emitting one is a signal,
@@ -145,6 +153,13 @@ Not rendered into the instrument's HTML. Three reasons, and the third is the one
 **Write the file before moving to Step 3.** Not "plan to write it", not "describe it in
 `design.md`" — the file on disk, now. Reason 3 is void without it: a revisit condition whose
 only data source exists some of the time is not a revisit condition.
+
+**And record where it went, in `config.md`'s paths table.** That table is already the authority
+for every other artifact; this one was missing from it, so each run chose its own location — two
+put it at the repo root, one under `docs/ui-contract/`, and all three were defensible because
+nothing said otherwise. An unrecorded location is not only a measurement problem: `ui-contract-assets`
+has to read this file to map the values into the token file, and it looks the location up in that
+same table.
 
 ---
 

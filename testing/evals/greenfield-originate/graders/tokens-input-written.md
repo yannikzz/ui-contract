@@ -1,6 +1,6 @@
 ---
 type: file_exists
-path: tokens.input.json
+path: "**/tokens.input.json"
 weight: 1
 ---
 
@@ -19,7 +19,14 @@ weight: 1
 `## Before you call this document done` 清单的东西落地 5/5，只在正文里被描述的落地 2/5，
 所以这条判据的对侧修复是把它写进那份清单（已做）。下一次实跑会说这两件事有没有用。
 
-VERIFIED 2026-08-21，双向，**在同一次跑里**：3 次 with run 中 run1 红、run2/run3 绿。
+⚠ **路径必须是 `**/`，2026-08-22 栽过一次。** 原来写的是 `path: tokens.input.json`——
+一个只匹配仓库根目录的 glob。而 `ui-contract-design/SKILL.md` 明写「Artifact paths come from
+`docs/ui-contract/config.md`'s paths table … **Never assume a path the config contradicts**」。
+**判据假设了一个产品明确规定不许假设的路径。**
 
-⚠ 但**判据能失败**和**缺口修好了**是两件事。落地率从 2/5 变成 2/3，Fisher 精确检验
-双尾 p = 1.000——与噪声区分不开。这条判据现在是可信的**测量工具**，缺口本身仍未结清。
+被它误判的那次（run3）把文件写在 `docs/ui-contract/tokens.input.json`，是**正确行为**，
+判据报了 missing。这一条同时污染了此前所有「落地率」数字（2/5、7/8、2/3），那些数字
+测的不是「产品写不写」，而是「产品把它写在哪」，全部作废。
+
+VERIFIED 2026-08-21，双向，在同一次跑里正负都出现过——**但那次的正负两个方向都可能是
+路径造成的**，所以这条验证跟着一起降级为待重验。
