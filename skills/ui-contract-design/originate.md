@@ -154,12 +154,16 @@ Not rendered into the instrument's HTML. Three reasons, and the third is the one
 `design.md`" — the file on disk, now. Reason 3 is void without it: a revisit condition whose
 only data source exists some of the time is not a revisit condition.
 
-**And record where it went, in `config.md`'s paths table.** That table is already the authority
-for every other artifact; this one was missing from it, so each run chose its own location — two
-put it at the repo root, one under `docs/ui-contract/`, and all three were defensible because
-nothing said otherwise. An unrecorded location is not only a measurement problem: `ui-contract-assets`
-has to read this file to map the values into the token file, and it looks the location up in that
-same table.
+**It goes beside `config.md`, at `docs/ui-contract/tokens.input.json`.** Fixed, not chosen.
+
+This is the one artifact with a pinned location, and the exception has a reason: the paths table
+exists so a project can put its **specs** where it wants them. This is not a spec — it is a
+working record of where the knobs were left, in the same drawer as `config.md`. Two rounds of
+measurement earned the rule: with nothing said, runs split three ways to two between the repo
+root and `docs/ui-contract/`, every choice defensible. Then "record where it went in the paths
+table" was tried, and the split stayed exactly where it was — writing the choice down makes it
+visible, it does not make it the same choice twice. `ui-contract-assets` has to find this file
+later, and a grader has to read it now; both need one answer, not a recorded one.
 
 ---
 
