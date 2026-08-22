@@ -48,37 +48,6 @@ or any path you name. With no argument it installs to `~/.claude/skills/`.
 **Install all of them.** The units call each other; a subset breaks the chain silently — the
 behaviour still looks normal, it just stops following the discipline.
 
-### One optional companion: `frontend-design`
-
-Everything here produces **constraints** — a spec, a type, a health check. Exactly one step
-needs the opposite, and it is deliberately not in this plugin: on the `originate` branch,
-`ui-contract-design` turns a chosen brand direction into concrete values, and generating taste
-is the one job most likely to decay into another default Tailwind blue. So that step calls
-Anthropic's `frontend-design` plugin instead of growing an opinion of its own.
-
-It is a **soft** dependency, not a declared one, for two reasons: it lives in a different
-marketplace, and cross-marketplace dependencies are blocked unless the root marketplace opts
-in — which is not the plugin author's setting to make. And fourteen of the fifteen packages do
-not touch it, so a hard requirement would gate the whole plugin on a step most runs never take.
-
-| | What happens |
-|---|---|
-| **Installed** | The `originate` branch calls it. Recommended — this is what the design was written against |
-| **Not installed** | Everything else works. The `originate` branch still runs, but the values it derives come from this plugin rather than from a skill built for the job |
-
-Install it alongside if you expect to use `originate` on a project with no visual language yet:
-
-```
-/plugin install frontend-design@claude-plugins-official
-```
-
-⚠ **Measured, not assumed:** in eval runs where the skill was absent, the `originate` branch
-behaved inconsistently — some runs derived the values anyway, others deferred them to "a later
-round" and declared the work finished. Both look like a normal, complete deliverable from the
-outside. Giving that fallback a defined behaviour is open work, tracked in
-[#6](https://github.com/yannikzz/ui-contract/issues/6); until it lands, installing
-`frontend-design` is the way to avoid the ambiguity rather than merely the better option.
-
 ### Which agents this works in
 
 `SKILL.md` is an open format, so the same folders work unmodified across agents. Only the

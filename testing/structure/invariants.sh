@@ -485,6 +485,34 @@ for f,p in sorted(set(stale)):
 print('  \033[32m✓\033[0m 已检查' if not stale else f'  \033[32m✓\033[0m 已检查（{len(set(stale))} 处过期，warn 不判失败）')
 P27
 
+echo "28. 技能不依赖本插件之外的技能（装了本插件的用户不一定装了别人的）"
+# 这条是被一次实测催生的：`originate.md` 的 Step 2 曾经写着
+# `Call the Skill tool with "frontend-design"`，而那个技能属于另一个 marketplace，
+# 装 ui-contract 不会带上它。eval 沙箱只装被测插件——29 个可见技能里没有它——
+# 但**那不是沙箱的特殊情况**，任何没单独装它的用户都一样。
+#
+# 后果是**沉默的**：从保留的沙箱量到，同一个缺陷有两种应对——一次自己把值派生了出来，
+# 一次推到「下一轮」并宣布完工（「两份规范和配置文件都已写完」）。两份产物从外面看
+# 都像正常完整的交付物。那个 40–87% 之间飘的落地率，真身就是这个。
+#
+# 判据是**闭集**：`Call the Skill tool with "X"` 里的 X 必须是 skills/ 下真实存在的包。
+# 锚点是磁盘，和不变量 1、25 同一个权威。跨插件依赖要么不写，要么走 plugin.json 的
+# dependencies（而跨 marketplace 那条路默认被禁，见 ADR-0009）。
+python3 - <<'P28' || FAIL=1
+import os,re,sys,glob
+pkgs={d for d in os.listdir('skills') if os.path.exists(f'skills/{d}/SKILL.md')}
+bad=[]; n=0
+for f in sorted(glob.glob('skills/*/*.md')):
+    for m in re.finditer(r'[Cc]all the Skill tool with ["`]([a-z][a-z0-9:-]*)["`]', open(f,encoding='utf-8').read()):
+        name=m.group(1).split(':')[-1]; n+=1
+        if name not in pkgs: bad.append((f,name))
+if bad:
+    for f,name in bad:
+        print(f'  \033[31m✗\033[0m {f} 调用了 `{name}`，skills/ 下没有这个包——装了本插件的用户不一定装了它，而缺失时的行为是沉默的')
+    sys.exit(1)
+print(f'  \033[32m✓\033[0m {n} 处技能调用全部指向本插件内的包')
+P28
+
 echo "13. 包体量（ADR-0003：某包 SKILL.md 长期不足 30 行，说明切早了，应并回上游包）"
 for d in skills/*/; do
   n=$(wc -l < "$d/SKILL.md"); b=$(basename "$d")

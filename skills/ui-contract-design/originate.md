@@ -7,7 +7,7 @@ Four steps, and **the order is the whole point**:
 | | Step | Who does it |
 |---|---|---|
 | 1 | Attribute interview — three mutually exclusive directions, each with its cost | the conversation |
-| 2 | Derive first values from the chosen direction | `frontend-design` |
+| 2 | Derive first values from the chosen direction | this skill |
 | 3 | Tune the visual scales on a page | the user |
 | 4 | Land the values in the token file | `ui-contract-assets` |
 
@@ -63,15 +63,88 @@ The chosen direction and its stated cost land in `design.md` §1, marked 🌡 �
 
 ## Step 2 — derive the first values
 
-Call the Skill tool with "frontend-design". Its job is to turn the chosen direction into **good concrete values**; this skill's job was to force the choice. Keep the two apart: brand generation is the one place here that has to produce taste, and also the one place most likely to decay into another default Tailwind blue.
+This step used to say "call `frontend-design`". It no longer does, and the reason is not
+tidiness: that skill ships in a different marketplace, so most installs never had it. Measured
+across real runs, the branch then behaved two different ways — some runs derived the values
+anyway, others deferred them to "a later round" and declared the work finished. Both produced a
+deliverable that reads as complete. A step whose behaviour depends on whether an unrelated
+plugin happens to be installed is not a step.
 
-**The output lands as `tokens.input.json`, not rendered into the instrument's HTML.** Three reasons, and the third is the one that pays:
+So it is derived here. That inherits the problem the delegation existed to avoid — **the most
+likely outcome of "generate a brand" is another default framework blue** — and the rest of this
+section is the answer to it.
+
+### Every value has to be forced by something
+
+The interview produced coordinates, and the axes already name which token group each one moves
+(§Three axes). Derivation is reading that table in the other direction:
+
+| Axis | What its coordinate fixes |
+|---|---|
+| Dense ↔ airy | The spacing step ratio, line height, control height |
+| Sharp ↔ soft | The radius scale, shadow depth, border width |
+| Restrained ↔ expressive | How many colours exist, how saturated they are, how much area the accent may cover |
+
+**A value you cannot trace back to a coordinate is a value you defaulted.** That is the whole
+test, and it is worth stating as the negative: a default is not a bad-looking value, it is a
+value that arrived without a reason. Two derivations from the same point should land close;
+two derivations from different points must not.
+
+### The gap the axes do not close: hue
+
+Read that table again and notice what is missing. The third axis fixes how *many* colours and
+how *saturated*, and says nothing about **which hue**. Nothing else does either — and Step 1 is
+deliberate that the user chooses on attributes, never on colours, so the interview will not
+supply it.
+
+That unconstrained slot is exactly where the default blue arrives. It is not laziness; it is
+the only value in the set with no source.
+
+Close it with a **stated basis**, not with a preference. Pick the hue from something nameable
+about this product, and write which one in `design.md` §1 next to the direction:
+
+| Basis | Example of the reasoning |
+|---|---|
+| An existing asset | A logo, a printed piece, a parent brand — if one exists it wins, and no derivation is needed |
+| The domain's convention, followed | Finance and health carry hue expectations; matching them is a choice with a reason |
+| The domain's convention, broken | Same expectation, deliberately refused, because the product is positioned against the incumbents |
+| Adjacency avoidance | The two or three products this one sits beside all use the same hue, so this one must not |
+
+Any of those is a reason. "It looked good" is not, and neither is silence. **If none of the four
+applies, say so in `design.md` and mark the hue explicitly as the weakest value in the set** —
+that is honest, and it tells the user which knob to reach for first in Step 3.
+
+### Do not emit a framework default
+
+These are the values that appear when the derivation did not happen. Emitting one is a signal,
+not a crime — it means Step 1's coordinates never reached the values:
+
+```
+#3b82f6  #2563eb  #1d4ed8      Tailwind blue-500/600/700
+#6366f1  #4f46e5                Tailwind indigo-500/600
+#0ea5e9  #0284c7                Tailwind sky-500/600
+#007bff  #0d6efd                Bootstrap primary (v4, v5)
+#1976d2  #2196f3                Material blue 700/500
+```
+
+If a derivation genuinely lands on one of these, move it — the nearest hue that is still
+consistent with the stated basis is fine, and the point is that the value stops being the one
+you would have written without thinking.
+
+### The output lands as `tokens.input.json`
+
+Not rendered into the instrument's HTML. Three reasons, and the third is the one that pays:
 
 1. Values rendered into a one-off file are lost the moment the page is regenerated.
 2. A template that differs on every run is not a template.
-3. v1 (what the agent derived) and the final version (what the user tuned) become **two revisions of one file, and therefore diffable**. ADR-0001 决定 B hangs its revisit condition on "the proportion of generated brands the user overrides" — a number that has never had a source. This diff is that source.
+3. v1 (what was derived here) and the final version (what the user tuned) become **two revisions
+   of one file, and therefore diffable**. ADR-0001 决定 B hangs its revisit condition on "the
+   proportion of generated brands the user overrides" — a number that has never had a source.
+   This diff is that source.
 
-**Write the file before moving to Step 3.** Not "plan to write it", not "describe it in `design.md`" — the file on disk, now. This paragraph used to end at reason 3, and the measurement is unambiguous about what that cost: across five real runs `design.md` landed 5/5 while `tokens.input.json` landed 2/5, and the three runs that skipped it had mentioned the file 12 and 8 times in their own traces first. Reasoning about the file is not writing it, and reason 3 above is void without it — a revisit condition whose only data source exists 40% of the time is not a revisit condition.
+**Write the file before moving to Step 3.** Not "plan to write it", not "describe it in
+`design.md`" — the file on disk, now. Reason 3 is void without it: a revisit condition whose
+only data source exists some of the time is not a revisit condition.
 
 ---
 

@@ -87,6 +87,11 @@ run_case 1 "26 · ADR 说「不变量 99」" \
 run_case 0 "27 · ADR 提到一个不存在的路径 → warn，退出码不变（声明过的宽）" \
   "printf '\n见 \`testing/nonexistent.sh\`。\n' >> docs/adr/0006-wireframe-skin-preview.md"
 
+run_case 1 "28 · 技能调用指向本插件之外的包（真实发生过的那种写法）" \
+  "printf '\nCall the Skill tool with \"frontend-design\".\n' >> skills/ui-contract-design/originate.md"
+run_case 1 "28 · 同上，带 plugin: 前缀（前缀不该让它蒙混过去）" \
+  "printf '\nCall the Skill tool with \"frontend-design:frontend-design\".\n' >> skills/ui-contract-design/originate.md"
+
 echo "C. 断言自己的绕过口"
 # 19：把整张身份表删掉，末尾补一句随口的散文。第二版断言只要求「某一行同时含
 # 两组词」，这一句就满足——而「谁说了算」根本没被说出来。锚点因此钉在表格结构
