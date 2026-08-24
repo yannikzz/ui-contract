@@ -18,11 +18,89 @@ Its purpose is that an agent reading either document knows where the other half 
 
 **When the project has no token file yet**, that blockquote states the gap instead of naming a file: the token file is the value authority, this project does not have one, the names below are written as they should be, and whoever builds it fills the values in under those names. A pointer to a path that is not on disk reads as a stale spec; a stated gap reads as an honest one. See `SKILL.md` §When there is no token file yet.
 
+The blockquote also states the other half of the same division: **this document is the name authority.** The token file holds the values; which names exist is settled here. Without that sentence an external convention silently becomes the authority instead, and nothing in the output reveals it — a token file generated either way looks identical.
+
+### The naming declaration
+
+Directly under the blockquote, one line naming the convention followed and one table, **one row per token**. Machine-readable on purpose: the health check reads its whitelist out of this table, and it is the only part of this document any script parses.
+
+> Naming follows: **shadcn core (19 names)** · see §Token names
+
+| Token | Origin |
+|---|---|
+| `background` | borrowed |
+| `foreground` | borrowed |
+| `surface-sunken` | this project |
+| `secondary` | not used — this product has one action level |
+
+Three origins and no others: **borrowed** (in the list below), **this project** (invented here, follows the pairing rule), **not used** (in the list but deliberately absent, with the reason on the same row). A borrowed name that is not in the list, or a name in the token file with no row here, is drift — see `ui-contract-audit`.
+
+⚠ **Those three keywords stay in ASCII, exactly as written, even when the rest of the document is in another language.** They are the only handle a script has on this table: the health check anchors on the keywords, not on the header row, precisely so that a spec written in the user's language is still readable. Translate them and the check finds nothing and stays quiet — it degrades to no check, never a wrong one, which is the right failure but a silent one. Put the translation in the header row or a note beside the table instead.
+
+This is the one place in this document where an English word is not a default to be localised. Say so beside the table, or the next person will helpfully translate it.
+
+Keep the table flat. Nesting it by chapter is the first step toward maintaining it twice.
+
+## Token names: what this document borrows
+
+Token names are borrowed rather than invented, for one reason only: **the same concept keeps the same name across stacks.** Invent per project and the same surface is `muted` here and `subtle` there, and the asset layer needs a translation table for every stack it touches — which is the condition ADR-0001 决定 A names as its own revisit trigger.
+
+The borrowed set is shadcn's, minus two groups. It is identical word-for-word in shadcn/ui and shadcn-svelte, and that identity **is** the benefit:
+
+```
+radius
+background / foreground
+card(+ -foreground)      popover(+ -foreground)
+primary(+ -foreground)   secondary(+ -foreground)
+muted(+ -foreground)     accent(+ -foreground)
+destructive
+border   input   ring
+```
+
+**Two groups are deliberately not borrowed:**
+
+| Dropped | Why |
+|---|---|
+| `sidebar-*` (8 names) | Information-architecture carriers. Shipping them hands every project a nav shape it never chose — the one prohibition `ui-contract-glossary` states most strongly |
+| `chart-1..5` (5 names) | Data-visualisation colours. No chapter of this document covers charts |
+
+### This list covers one and a half chapters, not the document
+
+State this plainly rather than letting the borrowed list read as a skeleton:
+
+| Chapter | Covered |
+|---|---|
+| §7 Radii | Fully — one base plus a derived scale |
+| §2 surfaces table | Yes, except `disabled` |
+| §2 text hierarchy | **Partly** — the list has two levels, this chapter needs four or five |
+| §2 brand and semantic | **Partly** — the list has `destructive` only; success / warning / info are not in it |
+| §3 · §4 · §5 · §6 · §8 | **Not at all** |
+
+For every uncovered chapter, name the tokens this project needs and mark them `this project` in the declaration table. One rule governs those names:
+
+> **Pairing.** A token naming a surface has a matching `-foreground` for the text and icons that sit on it. Add the surface, add the pair.
+
+Follow the borrowed set's shape for anything adjacent to it — `success` / `success-foreground` beside `destructive`, not `colorSuccess`. Note that the borrowed set is **not itself consistent here**: `destructive` ships without a pair. Copy the rule, not that exception.
+
+⚠ **The pairing rule is the one rule in this document with no automated check behind it.** A pairing check would fire a false positive on `destructive` the moment it ran. It is enforced by review only — do not read its absence from the health check's output as "it passed".
+
 ## §1 Design philosophy
 
 Roughly three core principles, each a one-sentence claim plus two or three sentences of elaboration. Good principles can be used to **judge new situations**, not just describe the current one.
 
 Test: take a component the spec doesn't cover and hold it against the three principles — can you derive how it should look? If not, the principles are too vague to be useful.
+
+**Where a generated brand lands.** When the brand came from `originate` rather than from the project, the chosen attribute direction is recorded here — the direction as the user picked it, and the cost that was stated alongside it. Not in a separate log: a decision that lives beside the rules it produced is the only one that gets re-read when those rules are questioned.
+
+**Firmness markers.** Each clause may carry how hard it currently is:
+
+| | Means | Consequence |
+|---|---|---|
+| 🔒 | Settled, from fact | May enter a union type or a hard stop |
+| 🌡 | Provisional, from assumption | Document only, and it names its revisit condition |
+| ✏ | Undecided | Goes in the "not decided here" appendix, not the body |
+
+A generated brand is 🌡 by default — it is a hypothesis until real users have seen it. So is a borrowed naming convention: it came from another project, not from this one's structure. Marking them 🔒 claims a certainty nobody measured.
 
 ## §2 Color
 
@@ -38,6 +116,13 @@ The rules that actually keep an interface from getting muddy:
 - **Semantic colors carry state only**, with area limited to small labels / status dots / low-opacity tints. Never wash a whole card, row, or large button in a semantic color.
 - If there are two similar brand colors (one for filled surfaces, one for inline text), **state that they are not interchangeable** or they will be mixed up.
 - If dark mode isn't designed yet, mark it "to be confirmed", give a derived mapping, and state one principle (usually: preserve the same spatial hierarchy rather than inverting).
+
+**The contrast threshold is a rule, so it lives here — once.** State the minimum ratio for body text on its background (4.5:1 unless this project has a reason for more), and state it in exactly one place. Two consumers read it from here: the value-tuning instrument checks it live while the user is turning knobs, and the health check re-checks it months later after somebody hand-edited the token file. Neither hardcodes it — they cannot even share code (one is an HTML template, the other a shell script), so this document is the only thing they can share.
+
+Two things about that pair of consumers, both learned the hard way:
+
+- **They must agree on what counts as a pair.** `X` with `X-foreground`, *and* the base pair — `background` (or `page` / `surface`) with `foreground` (or `text`), which is the pair this threshold is actually written for and the one the first rule cannot see, because the base foreground is not called `background-foreground`. The instrument had that case; the health check did not, so a token file with `background` and `foreground` both `#ffffff` — the worst contrast that exists — cleared the health check and failed the instrument, with nothing reporting a disagreement. Both carry the rule now, and an invariant compares the two name lists.
+- **A translucent value has no ratio.** What it looks like depends on whatever is painted behind it, and neither tool knows the stack. Both say so rather than answering about the opaque version of the colour — a checker that returns a plausible wrong number is worse than one that returns none.
 
 ## §3 Type
 

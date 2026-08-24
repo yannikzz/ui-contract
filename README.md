@@ -127,11 +127,14 @@ Deliverables are written in whatever language you're speaking. `ui-contract-glos
 
 ```
 skills/                 The 15 packages. Only this directory is shipped to users
-tests/run.sh            Structure invariants + proof the health check can fail — free, seconds
-evals/                  Two end-to-end scenarios (greenfield / existing project)
-grader-check/           Fixtures that check the graders themselves — no agent runs, cents per check
+testing/run.sh          The two free gates — invariants and eval-suite preflight, seconds
+testing/structure/      Disk invariants, plus proof that each of them can fail
+testing/preflight.sh    Eval-suite schema + grader coherence, at zero cost
+testing/grader-check/   Fixtures that check the graders themselves — cents per check
+testing/evals/          Three end-to-end scenarios (greenfield x2 / existing project)
 examples/admin-console/ A complete three-artifact set, type-checked and building
 docs/adr/               Decisions about developing this plugin
+docs/reference/         The plugin-eval harness reference — it has no public docs page
 .claude-plugin/         Marketplace + plugin manifests
 install.sh              Cross-agent installer; traverses skills/ with nothing hardcoded
 ```
@@ -140,18 +143,27 @@ install.sh              Cross-agent installer; traverses skills/ with nothing ha
 
 ## Testing it
 
+Four gates, ordered by cost. Each one is a prerequisite for the next, and the first two are free.
+
 ```bash
-./tests/run.sh                          # structure invariants, free
-claude plugin eval . --ablation with-without   # behaviour, costs money
+./testing/run.sh                                   # gates 0 and 1 — free, seconds
+claude plugin eval . --eval-dir testing/grader-check \
+  --ablation none --scaffold --runs 1 --no-publish  # gate 2 — cents
+claude plugin eval . --ablation with-without \
+  --scaffold --allow-tools Write Edit --max-cost-usd 20   # gate 3 — ~$18
 ```
 
-`tests/run.sh` has two halves. The invariants keep the 15 packages consistent with both manifests and the README index. The second half injects one violation per check into `tests/fixtures/audit-project/` and requires the health-check script to report each one — because a check that exists and a check that can fail are different things: two review passes found four checks in that script that always returned green, all four defeated by the same thing, a JSX call site formatted across several lines.
+**Gate 0** keeps the 15 packages consistent with both manifests and the README index, and injects one violation per check to prove the check can report it — because a check that exists and a check that can fail are different things. Two review passes once found four checks in the health-check script that always returned green, all four defeated by the same thing: a JSX call site formatted across several lines.
 
-`evals/` holds two scenarios — one greenfield, one existing project — covering the two entry paths. `--ablation with-without` runs a genuine no-plugin control arm; an earlier hand-rolled control was contaminated because a subagent sees the skill's description in its listing even without invoking it.
+**Gate 1** is `claude plugin eval --max-cost-usd 0`. The suite is fully loaded, schema-validated and coherence-checked, and then every run is skipped — under a second, nothing spent. Most of the way this suite used to break was configuration that only surfaced during a paid run; the harness reports it here for free. It asserts on the output rather than the exit code, because the cost-ceiling exit masks a load error.
 
-`grader-check/` is the layer below: it checks whether the graders can tell right from wrong at all. The agent runs nothing — real artifacts are placed into the sandbox by the scaffold — so one check costs cents instead of the $8 a full run costs. Every grader gets a matching pair: an artifact that must pass and one that must fail. That pair is the point. One grader was failing 15 votes in a row and got diagnosed as "too strict" purely because nobody had ever shown it a negative — the fix that looked right made it pass everything instead, including the negative.
+**Gate 2** checks whether the graders can tell right from wrong at all. The agent runs nothing — real artifacts are placed into the sandbox by the scaffold — so one check costs cents instead of the $8 a full run costs. Every grader gets a matching pair: an artifact that must pass and one that must fail. That pair is the point. One grader was failing 15 votes in a row and got diagnosed as "too strict" purely because nobody had ever shown it a negative — the fix that looked right made it pass everything instead, including the negative.
 
-Four things deliberately have no automated coverage, listed in `evals/README.md`. Read that before trusting a green run.
+**Gate 3** runs the real scenarios. `--ablation with-without` runs a genuine no-plugin control arm; an earlier hand-rolled control was contaminated because a subagent sees the skill's description in its listing even without invoking it.
+
+The harness itself is documented at `docs/reference/plugin-eval.md`, vendored from the CLI because that surface has no public documentation page.
+
+What deliberately has no automated coverage is listed in `testing/evals/README.md`, including one boundary that was measured rather than assumed: a grader cannot see tool calls replayed from a frozen transcript, so `tool_used` and `tool_order` assertions can only be verified by a paid run. Read that before trusting a green one.
 
 ## Contributing
 

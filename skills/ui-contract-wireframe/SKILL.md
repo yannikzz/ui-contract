@@ -33,7 +33,7 @@ The second row is the whole point of the split. A wireframe that declares its ow
 | Low fidelity with real copy and real density (recommended) | You can judge "does the structure hold, does the interaction land where it should"; density problems surface immediately | Slightly more work than grey boxes |
 | Grey-box placeholders | Fastest | Density problems stay hidden — and layout specs most often break on density |
 
-Neither carries brand visuals. If the user also wants to validate that the visual spec is implementable, that is a **separate task** (one screen, full fidelity) — don't fold it in.
+Neither carries brand **values** — both default to grey, and both can turn the skin preview on, which reads the token file live. If the user also wants to validate that the visual spec is implementable, that is a **separate task** (one screen, full fidelity) — don't fold it in.
 
 ## Building it exposes the spec's holes
 
@@ -46,6 +46,10 @@ Note the vocabulary: this is the wireframe **exposing holes**, at construction t
 ## Before you call this done
 
 - [ ] It runs, and the dev server was started for the user
+- [ ] No colour value appears outside the `NEUTRAL` map — **checked in every file, not just `wire.tsx`**; the skin preview is off by default and is not persisted
+- [ ] The demo toggle bar, the annotation layer, the skin banner and the editor panel all keep fixed colours; turning the skin on cannot make the control that turns it off unreadable
+- [ ] The user was told, in words, that the editor writes nothing and its edits die with the tab — and that the prompt is what carries them out
+- [ ] The directory `CLAUDE.md` lists "grey by default, preview off by default" as deliberate — not as a gap to fill
 - [ ] Type-checking actually ran, with output pasted
 - [ ] Density is real — real copy, real row counts, the realistic ceiling — not a shell
 - [ ] Every region renders through `AnnotatedRegion`, with ids imported from the asset layer

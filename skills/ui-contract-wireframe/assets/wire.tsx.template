@@ -5,12 +5,20 @@
  * It consumes the asset layer and adds two things the asset layer must never carry —
  * the annotation overlay, and neutral low-fidelity parts.
  *
- * The visuals are deliberately neutral. Brand values live in the token file; with no
- * brand visuals here to copy, this file can't become a stale second source of truth
- * once the token file changes. An agent that copies this gets structure only, and
- * the one place it can go for brand values is the token file.
+ * The visuals are neutral by default, and there is a skin preview that is OFF by
+ * default. The rule that keeps this file from becoming a second source of visual
+ * truth is not "no colour here" any more — it is **no colour VALUES here**:
+ *
+ *   - every colour goes through a --wire-* custom property
+ *   - the only values are in NEUTRAL below, and they are this wireframe's own greys
+ *   - preview mode overrides those same properties by READING the token file at
+ *     runtime; it copies nothing, so it cannot go stale
+ *   - it does not persist, so every reload is grey again
+ *
+ * See ADR-0006 for why this replaced "grey, full stop", and what has to be true
+ * for it to stay safe.
  */
-import { createContext, useContext, useRef, useState } from 'react'
+import { createContext, useContext, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { CSSProperties, ReactNode, RefObject } from 'react'
 
@@ -18,7 +26,16 @@ import type { CSSProperties, ReactNode, RefObject } from 'react'
 // The wireframe imports from the asset layer; never the reverse.
 import { Region, REGION_META, type RegionId } from '../../src/ui/region'
 
-// ── Annotation toggle ───────────────────────────────────────
+// ── INSPECT CHROME BEGIN ────────────────────────────────────
+// Everything in this block is inspect apparatus, NOT a product surface: the
+// region badges, the region outline, the tooltip, and the skin-preview banner.
+// This is the one block allowed to carry colour values of its own, and it
+// carries them on purpose — all of it has to stay readable no matter what the
+// skin does, so none of it may follow the skin. A tooltip tinted by the theme
+// it is describing stops being able to describe it; a warning banner tinted by
+// the values it is warning about can disappear entirely.
+// The exception is declared by these markers so testing/structure/invariants.sh can honour it
+// exactly. Colour outside this block is drift; colour inside it is the design.
 const LabelsCtx = createContext(false)
 export const LabelsProvider = LabelsCtx.Provider
 export const useLabels = () => useContext(LabelsCtx)
@@ -69,6 +86,9 @@ function RegionLabel({ id, text, desc }: { id: RegionId; text: string; desc: str
               transform: tip.up ? 'translateY(-100%)' : undefined,
               zIndex: 9999,
             }}
+            /* The annotation overlay stays hard-coded dark on purpose: it is inspect
+               chrome, not a product surface, so it must NOT follow the skin. Skinning
+               it would put the tooltip inside the thing the tooltip is describing. */
             className="pointer-events-none rounded-lg border border-neutral-700 bg-neutral-900 p-2.5 shadow-xl"
           >
             <p className="font-mono text-[10px] break-all text-sky-300">data-region="{id}"</p>
@@ -122,11 +142,295 @@ export function AnnotatedRegion({
   )
 }
 
+/**
+ * The marker that travels with a screenshot.
+ *
+ * ADR-0001 named the failure this way: "six months on nobody remembers it
+ * defaults to off, an agent opens it, screenshots it, and copies from there".
+ * Default-off does not reach that agent — a picture does. Render this whenever
+ * the preview is on, and do not make it dismissible.
+ *
+ * Its colours are FIXED, and that is the whole point. The first version painted
+ * it with --wire-strong / --wire-strong-fg and it came out tinted by the very
+ * skin it was warning about: map --wire-strong to a pale brand colour and the
+ * banner goes white-on-white, i.e. the guard disappears exactly when the theme
+ * makes it hardest to notice. A warning may not depend on what it warns about.
+ */
+export function SkinBanner({ tokenFile }: { tokenFile: string }) {
+  return (
+    <div className="bg-amber-400 px-3 py-1 text-center font-mono text-[11px] font-medium text-neutral-950">
+      SKIN PREVIEW ON · values are read live from {tokenFile} · do not copy them from here
+    </div>
+  )
+}
+
+/**
+ * Skin editor. Turns the preview from "look" into "look and adjust" — the reason
+ * being that only the wireframe shows this product's real IA, so it is the only
+ * place where "that spacing is wrong at this density" can be noticed AND acted on.
+ *
+ * It writes nothing. Values live in memory; the output is a prompt you hand to an
+ * agent, which edits tokens.input.json. The instrument stays the JSON's only
+ * writer, so two open editors cannot overwrite each other. See ADR-0007.
+ *
+ * KNOWN COST, accepted deliberately: the hop from "turned a knob here" to "the
+ * JSON changed" goes through an agent and is not recorded. Do not paper over it.
+ */
+/**
+ * Two values are the same value if they resolve to the same colour, even when
+ * they are written differently.
+ *
+ * Without this, opening the native colour picker and closing it again rewrites
+ * `oklch(0.47 0.15 258)` as `#1a57ad` — identical colour, different notation —
+ * and the prompt reports it as a change. **A prompt that invents changes is
+ * worse than no prompt**: an agent applying it would quietly convert the
+ * project's colour space to hex, and the user never asked for that.
+ *
+ * Non-colours (a radius, a length) fall back to string comparison.
+ */
+function sameValue(a: string, b: string): boolean {
+  if (a === b) return true
+  const ha = toHex(a)
+  const hb = toHex(b)
+  return ha !== null && hb !== null && ha === hb
+}
+
+export function SkinEditor({
+  base,
+  draft,
+  onChange,
+  onReset,
+  tokenFile,
+}: {
+  /** what the token file currently says, per --wire-* role */
+  base: Record<string, string>
+  /** edited values, per role; absent means unchanged */
+  draft: Record<string, string>
+  onChange: (role: string, value: string) => void
+  onReset: () => void
+  tokenFile: string
+}) {
+  const [copied, setCopied] = useState(false)
+  const rows = Object.entries(SKIN).filter(([, token]) => token)
+  const changed = rows
+    .map(([role, token]) => ({ role, token, from: base[role] ?? '', to: draft[role] }))
+    .filter((r) => r.to !== undefined && !sameValue(r.from, r.to))
+
+  // TODO write this in the deliverable's language, like every other user-facing
+  // string here. The shape is what matters: exact old → new, and token names
+  // rather than --wire-* roles, because the agent edits tokens.input.json and
+  // design.md is the name authority.
+  const prompt =
+    changed.length === 0
+      ? ''
+      : [
+          `Update tokens.input.json. These were tuned in the wireframe against ${tokenFile};`,
+          `the wireframe stores nothing, so nothing has been written yet.`,
+          ``,
+          ...changed.map((c) => `  ${c.token}  ${c.from}  ->  ${c.to}`),
+          ``,
+          `Keep the names exactly as written — design.md is the name authority.`,
+          `Edit tokens.input.json only; ui-contract-assets lands the token file from it.`,
+        ].join('\n')
+
+  return (
+    <div className="border-t border-neutral-700 bg-neutral-900 p-2 text-[11px] text-neutral-200">
+      <div className="mb-1.5 flex items-center gap-2">
+        <span className="font-mono text-neutral-400">skin editor</span>
+        <span className="text-neutral-500">
+          {changed.length ? `${changed.length} changed` : 'no changes'}
+        </span>
+        <button
+          className="ml-auto rounded border border-neutral-600 px-1.5 py-0.5 hover:bg-neutral-800"
+          onClick={onReset}
+        >
+          reset
+        </button>
+        <button
+          className="rounded border border-amber-400 bg-amber-400 px-1.5 py-0.5 font-medium text-neutral-950 disabled:opacity-40"
+          disabled={!prompt}
+          onClick={() => {
+            navigator.clipboard?.writeText(prompt)
+            setCopied(true)
+            setTimeout(() => setCopied(false), 1500)
+          }}
+        >
+          {copied ? 'copied' : 'copy prompt'}
+        </button>
+      </div>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-x-3 gap-y-1">
+        {rows.map(([role, token]) => {
+          const cur = draft[role] ?? base[role] ?? ''
+          const dirty = draft[role] !== undefined && !sameValue(base[role] ?? '', draft[role])
+          const hex = toHex(cur)
+          return (
+            <label key={role} className="flex items-center gap-1.5">
+              <span
+                className={`w-28 shrink-0 truncate font-mono ${dirty ? 'text-amber-300' : 'text-neutral-400'}`}
+                title={`${token}  (${role})`}
+              >
+                {token}
+              </span>
+              {hex && (
+                <input
+                  type="color"
+                  // `<input type="color">` only accepts `#rrggbb`. Slicing the
+                  // alpha off is display-only: `cur` keeps the full value, and
+                  // sameValue still compares all eight digits. Picking a colour
+                  // here does drop the alpha — that is a real edit the user
+                  // made, and it now shows up as one instead of vanishing.
+                  value={hex.slice(0, 7)}
+                  onChange={(e) => onChange(role, e.target.value)}
+                  className="h-5 w-6 shrink-0 rounded border border-neutral-600 bg-transparent p-0"
+                />
+              )}
+              <input
+                type="text"
+                value={cur}
+                onChange={(e) => onChange(role, e.target.value)}
+                className="min-w-0 flex-1 rounded border border-neutral-600 bg-neutral-950 px-1 py-0.5 font-mono text-neutral-200"
+              />
+            </label>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Resolve any CSS colour to #rrggbb by PAINTING it, so oklch()/lab()/color()
+ * work. Reading digits out of getComputedStyle does not: modern browsers keep
+ * `oklch(...)` as `oklch(...)`, and scraping it reads lightness/chroma/hue as
+ * if they were r/g/b — no error, plausible numbers, all wrong.
+ *
+ * There is a second copy of this in the tuning instrument's template. They
+ * cannot share code: one is an HTML template, the other a tsx template, in two
+ * packages, and cross-package references are forbidden. If the two ever
+ * disagree, the symptom is the same value shown differently in the two tools,
+ * with nothing reporting an error. See ADR-0007.
+ */
+let cx: CanvasRenderingContext2D | null = null
+export function toHex(v: string): string | null {
+  if (typeof window === 'undefined' || !v?.trim()) return null
+  if (!cx) {
+    const c = document.createElement('canvas')
+    c.width = c.height = 1
+    cx = c.getContext('2d', { willReadFrequently: true })
+  }
+  if (!cx) return null
+  // An invalid value leaves the previous fillStyle standing, so two different
+  // sentinels tell "rejected" apart from "happens to equal the sentinel".
+  cx.fillStyle = '#010203'
+  cx.fillStyle = v
+  const a = cx.fillStyle
+  cx.fillStyle = '#040506'
+  cx.fillStyle = v
+  if (a !== cx.fillStyle) return null
+  cx.clearRect(0, 0, 1, 1)
+  cx.fillRect(0, 0, 1, 1)
+  const d = cx.getImageData(0, 0, 1, 1).data
+  // Alpha is part of the value, so it is part of the identity: `#rrggbbaa` when
+  // the colour is translucent, `#rrggbb` when it is not. Returning six digits
+  // always is what made `sameValue` blind — rgba(0,0,0,.4) and rgba(0,0,0,.8)
+  // both resolved to `#000000`, so an opacity edit was reported as no edit:
+  // no dirty marker, and nothing in the prompt. ADR-0007 makes the prompt the
+  // only carrier of the user's intent, and a change that never reaches it is
+  // a change that never happened.
+  const n = (x: number) => x.toString(16).padStart(2, '0')
+  const rgb = '#' + n(d[0]) + n(d[1]) + n(d[2])
+  return d[3] === 255 ? rgb : rgb + n(d[3])
+}
+
+// ── INSPECT CHROME END ──────────────────────────────────────
+
+// ── Colour: one place, and it is greys ──────────────────────
+/**
+ * The wireframe's own neutral palette — **the only colour values in this project**.
+ * Every part below reads these through var(). Add a colour anywhere else and the
+ * assertion in testing/structure/invariants.sh fails, which is the point: an overturned
+ * decision needs a mechanical guard, not a note.
+ */
+export const NEUTRAL: Record<string, string> = {
+  '--wire-surface': '#ffffff',
+  '--wire-fg': '#404040',
+  '--wire-muted': '#f5f5f5',
+  '--wire-muted-fg': '#737373',
+  '--wire-line': '#d4d4d4',
+  '--wire-strong': '#262626',
+  '--wire-strong-fg': '#ffffff',
+  '--wire-radius': '0.5rem',
+}
+
+/**
+ * TODO — fill from design.md's declaration table. Left side is fixed (these are
+ * the wireframe's roles); right side is this project's token names, the same
+ * ones the tuning instrument reads. Ships EMPTY: a filled-in map here would be
+ * this file naming the project's tokens, and design.md is the name authority.
+ *
+ * A role left empty simply stays neutral with the preview on. That is honest —
+ * inventing a value to fill the gap is the failure this whole split prevents.
+ */
+export const SKIN: Record<string, string> = {
+  '--wire-surface': '',
+  '--wire-fg': '',
+  '--wire-muted': '',
+  '--wire-muted-fg': '',
+  '--wire-line': '',
+  '--wire-strong': '',
+  '--wire-strong-fg': '',
+  '--wire-radius': '',
+}
+
+/**
+ * Skin preview. **Off by default and never persisted** — every reload is grey.
+ *
+ * Values are read out of the token file at runtime, so nothing is copied and
+ * nothing can drift. This assumes the token file is CSS custom properties on
+ * :root and that the wireframe imports it (`import '<path>/tokens.css'`) —
+ * import it, do not copy it. If the project's token file is a theme object
+ * instead, import that module and read the fields; the rule is the same.
+ */
+export function useSkinVars(on: boolean): CSSProperties {
+  return useSkin(on).vars
+}
+
+/**
+ * `base` is what the token file says right now — read live, never copied.
+ * `draft` is what the user has typed in this session, and it dies with the tab:
+ * a wireframe that remembers values is a second value authority.
+ */
+export function useSkin(on: boolean) {
+  const [draft, setDraft] = useState<Record<string, string>>({})
+  const base = useMemo(() => {
+    const b: Record<string, string> = { ...NEUTRAL }
+    if (!on || typeof window === 'undefined') return b
+    const root = getComputedStyle(document.documentElement)
+    for (const [role, token] of Object.entries(SKIN)) {
+      if (!token) continue
+      const v = root.getPropertyValue(token.startsWith('--') ? token : `--${token}`).trim()
+      if (v) b[role] = v
+    }
+    return b
+  }, [on])
+  const vars = useMemo(
+    () => ({ ...base, ...(on ? draft : {}) }) as CSSProperties,
+    [base, draft, on],
+  )
+  return {
+    vars,
+    base,
+    draft,
+    set: (role: string, value: string) => setDraft((d) => ({ ...d, [role]: value })),
+    reset: () => setDraft({}),
+  }
+}
+
 // ── Neutral wireframe parts ─────────────────────────────────
 /** Status label. Expresses only "a status label goes here"; color semantics live in design.md. */
 export function Badge({ children }: { children: ReactNode }) {
   return (
-    <span className="shrink-0 rounded border border-neutral-400 px-1 text-[10px] leading-[14px] font-semibold text-neutral-600">
+    <span className="shrink-0 rounded border border-[var(--wire-line)] px-1 text-[10px] leading-[14px] font-semibold text-[var(--wire-muted-fg)]">
       {children}
     </span>
   )
@@ -146,8 +450,8 @@ export function Pill({
     <span
       className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs whitespace-nowrap ${
         on
-          ? 'border-neutral-800 bg-neutral-800 font-medium text-white'
-          : 'border-neutral-300 bg-white text-neutral-600'
+          ? 'border-[var(--wire-strong)] bg-[var(--wire-strong)] font-medium text-[var(--wire-strong-fg)]'
+          : 'border-[var(--wire-line)] bg-[var(--wire-surface)] text-[var(--wire-muted-fg)]'
       } ${className}`}
     >
       {children}
@@ -166,13 +470,13 @@ export function Btn({
   className?: string
 }) {
   const style = {
-    primary: 'bg-neutral-800 text-white border-neutral-800 font-medium',
-    secondary: 'bg-neutral-100 text-neutral-700 border-neutral-200',
-    outline: 'bg-white text-neutral-700 border-neutral-400',
-    ghost: 'bg-transparent text-neutral-500 border-transparent',
+    primary: 'bg-[var(--wire-strong)] text-[var(--wire-strong-fg)] border-[var(--wire-strong)] font-medium',
+    secondary: 'bg-[var(--wire-muted)] text-[var(--wire-fg)] border-[var(--wire-line)]',
+    outline: 'bg-[var(--wire-surface)] text-[var(--wire-fg)] border-[var(--wire-line)]',
+    ghost: 'bg-transparent text-[var(--wire-muted-fg)] border-transparent',
   }[weight]
   return (
-    <button className={`rounded-lg border px-3 py-1.5 text-xs ${style} ${className}`}>
+    <button className={`rounded-[var(--wire-radius)] border px-3 py-1.5 text-xs ${style} ${className}`}>
       {children}
     </button>
   )
@@ -181,7 +485,7 @@ export function Btn({
 /** Content block: white face + hairline. */
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-lg border border-neutral-300 bg-white ${className}`}>{children}</div>
+    <div className={`rounded-[var(--wire-radius)] border border-[var(--wire-line)] bg-[var(--wire-surface)] ${className}`}>{children}</div>
   )
 }
 
@@ -189,7 +493,7 @@ export function Card({ children, className = '' }: { children: ReactNode; classN
 export function Tile({ size = 28, round = false }: { size?: number; round?: boolean }) {
   return (
     <span
-      className={`shrink-0 bg-neutral-200 ${round ? 'rounded-full' : 'rounded-md'}`}
+      className={`shrink-0 bg-[var(--wire-muted)] ${round ? 'rounded-full' : 'rounded-md'}`}
       style={{ width: size, height: size }}
     />
   )
@@ -209,8 +513,8 @@ export function NavRow({
 }) {
   return (
     <div
-      className={`flex items-center gap-2 rounded-lg py-1.5 pr-2 text-sm ${
-        on ? 'bg-neutral-200/80 font-medium text-neutral-900' : 'text-neutral-600'
+      className={`flex items-center gap-2 rounded-[var(--wire-radius)] py-1.5 pr-2 text-sm ${
+        on ? 'bg-[var(--wire-muted)] font-medium text-[var(--wire-fg)]' : 'text-[var(--wire-muted-fg)]'
       }`}
       style={{ paddingLeft: 10 + indent }}
     >
@@ -223,7 +527,7 @@ export function NavRow({
 /** Group heading */
 export function GroupLabel({ children }: { children: ReactNode }) {
   return (
-    <div className="px-2.5 pt-4 pb-1 text-[11px] font-medium tracking-wide text-neutral-400">
+    <div className="px-2.5 pt-4 pb-1 text-[11px] font-medium tracking-wide text-[var(--wire-muted-fg)]">
       {children}
     </div>
   )
@@ -241,10 +545,10 @@ export function StateBlock({
 }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
-      <span className="rounded border border-neutral-300 px-1.5 py-0.5 font-mono text-[10px] text-neutral-500">
+      <span className="rounded border border-[var(--wire-line)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--wire-muted-fg)]">
         {kind}
       </span>
-      <p className="max-w-[280px] text-xs text-neutral-500">{text}</p>
+      <p className="max-w-[280px] text-xs text-[var(--wire-muted-fg)]">{text}</p>
       {action && <Btn weight="outline">{action}</Btn>}
     </div>
   )

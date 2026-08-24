@@ -1,0 +1,8 @@
+/* token 文件：值就该住在这里。检查 3 的对照——这里的色值不该被报。 */
+:root {
+  --brand: #2563eb;
+  --surface: rgba(255, 255, 255, 0.92);
+  /* 检查 8 的对照：一对达标的 surface / -foreground。 */
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+}

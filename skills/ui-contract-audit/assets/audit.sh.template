@@ -2,7 +2,8 @@
 # UI contract health check. Reports drift; fixes nothing.
 #
 # Lives in the user's repo, runs without an agent, and is safe in CI.
-# Exit 0 = no drift found. Exit 1 = drift found. Exit 2 = nothing to check.
+# Exit 0 = no drift found (warnings may still be printed — see below).
+# Exit 1 = drift found. Exit 2 = nothing to check.
 # Exit 3 = a contract is configured but this script is not looking at it — the paths
 #          below and the config's paths table disagree, in either direction. Not the
 #          same as "nothing to check": a green-looking exit 2 there would hide a broken
@@ -19,9 +20,19 @@ TOKENS="src/tokens.css"           # the token file — values are supposed to li
 SRC_EXT="tsx jsx"                 # source extensions that can hold container call sites
 
 FAIL=0
+WARNS=0
 ok(){   printf '  \033[32m✓\033[0m %s\n' "$1"; }
 drift(){ printf '  \033[31m✗\033[0m %s\n' "$1"; FAIL=1; }
 skip(){ printf '  \033[33m—\033[0m %s\n' "$1"; }
+# Provisional clauses report here. A warn does NOT set FAIL and does not change
+# the exit code — a clause marked 🌡 is a hypothesis, and failing a build on one
+# would hand a third-party convention veto power over this repo's CI.
+#
+# Known cost, stated rather than hidden: "warnings present, exit 0" is green in
+# CI. The counter printed at the end is the only thing standing between that and
+# a report nobody reads. Do not silence it, and do not promote warn to drift
+# without moving the clause to 🔒 in design.md first.
+warn(){ printf '  \033[33m!\033[0m %s\n' "$1"; WARNS=$((WARNS+1)); }
 
 # A container call site carrying more than one prop is formatted across several
 # lines, so anything matching against one has to see the whole tag at once — a
@@ -130,7 +141,11 @@ echo "3. No hardcoded color values in feature code (they belong to the token fil
 # Exclude the token file by path and nothing else. This once excluded every *.css
 # file, which turned the check off exactly where hardcoded colours accumulate:
 # a #123456 dropped into a feature stylesheet was reported as no drift.
-B=$(grep -rnE '#[0-9a-fA-F]{6}\b|rgba?\(' "$SRC" 2>/dev/null | grep -v "^$TOKENS:")
+# oklch()/hsl()/lab() are here because a project that adopts a modern token
+# convention writes its colours that way. Matching only hex and rgb() turned
+# this check off for exactly those projects, silently: nothing in the output
+# distinguishes "no hardcoded colours" from "cannot see the notation in use".
+B=$(grep -rnE '#[0-9a-fA-F]{6}\b|rgba?\(|oklch\(|oklab\(|hsla?\(|lab\(|lch\(|color\(' "$SRC" 2>/dev/null | grep -v "^$TOKENS:")
 [ -z "$B" ] && ok "no raw color literals" || drift "$(echo "$B" | head -20)"
 
 echo "4. design.md holds rules, not values"
@@ -141,7 +156,7 @@ if [ -f "$DESIGN" ]; then
   # "defining a value" from "stating a rule about values". Measured on a real
   # spec, a px regex produced four hits and all four were false positives.
   # Whether sizes have moved to the token file is an agent-judgement check.
-  B=$(grep -nE '#[0-9a-fA-F]{6}\b' "$DESIGN")
+  B=$(grep -nE '#[0-9a-fA-F]{6}\b|oklch\(|oklab\(|hsla?\(|lab\(|lch\(|rgba?\(' "$DESIGN")
   [ -z "$B" ] && ok "no literal colour values (sizes: agent judgement, not checked here)" \
               || drift "$(echo "$B" | head -20)"
 else
@@ -170,7 +185,166 @@ else
   skip "no asset layer"
 fi
 
+# Rows of design.md's naming declaration table, as "name<TAB>status".
+#
+# Anchored on the three status keywords, not on the table's header row: the
+# deliverable is written in the user's language, so a header match would find
+# nothing the moment somebody writes the spec in their own language. The
+# keywords are fixed ASCII for exactly this reason (ui-contract-design).
+# Limit worth knowing, same shape as config_layout_paths: rewrite the keywords
+# and this finds nothing and stays quiet. It degrades to no check, never a wrong one.
+decl_rows(){
+  [ -f "$DESIGN" ] || return 0
+  awk -F'|' 'NF>=4 && match($2, /`[^`]+`/) {
+    n=substr($2, RSTART+1, RLENGTH-2)
+    o=$3; gsub(/^[ \t]+|[ \t]+$/, "", o)
+    if      (o ~ /^borrowed/)     print n "\t" "declared"
+    else if (o ~ /^this project/) print n "\t" "declared"
+    else if (o ~ /^not used/)     print n "\t" "unused"
+  }' "$DESIGN"
+}
+
+# "name hex" for every token the file states a hex colour for, and "name -" for
+# the rest. Quotes are stripped first so one expression covers CSS custom
+# properties, a JS/TS theme object and JSON without three separate patterns.
+#
+# **Leaf keys only.** A key whose value opens a block — `theme: {`, `extend: {`,
+# `colors: {` — is structure, not a token. `ui-contract-assets` supports exactly
+# those shapes (`theme.extend`, a theme object), so a normal Tailwind config was
+# reporting `theme`, `extend` and `colors` as three tokens the declaration table
+# forgot. Measured on a fixture. The comment above `decl_rows` promises this
+# family of checks "degrades to no check, never a wrong one" — three false
+# warnings on a supported shape is a wrong one, and a warn channel that cries
+# wolf on the common case is the same as no warn channel.
+#
+# Kept deliberately narrow: only a value that is empty or opens a brace/bracket
+# is dropped. Anything else is still a candidate, because guessing harder here
+# would start dropping real tokens and this check's whole value is that it does
+# not invent drift.
+token_pairs(){
+  [ -f "$TOKENS" ] || return 0
+  tr -d "\"'" < "$TOKENS" | awk '
+    match($0, /[A-Za-z][A-Za-z0-9_-]*[ \t]*:/) {
+      k=substr($0, RSTART, RLENGTH); gsub(/[^A-Za-z0-9_-]/, "", k)
+      if (k == "") next
+      rest=substr($0, RSTART+RLENGTH)
+      sub(/^[ \t]+/, "", rest); sub(/[ \t]+$/, "", rest)
+      if (rest == "" || rest ~ /^[{[]/) next      # container key, not a token
+      if (match($0, /#[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]/))
+        print k "\t" substr($0, RSTART, RLENGTH)
+      else print k "\t-"
+    }'
+}
+
+echo "7. design.md's declaration table and the token file name the same tokens"
+# Provisional (design.md marks the naming convention 🌡), so this warns and does
+# not fail the build. What it catches is the drift that makes every other
+# name-based check meaningless: a spec naming tokens the code does not have.
+if [ ! -f "$DESIGN" ]; then
+  skip "no $DESIGN"
+elif [ ! -f "$TOKENS" ]; then
+  skip "no token file at $TOKENS — nothing to compare the declaration against"
+else
+  DECL=$(decl_rows)
+  if [ -z "$DECL" ]; then
+    skip "no declaration table found in $DESIGN (see ui-contract-design)"
+  else
+    HAVE=$(token_pairs | cut -f1 | sort -u)
+    MISSING=""; EXTRA=""
+    for n in $(printf '%s\n' "$DECL" | awk -F'\t' '$2=="declared"{print $1}'); do
+      printf '%s\n' "$HAVE" | grep -qx "$n" || MISSING="$MISSING $n"
+    done
+    for n in $HAVE; do
+      printf '%s\n' "$DECL" | cut -f1 | grep -qx "$n" || EXTRA="$EXTRA $n"
+    done
+    [ -n "$MISSING" ] && warn "declared but not in the token file:$MISSING"
+    [ -n "$EXTRA" ]   && warn "in the token file but not declared:$EXTRA"
+    [ -z "$MISSING$EXTRA" ] && ok "declaration table and token file agree"
+  fi
+fi
+
+echo "8. Surface / -foreground pairs meet design.md's contrast threshold"
+# The threshold is stated once, in design.md; the tuning instrument reads the
+# same one. Neither hardcodes a number. Found by its shape (`4.5:1`), which is
+# language-independent — the surrounding prose is not.
+if [ ! -f "$DESIGN" ] || [ ! -f "$TOKENS" ]; then
+  skip "needs both $DESIGN and $TOKENS"
+else
+  MIN=$(grep -oE '[0-9]+(\.[0-9]+)?:1' "$DESIGN" | head -1 | cut -d: -f1)
+  if [ -z "$MIN" ]; then
+    skip "no contrast threshold stated in $DESIGN — nothing to check against"
+  else
+    PAIRS=$(token_pairs | awk -F'\t' '$2!="-"')
+    # Which names form a surface / foreground pair. TWO rules, and the second is
+    # not an extra:
+    #
+    #   a) `X` with `X-foreground`
+    #   b) the base pair — `background` (or `page` / `surface`) with `foreground`
+    #      (or `text`)
+    #
+    # Rule (b) is the one design.md's threshold is actually *about*: the outline
+    # says "the minimum ratio for **body text on its background**". And it is
+    # exactly the pair rule (a) cannot see, because the base foreground is named
+    # `foreground`, not `background-foreground`.
+    #
+    # Without it, a token file with `background: #ffffff` and `foreground:
+    # #ffffff` — the worst contrast that exists — printed "no hex pairs", then
+    # "No drift found.", then exit 0. Measured on a fixture, not reasoned.
+    #
+    # The tuning instrument has carried this special case since it was written
+    # (`theme-studio.html.template`, `pairs()`). This script did not, so the two
+    # consumers of one threshold disagreed about what a pair *is* — the same
+    # token file cleared here and failed there, with nothing reporting an error.
+    # If you change one, change the other.
+    PAIRNAMES=$(printf '%s\n' "$PAIRS" | awk -F'\t' '
+      {v[$1]=$2}
+      END{
+        for (k in v){
+          if (k ~ /-foreground$/) continue
+          if ((k "-foreground") in v) print k "\t" k "-foreground" "\t" v[k] "\t" v[k "-foreground"]
+        }
+        base=""; basefg=""
+        for (k in v){
+          if (base   == "" && k ~ /^(background|page|surface)$/) base = k
+          if (basefg == "" && k ~ /^(foreground|text)$/)         basefg = k
+        }
+        # Only when rule (a) has not already claimed the base surface, so a
+        # project that really does declare `background-foreground` is not
+        # checked twice against two different foregrounds.
+        if (base != "" && basefg != "" && !((base "-foreground") in v))
+          print base "\t" basefg "\t" v[base] "\t" v[basefg]
+      }')
+    if [ -z "$PAIRNAMES" ]; then
+      # Deliberately a skip, not a pass. Two things land here and the message
+      # must not name only one of them: the token file may state its colours in
+      # oklch() (this check reads hex only), or it may genuinely declare no
+      # surface / foreground pair. Printing a green tick either way would be the
+      # exact failure this script exists to catch — the instrument is where
+      # non-hex notations get checked.
+      skip "no hex surface/foreground pair found in $TOKENS — either the colours are not hex (oklch and friends are not read here), or no such pair is declared"
+    else
+      B=$(printf '%s\n' "$PAIRNAMES" | awk -F'\t' -v min="$MIN" '
+        function h2d(s,   i,c,v,n){ n=0
+          for(i=1;i<=length(s);i++){ c=tolower(substr(s,i,1))
+            v=index("0123456789abcdef",c)-1; n=n*16+v } return n }
+        function lin(c,   x){ x=c/255
+          return (x<=0.03928) ? x/12.92 : exp(2.4*log((x+0.055)/1.055)) }
+        function lum(h){ return 0.2126*lin(h2d(substr(h,2,2))) \
+                              + 0.7152*lin(h2d(substr(h,4,2))) \
+                              + 0.0722*lin(h2d(substr(h,6,2))) }
+        {
+          a=lum($3); b=lum($4)
+          hi=(a>b)?a:b; lo=(a>b)?b:a
+          r=(hi+0.05)/(lo+0.05)
+          if (r < min) printf "%s on %s = %.2f:1, below %s:1\n", $2, $1, r, min
+        }')
+      [ -z "$B" ] && ok "every hex pair clears ${MIN}:1" || drift "$B"
+    fi
+  fi
+fi
+
 printf '\n'
+[ $WARNS -gt 0 ] && printf '\033[33m%s warning(s) — provisional clauses; they do not change the exit code.\033[0m\n' "$WARNS"
 [ $FAIL -eq 0 ] && printf '\033[32mNo drift found.\033[0m\n' \
                 || printf '\033[31mDrift found. This script does not fix anything — read the spec, decide, then change the document first.\033[0m\n'
 exit $FAIL

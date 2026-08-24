@@ -1,0 +1,154 @@
+schema_version: "1.1"
+name: existing-admin
+description: >
+  治熵线：仓库里已经有前端代码和一套 token，但没人写过「新功能该放哪」。
+  验的是先量现状再写规范、以及已有视觉规范只对齐边界不重写。
+
+tags: [existing-project, brownfield]
+
+context:
+  # 必须造一个**真的** fixture 仓库：插件会去看磁盘。
+  # prompt 里口述代码是没用的——它会发现磁盘和你说的对不上，然后正确地停下来问。
+  # 注意：scaffold_script 默认不跑，要在命令行显式加 --scaffold。
+  # scaffold_script 是**case 目录下的路径**，不是内联脚本——写成内联会被当文件名去 open()，
+  # 报 ENAMETOOLONG。脚本本体见 scaffold.sh。
+  # 约束：默认不跑（要 --scaffold）、2 分钟上限、最小化环境无密钥。
+  scaffold_script: scaffold.sh
+execution:
+  prompt: |
+    我们团队在做一个给运营看的后台管理系统，React + Tailwind。视觉那块已经有了——`tailwind.config.js` 里一套 token，也写了 `design.md`。
+
+    但是没人写过「新功能该放哪」。现在每加一个模块大家都各放各的，让 AI 改更乱。
+
+    帮我把规范立起来。我时间紧，你按推荐的来，把决策点连同你的选择一次列给我看，然后直接把规范写出来。
+  max_turns: 40
+  timeout_seconds: 900
+  allowed_tools: [Read, Glob, Grep, Skill, Write, Edit]
+
+runs: 1
+
+graders:
+  - type: tool_used
+    name: skill-fired
+    tool: Skill
+    arm: with-only
+    weight: 1
+
+  - type: file_exists
+    name: as-built-written
+    path: as-built.md
+    weight: 1
+
+  - type: file_exists
+    name: layout-md-written
+    path: layout.md
+    weight: 1
+
+  # 「先量现状再写规范」曾经是一条 focus: trace 的 llm 判据。两次实跑、六票全 FAIL，
+  # 而实际行为完全正确：`ui-contract-baseline` 在 `ui-contract-layout` 之前调用、
+  # `as-built.md` 早于 `layout.md` 写出、`src/` 下 8 个文件都真读了。
+  # 根因就是第 8 条那件事——judge 在超长 trace 上不可靠（12 次 Skill 调用 + 3.7 万字产出）。
+  #
+  # 当初写的是「拆成两条：机械的部分交给 regex」，但落地的 regex 判的是 `as-built.md`
+  # 里引没引到真代码——**调用顺序那一半没有被任何判据接住**，删掉的判据只补了一半。
+  # `tool_order` 就是那一半，官方现成类型，免费，一直没用过。
+  - type: tool_order
+    name: baseline-before-layout
+    before: { tool: Skill, input_match: 'ui-contract-baseline' }
+    after:  { tool: Skill, input_match: 'ui-contract-layout' }
+    weight: 1
+    # VERIFIED 2026-08-21，**只有「调用发生了吗」这一维**：with 臂 `Skill@23 precedes Skill@31`，
+    # 对照臂 `"before" tool Skill never called`。
+    #
+    # ⚠ 别把这读成「双向验过」（这里原来就是这么写的，错了）。对照臂那次红的原因是
+    # **`before` 那个工具根本没被调用**，不是顺序颠倒。所以量到的是「插件开/关」这一维，
+    # 而这条判据存在的理由是另一维：**`baseline` 在 `layout` 之前**。
+    # 顺序颠倒的负样本至今没有过——真跑没颠倒过，而颠倒一次要么靠运气，
+    # 要么得做一个专门诱导倒序的用例。
+    #
+    # `tool_order` 无法用冻结轨迹做夹具（重放的历史判据看不见，见 README），
+    # 所以那个负样本只能从真跑里等，或者不等。记在 issue #6。
+  # 拆成两条：机械的部分交给 regex，判断的部分只看一份 8 千字的文件。
+  - type: regex
+    name: as-built-cites-real-code
+    target:
+      source: file
+      path: as-built.md
+    pattern: "AppLayout|Sidebar|FilterBar"
+    match: contains
+    weight: 1
+
+  - type: llm
+    name: as-built-is-reverse-engineered
+    focus:
+      source: file
+      path: as-built.md
+    weight: 1
+    criteria: |
+      仓库里**有前端代码**（`src/` 下有 AppLayout、Sidebar、五个页面）且**没有 as-built 记录**。
+      此时直接写结构规范是错的：会凭空发明一棵和现实无关的区域树，随后强制机制把它锁进类型系统，全仓库飘红。
+
+      正确动作：先从代码逆向出**实际**的区域树（不是应有的），量出缺口。
+
+      判定：这份盘点写的是**现状**（代码里当前长什么样、哪里不一致、缺口在哪），
+      而不是**应然**（区域树应该怎么设计）→ 通过。
+      通篇在规定该怎么做、看不出是从既有代码读出来的 → 不通过。
+
+      注意：这份文件**只判内容**。写没写、以及和 `layout.md` 的先后，
+      由 `as-built-written` / `layout-md-written` 两条机械判据管。
+
+  - type: llm
+    name: existing-spec-slimmed-not-rewritten
+    focus:
+      source: file
+      path: design.md
+    weight: 1
+    criteria: |
+      项目已有 `design.md` 与 `tailwind.config.js` 的 token。正确动作是对齐边界，不是重写：
+
+      1. `design.md` 顶部有分工声明，写明那条唯一的切线（换皮会变 → 视觉；不变 → 结构）
+      2. 原 `design.md` §4「布局骨架」里的**结构内容**（220px 导航宽、56px 收起宽、640px 主区最小宽、
+         360px 属性面板宽、列表页的筛选条+表格+面板结构）已经搬到 `layout.md`，原地只留一行指针
+      3. 值的权威是 token 文件（`tailwind.config.js`）；`design.md` 里不得再出现 `#2563eb` 这类硬编码色值
+
+      判定：把已有 `design.md` 整份重写 → 不通过。搬走结构内容却没留指针 → 不通过。
+      `design.md` 里仍留有硬编码色值 → 不通过。
+
+  # 追踪有没有落进产物。**这是这件事上唯一的判据。** 判断的那半曾经归
+  # decision-tree-total，那条 2026-08-21 已删——在 grader-check/ 的正负夹具上量过，
+  # 它分不开「追了」和「没追」（haiku 永远挂、sonnet 永远绿）。见 README 第 13 条。
+  # 判的是追踪的**类型词**而不是「附录 C」这个标题：只写个 `## 附录 C TODO`
+  # 也能命中标题，那样这条就成了它自己要防的那种「看着像在检查」的检查。
+  # 词表是量出来的，不是猜的：2026-08-20 那次实跑，三份产物全部写「恶意」，
+  # 而大纲的英文原词是 hostile、示例里写的是「敌意」——只押一个词会三次全假阴。
+  # 漏网诚实记着：有小标题、底下表格是空的附录仍然会过。追踪**质量**现在没人守。
+  # 与 greenfield-mobile/graders/traces-in-artifact.md 同源，由不变量 17 对账。
+  - type: regex
+    name: traces-in-artifact
+    target:
+      source: file
+      path: layout.md
+    pattern: "敌意|恶意|hostile"
+    match: contains
+    weight: 1
+
+  - type: regex
+    name: allowlist-has-forbidden-column
+    target:
+      source: file
+      path: layout.md
+    pattern: "禁止放|must not hold"
+    match: contains
+    weight: 1
+
+  # 这里**刻意没有**一条「design.md 不许出现 hex」的 regex。试过，是误报：
+  # 边界对齐的正确产物里有一张迁移对照表（`#f8fafc` → `surface.sunken`），
+  # 正则分不开「定义一个值」和「引用一个要被搬走的旧值」。实测同一份产物，
+  # 上面那条 llm 判据（第 3 点判的正是同一件事）三票 PASS，正则 FAIL。
+  # 而且 fixture 的初始 design.md 本来就含 hex，这条 regex 在两个臂上都不可能过。
+  # 与 `ui-contract-audit` 把尺寸检查降到 agent 判断档是同一个理由，方向相反：
+  # **能机械判的别交给判断，判断才能判的别硬凑正则。**
+
+expected_outcome: >
+  先跑 baseline 逆向出实际区域树并落成 as-built.md，再写 layout.md；
+  已有 design.md 只做边界对齐与结构内容搬迁，硬值退到 token 文件。

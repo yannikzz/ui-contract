@@ -1,5 +1,6 @@
 {
   "name": "yannikzz",
+  "description": "把界面约定写成规范再写代码：区域树、视觉 token、线框与体检，一套可被 agent 执行的 UI 契约方法。",
   "owner": {
     "name": "yannikzz",
     "url": "https://github.com/yannikzz"
@@ -25,7 +26,7 @@
         "./skills/ui-contract-audit",
         "./skills/ui-contract"
       ],
-      "version": "0.2.0",
+      "version": "0.3.0",
       "description": "Establishes a project's UI contract: a structural spec with a placement decision tree and a region-name allowlist, a visual spec whose values live in the token file, an asset layer in the production tree, a runnable low-fidelity wireframe, enforcement that stops coding agents putting new features in the wrong place, and a health check that reports drift months later.",
       "author": {
         "name": "yannikzz"
