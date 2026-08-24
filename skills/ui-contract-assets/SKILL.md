@@ -30,13 +30,75 @@ For the deliverable's language and terminology, call the Skill tool with "delive
 | In | Out |
 |---|---|
 | `RegionId` union type | `Shell` and `Slot` structural components |
-| `REGION_META` (label + "what goes here / what must not") | Stacks other than React for the *components* |
-| `Region` — the structural container that stamps the runtime marker | Multi-stack mapping tables shipped with the plugin |
+| `REGION_META` (label + "what goes here / what must not") | Multi-stack mapping tables shipped with the plugin |
+| `Region` — the structural container that stamps the runtime marker | |
 | The token file, landed from `tokens.input.json` | |
+
+The starting template is React + TypeScript. **That is a starting point, not the supported set** — see below.
 
 `Shell` and `Slot` are named in the architecture but **do not exist yet**. Say so rather than improvising them: a structural component invented here, without a spec clause behind it, is the drift this layer exists to prevent.
 
 One thing is waiting on them: implementing the spec's size-degradation rules was ruled to belong to this layer, and is parked in `ui-contract-wireframe` only because there is no `Shell` to hold it. Whoever builds `Shell` takes that with it — ADR-0003, deferred item 9.
+
+## Following the project's stack
+
+This layer goes into the **user's production tree**, so it follows the stack that is
+already there. The template is React + TypeScript because one of them had to be
+written down first, not because the mechanism is React's.
+
+Three things have to survive the port, and only the third is stack-shaped:
+
+| | What it is | How it ports |
+|---|---|---|
+| `RegionId` | the allowlist as a union type | any stack with TypeScript — measured below |
+| `REGION_META` | `Record<RegionId, …>`, exhaustiveness-checked | same |
+| `Region` | the container, and the **runtime marker it stamps** | this is where stacks differ |
+
+### Measured, not assumed (2026-08-25)
+
+Two non-React ports were built and type-checked for real. Both caught an
+off-allowlist region name at the call site, which is the whole mechanism:
+
+| | Checker | Off-allowlist name |
+|---|---|---|
+| **Vue 3 SFC** | `vue-tsc` | `error TS2322: Type '"sidebar"' is not assignable to type 'RegionId'` |
+| **React Native** | `tsc` | `error TS2322: Type '"sidebar"' is not assignable to type '"app-shell" \| …'` |
+
+Vue splits the file in two — `regions.ts` for the type and metadata,
+`Region.vue` for the container — because an SFC cannot export a type cleanly.
+That split is the only structural change either port needed.
+
+### The runtime marker is the part that changes
+
+```
+React / Vue / Svelte     data-region={id}   /   :data-region="id"
+React Native             testID={id}  (and accessibilityLabel={id})
+```
+
+Use the **identical string**, never a more readable name — the marker is what lets
+grep reconcile the code against the spec, and a prettier name breaks that silently.
+
+⚠ **On React Native, `testID` is not ours.** It is the platform's standard e2e hook,
+so "a `testID` outside the container" is evidence of a test, not of a bypass. Tell
+`ui-contract-audit` by setting `MARKER_EXCLUSIVE="no"`; its check 2b then reports
+that it cannot answer instead of printing a green tick. Measured: with that check
+still looking for `data-region`, an RN screen containing
+`<View testID="sidebar" />` — off the allowlist, never through the container —
+produced three green ticks.
+
+Whichever stack, tell the health check what to look for. Its four stack-shaped
+knobs are at the top of `audit.sh`: `SRC_EXT`, `REGION_TYPE`, `REGION_COMPONENT`,
+`MARKER` / `MARKER_EXCLUSIVE`.
+
+### No type system: say the compile-time layer is gone
+
+On plain JavaScript there is no union type, so `RegionId` cannot fail a build. The
+allowlist still exists as data and check 1 still reads call sites, but enforcement
+drops from three layers to two.
+
+**Say this out loud in the report.** Do not ship a `RegionId` written as a JSDoc
+comment and describe the result as enforced — a constraint nothing evaluates is a
+note, and calling it enforcement is the failure this whole layer exists to prevent.
 
 ## Landing the token file
 

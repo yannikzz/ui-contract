@@ -110,6 +110,22 @@ run_case 1 "检查 6 · 白名单里的区域名从没被渲染" \
   | 'never-rendered-anywhere'\" && sub src/ui/region.tsx '  inspector: {' \"  'never-rendered-anywhere': { label: 'X', desc: '禁止 X。' },
   inspector: {\""
 
+# —— 检查 2b 的跨技术栈行为。三条都来自 2026-08-25 的 Vue / React Native 实测端口，
+# 每一条在改动之前都是**绿的**，而三种失效方向各不相同。
+#
+# 容器文件是标记唯一该被手写的地方。React 侥幸过关是因为 JSX 写 `data-region={id}`
+# 用花括号，而旧模式只认 `="`；Vue 写 `:data-region="id"`，于是资产层自己被判成
+# 违反它自己实现的那条规则。
+run_case 0 "检查 2b · 容器用 Vue 式绑定写标记 → 不许判红（容器是标记的合法住处）" \
+  "sub src/ui/region.tsx 'data-region={id}' ':data-region=\"id\"'"
+# `<[a-z]` 编码的是「裸元素是小写的」——那是 DOM 的事实。React Native 里没有小写元素，
+# 这个模式在那里一个都匹配不到。
+run_case 1 "检查 2b · 大写标签里手写标记（React Native 没有小写元素）" \
+  "printf 'export const X = () => <View data-region=\"sidebar\" />\n' > src/Bypass.tsx"
+# 标记名不是常量。写死 data-region 时，RN 项目里满屏 testID 也照样报绿。
+run_case 1 "检查 2b · MARKER 换成 testID 后认得出 testID 的手写标记" \
+  "sub audit.sh 'MARKER=\"data-region\"' 'MARKER=\"testID\"' && printf 'export const X = () => <View testID=\"sidebar\" />\n' > src/Bypass.tsx"
+
 echo "B2. warn 档的检查（退出码证明不了，只能看输出）"
 # 干净夹具一条 warn 都不该有。少了这条，下面两条「能响」就没有意义——
 # 一条永远在响的检查和一条永远不响的检查，同样没人会再读它的输出。
@@ -140,6 +156,16 @@ run_case 0 "检查 8 · 基础对达标时不误报（这条检查不许喊狼�
 run_out 0 '!in the token file but not declared' \
   "检查 7 · theme.extend 的容器键不算 token（合法形状不许报假 warn）" \
   "printf 'theme: {\n  extend: {\n    colors: {\n    }\n  }\n}\n' >> src/tokens.css"
+
+# 标记与平台共用时（RN 的 testID 本来就是 e2e 钩子），grep 分不开绕过和测试钩子。
+# 这时必须报 skip 并说明理由——旧版在那里打的绿勾，是靠在一个没有 data-region 的
+# 平台上找 data-region 找不到而得来的。
+run_out 0 'shared with the platform' \
+  "检查 2b · 标记与平台共用时报 skip，不许打绿勾" \
+  "sub audit.sh 'MARKER_EXCLUSIVE=\"yes\"' 'MARKER_EXCLUSIVE=\"no\"'"
+run_out 0 '!every marker goes through the container' \
+  "检查 2b · 同上，绿勾那句话不许出现" \
+  "sub audit.sh 'MARKER_EXCLUSIVE=\"yes\"' 'MARKER_EXCLUSIVE=\"no\"'"
 
 echo "C. 无契约时的退出码"
 run_case 2 "没有 layout.md、也没有 config.md → exit 2（真的没东西可检）" "rm -f layout.md"

@@ -16,8 +16,34 @@ DESIGN="design.md"
 CONFIG="docs/ui-contract/config.md"   # written by ui-contract-setup; its paths table is authoritative — read below, not just tested for
 SRC="src"
 REGION_TYPE="src/ui/region.tsx"   # the asset layer file that declares RegionId
+REGION_COMPONENT="src/ui/region.tsx"  # the file holding the structural container — the ONE
+                                  # place the runtime marker may be written by hand. Same file
+                                  # as REGION_TYPE in the React starting point; separate in a
+                                  # stack where the type and the component cannot share a file
+                                  # (Vue: `regions.ts` + `Region.vue`).
 TOKENS="src/tokens.css"           # the token file — values are supposed to live here
 SRC_EXT="tsx jsx"                 # source extensions that can hold container call sites
+                                  # Vue: "vue" · Svelte: "svelte" · React Native: "tsx"
+MARKER_EXCLUSIVE="yes"            # is $MARKER a namespace this contract owns, and nothing
+                                  # else in the codebase writes for its own reasons?
+                                  # `data-*` on the web: yes. React Native's `testID`: **no** —
+                                  # it is the standard e2e hook, so "a testID outside the
+                                  # container" is not evidence of a bypass, it is evidence of a
+                                  # test. Set this to "no" there and check 2b reports that it
+                                  # cannot answer, instead of printing a green tick it has not
+                                  # earned. Check 1 is unaffected: it reads container call
+                                  # sites, which exist on every stack.
+MARKER="data-region"              # the runtime marker's attribute name.
+                                  # **Not always a DOM attribute.** On platforms with no DOM
+                                  # the asset layer writes the id into that platform's
+                                  # equivalent using the identical string — React Native:
+                                  # `testID`. Set this to whatever the container actually
+                                  # stamps, or every check below that looks for a marker goes
+                                  # quietly green on a codebase full of hand-written ones.
+                                  # Measured: with this hardcoded to `data-region`, a React
+                                  # Native project with `<View testID="sidebar" />` written
+                                  # straight into a screen — off the allowlist, not through
+                                  # the container — printed three green ticks.
 
 FAIL=0
 WARNS=0
@@ -95,9 +121,9 @@ echo "1. Region names in code are inside the allowlist"
 if [ -f "$REGION_TYPE" ]; then
   # allowlist as declared in the type
   ALLOWED=$(sed -n "/export type RegionId/,/^$/p" "$REGION_TYPE" | grep -o "'[^']*'" | tr -d "'" | sort -u)
-  # Read the ids off the container's call sites, not off `data-region="..."`.
+  # Read the ids off the container's call sites, not off the marker attribute.
   # In this architecture the runtime marker is written once inside the container,
-  # as an expression — so the only literal `data-region="..."` in the tree is the
+  # as an expression — so the only literal marker attribute in the tree is the
   # annotation tooltip's own display text. Grepping for that finds the label, not a region.
   USED=$(flatten_sources \
          | grep -oE '<[A-Za-z]*Region([[:space:]]+[^>]*)?[[:space:]]id="[^"]*"' \
@@ -107,7 +133,7 @@ if [ -f "$REGION_TYPE" ]; then
   for u in $USED; do
     echo "$ALLOWED" | grep -qx "$u" || BAD="$BAD $u"
   done
-  [ -z "$BAD" ] && ok "every data-region value is declared" \
+  [ -z "$BAD" ] && ok "every region id at a container call site is declared" \
                 || drift "region names not in RegionId:$BAD"
 else
   skip "no asset layer at $REGION_TYPE — document layer only"
@@ -126,16 +152,46 @@ B=$(printf '%s\n%s\n' "$B" "$B2" | grep -v '^$')
 [ -z "$B" ] && ok "no casts around region ids" || drift "$B"
 
 echo "2b. No hand-written region markers bypassing the container"
-# A literal data-region attribute in a tag means somebody wrote a raw element
-# instead of going through the container, which skips the type check entirely.
+# A marker attribute on a raw element means somebody wrote the element instead of
+# going through the container, which skips the type check entirely.
 #
 # This reads call sites, so it goes through flatten_sources like checks 1 and 2 —
 # it was line-wise, and a hand-written marker is precisely the tag prettier wraps:
 # `<div` on one line, `data-region="…"` on the next. The realistic shape of the
 # bypass was the one shape this check could not see.
-B=$(flatten_sources | grep -E '<[a-z][^>]*data-region="' \
-    | cut -f1 | sort -u | sed 's/^/hand-written data-region marker: /')
-[ -z "$B" ] && ok "every marker goes through the container" || drift "$B"
+#
+# Three things here are stack-shaped, and all three were once hardcoded to React:
+#
+#   · **the attribute name** comes from $MARKER, not the literal `data-region`.
+#     React Native has no DOM; its container stamps `testID`. Hardcoded, this
+#     check returned "every marker goes through the container" on an RN project
+#     whose screen contained `<View testID="sidebar" />`. Measured, not reasoned.
+#   · **the value syntax** is `="` or `={`. React writes `data-region={id}` and
+#     Vue writes `:data-region="id"`; matching only `="` meant this check happened
+#     to work in React because JSX uses braces — not because it was right.
+#   · **the container file is excluded**, because it is the one place the marker
+#     is *supposed* to be written by hand. React got away without this for the
+#     same accidental reason; on Vue the container's own `:data-region="id"`
+#     was reported as a violation of the rule it implements.
+#
+# And a fourth thing, which is why $MARKER_EXCLUSIVE exists: on some platforms the
+# marker attribute is **not ours**. React Native's `testID` is the standard e2e
+# hook, so a `testID` outside the container is evidence of a test, not of a
+# bypass. There is no grep that separates the two, so this check does not guess —
+# it says it cannot answer. A skip is the honest output; the green tick it used to
+# print there was earned by looking for `data-region` on a platform that has none.
+if [ "$MARKER_EXCLUSIVE" != "yes" ]; then
+  skip "\$MARKER ($MARKER) is shared with the platform's own uses — a bypass cannot be told from a legitimate one by grep. Container discipline is review-only here; check 1 still reads call sites"
+else
+  # Tag names are matched case-insensitively on purpose. The original `<[a-z]`
+  # encoded "a raw element is lowercase", which is a DOM fact — React Native has
+  # no lowercase elements at all, so that pattern matched nothing there. The
+  # container file is excluded by path, so there is no need to guess from case.
+  B=$(flatten_sources | grep -v "^$REGION_COMPONENT	" \
+      | grep -E "<[A-Za-z][^>]*[[:space:]]:?$MARKER=[\"{]" \
+      | cut -f1 | sort -u | sed "s/^/hand-written $MARKER marker: /")
+  [ -z "$B" ] && ok "every marker goes through the container" || drift "$B"
+fi
 
 echo "3. No hardcoded color values in feature code (they belong to the token file)"
 # Exclude the token file by path and nothing else. This once excluded every *.css
