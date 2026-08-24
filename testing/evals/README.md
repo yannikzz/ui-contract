@@ -612,6 +612,68 @@ judge 判 **3:0 FAIL**。另一份用 adjacency avoidance、说明了和 `succes
 
 三处都是**文本，一次没跑过**。下一次 `greenfield-originate` 实跑之前，别把「已钉死」读成「已生效」。
 
+## 钉死之后第一次实跑：落点 0/3 跑偏，但 900 秒的墙先到了（2026-08-24，3 次 run / 42 分钟）
+
+`--case greenfield-originate --ablation none --keep-temp`。只跑这一个 case、只跑 with 臂——
+第 12 笔问的是「文件落在哪」，不需要 Δ，跑对照臂等于白花一倍钱。
+
+```
+run1  timed out 900s   turns=0  $0   score 0.63
+run2  timed out 900s   turns=0  $0   score 0.50
+run3  interrupted      turns=0  $0   score 0.50    ← 被外部 kill，不是超时
+                                                     合计 2532s
+```
+
+⚠ **`turns=0 / $0.00` 是超时丢统计，不是真的没花钱。** 实际花费这一轮拿不到。
+这个形状上一节已经预告过（「它下一次失败不会长成分数低，会长成 turns=0 的满分 run」）。
+
+### 落点：判据说的和沙箱里的一致
+
+不看判据的绿红，去三个 `--keep-temp` 沙箱里实际找了文件：
+
+| run | `tokens.input.json` 实际落点 | `design.md` |
+|---|---|---|
+| 1 | `docs/ui-contract/tokens.input.json` ✓ | 没写出来 |
+| 2 | **没写** | 写在根目录 |
+| 3 | `docs/ui-contract/tokens.input.json` ✓ | 没写出来 |
+
+**0/3 跑偏。** 写了这个文件的两次，两次都落在钉死的位置。
+对照钉死之前那轮（2026-08-22）：三次里两次 `docs/ui-contract/`、一次仓库根。
+
+样本很小，而且上一轮也是「两次 docs/」——**唯一的差别是这一轮没有一次选根目录**。
+这是弱证据，不是结论；写下来是因为它是方向对的第一份数据，不是因为它够。
+
+### 拆成两条判据这件事，第一次真跑就兑现了
+
+run2 的读数：
+
+```
+✗ tokens-input-written         **/tokens.input.json missing
+✗ tokens-input-at-pinned-path  docs/ui-contract/... missing
+✗ no-framework-default-values  grader threw: path does not exist
+```
+
+两条同时红 = **根本没写**，而不是「写错地方」；第三条抛错的原因因此一眼可读，
+不再像「判据坏了」。这正是 2026-08-22 两轮约 $6.2 买到的那个教训要防的东西，
+而它在第一次有机会兑现的时候兑现了。
+
+### 但这不是一次干净的测量
+
+产物是被砍断的：两次没写出 `design.md`，一次没写出 `tokens.input.json`。
+所以这一轮测到的是「被砍之前写完了什么」，**不是「产品能不能走完」**。
+
+`timeout_seconds: 900` 上一节标成「已经临界」（900 超时 / 886 / 876），这一轮
+**两次直接撞墙**。而且是这批改动之后撞的：`originate.md` 加了派生规则、色相依据、
+默认色黑名单，`SKILL.md` 的完工清单多了 5 条——每次 run 的活变多了，墙没动。
+
+**下一次量之前先抬超时**，否则花的钱是在测这堵墙，不是测插件。
+
+### 顺带：per-skill 判据又抓到一次
+
+run2 `skill-fired` ✓（Skill 调了 6 次）而 `design-skill-fired` ✗（`ui-contract-design` 0 次），
+`design.md` 却照样写出来了、`naming-declared` 与 `no-literal-values-in-design` 照样过。
+**通用判据看不见的那种失效，第二次出现**（第一次是 `greenfield-mobile` run2）。
+
 ## 刻意没有覆盖的
 
 只机械化了 2 个场景。以下四条**全程无人守**，是明确接受的代价：
