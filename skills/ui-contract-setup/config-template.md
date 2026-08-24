@@ -35,6 +35,8 @@ Every other unit reads this table instead of assuming. Fill it in even when the 
 | Wireframe | | its own directory |
 | As-built record | | `as-built.md` at the repo root |
 
+`tokens.input.json` is **deliberately not a row here.** It always lives at `docs/ui-contract/tokens.input.json`, beside this file. It is a working record of where the brand knobs were left, not a spec, and the units that write and read it both need one answer rather than a recorded one. Its absence from this table is not an omission to fill in.
+
 ## Authorisations
 
 Only questions that cannot be derived from the repo belong here.

@@ -472,6 +472,12 @@ echo "27. ADR 里写到的仓库内路径仍然存在（改目录之后，已接
 # 不是让路径永远正确。testing/ 这次改名让 0002/0003/0004/0006 的路径引用全部过期。
 # 修法是新立 ADR-0008 说明改名，旧记录一个字不动——但过期必须**可见**。
 # 所以这条是 warn 不是 fail：它不阻止任何事，只是不让过期变成静默。
+#
+# `docs/ui-contract/` 排除在外，因为那是**用户项目里**的路径，不是本仓库的磁盘。
+# CLAUDE.md 分得很清：`docs/adr/` 是本仓库的决定，`docs/ui-contract/adr/` 是插件写进
+# 用户项目的决定。ADR-0009 钉死 `docs/ui-contract/tokens.input.json` 之后，这条检查
+# 一度对它报了两处「过期」——**报得对不了，因为那个文件本来就不该在本仓库存在**。
+# 一条会稳定误报的 warn，教出来的只是「这些警告可以不看」。
 python3 - <<'P27'
 import re,glob,os
 stale=[]
@@ -479,9 +485,10 @@ for f in sorted(glob.glob('docs/adr/*.md')):
     for m in re.finditer(r'`((?:tests|evals|grader-check|testing|skills|docs|examples)/[A-Za-z0-9_./*-]+)`', open(f,encoding='utf-8').read()):
         p=m.group(1)
         if '*' in p: continue
+        if p.startswith('docs/ui-contract/'): continue   # 用户项目的命名空间，见上
         if not os.path.exists(p): stale.append((os.path.basename(f), p))
 for f,p in sorted(set(stale)):
-    print(f'  \033[33m!\033[0m {f} 提到 `{p}`，磁盘上已经没有（已接受的记录不编辑——由 ADR-0008 承接）')
+    print(f'  \033[33m!\033[0m {f} 提到 `{p}`，磁盘上已经没有（已接受的记录不编辑；testing/ 改名那一批由 ADR-0008 承接）')
 print('  \033[32m✓\033[0m 已检查' if not stale else f'  \033[32m✓\033[0m 已检查（{len(set(stale))} 处过期，warn 不判失败）')
 P27
 
@@ -498,20 +505,74 @@ echo "28. 技能不依赖本插件之外的技能（装了本插件的用户不�
 # 判据是**闭集**：`Call the Skill tool with "X"` 里的 X 必须是 skills/ 下真实存在的包。
 # 锚点是磁盘，和不变量 1、25 同一个权威。跨插件依赖要么不写，要么走 plugin.json 的
 # dependencies（而跨 marketplace 那条路默认被禁，见 ADR-0009）。
+# 带 `插件:技能` 前缀的一律判红：本插件调自己的包从不写前缀（全仓库 0 处），
+# 而前缀正是跨插件调用的写法——只看冒号后半段的话，`别人的插件:ui-contract-layout`
+# 会因为后半段撞上本地包名而蒙混过去。
+#
+# ⚠ **闭集只对这一种措辞成立。** 判的是 `Call the Skill tool with "X"` 这一个句式，
+# 换成散文（`use the frontend-design skill`）或别的记法就绕过去了。不追求穷举，
+# 是因为这个句式是仓库里唯一在用的写法（不变量 9、11 也钉在它上面），
+# 而句式一换，那两条同样会失效——真要防的是**换句式本身**，不是这一条能单独解决的。
+# 扫描范围同理：`skills/*/*.md` 只有一层，目前所有技能 md 恰好都在这一层。
 python3 - <<'P28' || FAIL=1
 import os,re,sys,glob
 pkgs={d for d in os.listdir('skills') if os.path.exists(f'skills/{d}/SKILL.md')}
 bad=[]; n=0
 for f in sorted(glob.glob('skills/*/*.md')):
     for m in re.finditer(r'[Cc]all the Skill tool with ["`]([a-z][a-z0-9:-]*)["`]', open(f,encoding='utf-8').read()):
-        name=m.group(1).split(':')[-1]; n+=1
-        if name not in pkgs: bad.append((f,name))
+        name=m.group(1); n+=1
+        if ':' in name:
+            bad.append((f,name,'带 `插件:技能` 前缀——那是跨插件调用的写法，本插件调自己的包不写前缀'))
+        elif name not in pkgs:
+            bad.append((f,name,'skills/ 下没有这个包——装了本插件的用户不一定装了它，而缺失时的行为是沉默的'))
 if bad:
-    for f,name in bad:
-        print(f'  \033[31m✗\033[0m {f} 调用了 `{name}`，skills/ 下没有这个包——装了本插件的用户不一定装了它，而缺失时的行为是沉默的')
+    for f,name,why in bad:
+        print(f'  \033[31m✗\033[0m {f} 调用了 `{name}`，{why}')
     sys.exit(1)
 print(f'  \033[32m✓\033[0m {n} 处技能调用全部指向本插件内的包')
 P28
+
+echo "29. 框架默认色黑名单的两份拷贝一致（产品文档 ↔ 判据 pattern）"
+# 同一份名单住在两个地方：`originate.md` §Do not emit a framework default 的代码块
+# （agent 照着它派生值），和 `no-framework-default-values` 判据的 `pattern`（判它有没有照做）。
+# 判据文件自称「一字不差」——而那正是不变量 17 存在的理由：手抄的第二份迟早要说谎。
+# 17 只管同一条判据的多份拷贝，管不到「产品文档 ↔ 判据」这一对，所以单开一条。
+#
+# 两个方向都要判，因为两种漂移的后果不同：
+#   名单多、pattern 少 → 产品说了不许用，判据不看，**静默漏判**
+#   pattern 多、名单少 → 判据判红一个产品从没被告知的值，**假阳**
+# 顺带要求 pattern 里除了这些 hex 没有别的选项：加一个宽松的分支（比如 `blue`）
+# 会让这条比对通过而判据行为全变。
+python3 - <<'P29' || FAIL=1
+import re,sys
+DOC='skills/ui-contract-design/originate.md'
+GRD='testing/evals/greenfield-originate/graders/no-framework-default-values.md'
+H='### Do not emit a framework default'
+src=open(DOC,encoding='utf-8').read()
+i=src.find(H)
+if i<0:
+    print(f'  \033[31m✗\033[0m {DOC} 里没有 `{H}` 这一节——名单搬家了，判据还指着它'); sys.exit(1)
+blk=re.search(r'```\n(.*?)```', src[i:], re.S)
+if not blk:
+    print(f'  \033[31m✗\033[0m {H} 一节里没有代码块，名单读不出来'); sys.exit(1)
+doc={h.lower() for h in re.findall(r'#[0-9a-fA-F]{6}', blk.group(1))}
+g=open(GRD,encoding='utf-8').read()
+mp=re.search(r'^pattern: "([^"]*)"', g, re.M)
+if not mp:
+    print(f'  \033[31m✗\033[0m {GRD} 的 frontmatter 里没有 pattern'); sys.exit(1)
+alts=[a.strip() for a in mp.group(1).split('|')]
+bad_alt=[a for a in alts if not re.fullmatch(r'#[0-9a-fA-F]{6}', a)]
+grd={a.lower() for a in alts if re.fullmatch(r'#[0-9a-fA-F]{6}', a)}
+fail=0
+if bad_alt:
+    print(f'  \033[31m✗\033[0m 判据 pattern 里有不是 hex 的分支：{", ".join(bad_alt)}——这条比对管不住它的行为'); fail=1
+if doc-grd:
+    print(f'  \033[31m✗\033[0m 名单里有、判据 pattern 里没有：{", ".join(sorted(doc-grd))}——产品说了不许用，判据不看（静默漏判）'); fail=1
+if grd-doc:
+    print(f'  \033[31m✗\033[0m 判据 pattern 里有、名单里没有：{", ".join(sorted(grd-doc))}——判据会判红一个产品从没告诉过 agent 的值（假阳）'); fail=1
+if fail: sys.exit(1)
+print(f'  \033[32m✓\033[0m {len(doc)} 个默认色值，产品文档与判据 pattern 一致')
+P29
 
 echo "13. 包体量（ADR-0003：某包 SKILL.md 长期不足 30 行，说明切早了，应并回上游包）"
 for d in skills/*/; do

@@ -13,14 +13,17 @@ For the deliverable's language and terminology, call the Skill tool with "delive
 ## Preconditions
 **Artifact paths come from `docs/ui-contract/config.md`'s paths table.** If that file doesn't exist, the specs are at the repo root. Never assume a path the config contradicts.
 
+**One artifact is deliberately not in that table: `tokens.input.json` is always at `docs/ui-contract/tokens.input.json`.** Read it there and nowhere else. It is a working record of where the knobs were left, not a spec, so it sits beside `config.md` rather than moving with the specs — `originate` writes it to exactly that path (`ui-contract-design/originate.md` §The output lands as `tokens.input.json`). Do not search the paths table for it and do not treat its absence from that table as "the project chose somewhere else"; the location is fixed, not chosen.
+
 
 | Condition | Action |
 |---|---|
 | `layout.md` does not exist | **Stop.** There is no allowlist to encode. Call the Skill tool with "ui-contract-layout" first |
 | `layout.md` §2 has no "must not hold" column | **Stop and say why.** That column is the only part of the allowlist the type system can act on; without it this layer is just a renamed div |
 | Code already contains region markers or a `RegionId`-like type, but `layout.md` does not exist | **Stop and say so.** Deriving the type from the code inverts the sync order permanently |
-| `layout.md` exists, there is no token file, but `tokens.input.json` exists | **Land the token file from it** — see below. This is the `originate` branch handing over |
-| `layout.md` exists but there is no `design.md`, no token file and no `tokens.input.json` | **Produce the structural components only, and say explicitly that the token layer is missing.** Do not invent a default token set to fill the gap |
+| `layout.md` exists, there is no token file, but `docs/ui-contract/tokens.input.json` exists | **Land the token file from it** — see below. This is the `originate` branch handing over |
+| Same, but the file turns up somewhere else — the repo root, beside the specs | **Land from it, and say where you found it.** Runs from before the location was pinned put it in two different places; reporting "missing" because it is not at the pinned path would throw away the only record of the user's knobs. Do not move it silently either — say where it is and let the user decide |
+| `layout.md` exists but there is no `design.md`, no token file and **no `tokens.input.json` anywhere** | **Produce the structural components only, and say explicitly that the token layer is missing.** Do not invent a default token set to fill the gap |
 
 ## What this version contains
 
@@ -37,7 +40,7 @@ One thing is waiting on them: implementing the spec's size-degradation rules was
 
 ## Landing the token file
 
-`tokens.input.json` is where the user left the knobs. It is **an input record, not the value authority** — the token file this step writes is. When they disagree, the token file wins.
+`docs/ui-contract/tokens.input.json` is where the user left the knobs. It is **an input record, not the value authority** — the token file this step writes is. When they disagree, the token file wins.
 
 Two things come out of `config.md`'s paths table and neither is guessed:
 

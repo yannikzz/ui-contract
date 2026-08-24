@@ -57,9 +57,17 @@ graders:
     before: { tool: Skill, input_match: 'ui-contract-baseline' }
     after:  { tool: Skill, input_match: 'ui-contract-layout' }
     weight: 1
-    # VERIFIED 2026-08-21，双向：with 臂 `Skill@23 precedes Skill@31`，
-    # 对照臂 `"before" tool Skill never called`。它是这次网关 3 里唯一被完整验掉的新判据——
-    # `tool_order` 无法用冻结轨迹做夹具（重放的历史判据看不见，见 README），只能这么验。
+    # VERIFIED 2026-08-21，**只有「调用发生了吗」这一维**：with 臂 `Skill@23 precedes Skill@31`，
+    # 对照臂 `"before" tool Skill never called`。
+    #
+    # ⚠ 别把这读成「双向验过」（这里原来就是这么写的，错了）。对照臂那次红的原因是
+    # **`before` 那个工具根本没被调用**，不是顺序颠倒。所以量到的是「插件开/关」这一维，
+    # 而这条判据存在的理由是另一维：**`baseline` 在 `layout` 之前**。
+    # 顺序颠倒的负样本至今没有过——真跑没颠倒过，而颠倒一次要么靠运气，
+    # 要么得做一个专门诱导倒序的用例。
+    #
+    # `tool_order` 无法用冻结轨迹做夹具（重放的历史判据看不见，见 README），
+    # 所以那个负样本只能从真跑里等，或者不等。记在 issue #6。
   # 拆成两条：机械的部分交给 regex，判断的部分只看一份 8 千字的文件。
   - type: regex
     name: as-built-cites-real-code

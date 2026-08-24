@@ -19,7 +19,8 @@ no(){ printf '  \033[31m✗\033[0m %s\n' "$1"; FAIL=1; }
 D="skills/ui-contract-design/SKILL.md"
 T="skills/ui-contract-design/assets/theme-studio.html.template"
 W_TPL="skills/ui-contract-wireframe/assets/wire.tsx.template"
-for f in testing/structure/invariants.sh "$D" "$T" "$W_TPL" examples/README.md; do
+BL_GRD="testing/evals/greenfield-originate/graders/no-framework-default-values.md"
+for f in testing/structure/invariants.sh "$D" "$T" "$W_TPL" "$BL_GRD" examples/README.md; do
   [ -f "$f" ] || { no "找不到 $f"; exit 1; }
 done
 
@@ -91,6 +92,14 @@ run_case 1 "28 · 技能调用指向本插件之外的包（真实发生过的�
   "printf '\nCall the Skill tool with \"frontend-design\".\n' >> skills/ui-contract-design/originate.md"
 run_case 1 "28 · 同上，带 plugin: 前缀（前缀不该让它蒙混过去）" \
   "printf '\nCall the Skill tool with \"frontend-design:frontend-design\".\n' >> skills/ui-contract-design/originate.md"
+
+# 29 两个方向分开注入：漏判和假阳的后果不同，一条用例盖不住两种。
+run_case 1 "29 · 产品的黑名单加了一个色值，判据 pattern 没跟（静默漏判）" \
+  "sub skills/ui-contract-design/originate.md '#1976d2  #2196f3' '#1976d2  #2196f3  #4285f4'"
+run_case 1 "29 · 判据 pattern 少了一个色值，产品名单没变（静默漏判，反向）" \
+  "sub $BL_GRD '#3b82f6|#2563eb|' '#3b82f6|'"
+run_case 1 "29 · 判据 pattern 加了个宽松分支（比对通过，行为全变）" \
+  "sub $BL_GRD '#3b82f6|' 'blue|#3b82f6|'"
 
 echo "C. 断言自己的绕过口"
 # 19：把整张身份表删掉，末尾补一句随口的散文。第二版断言只要求「某一行同时含

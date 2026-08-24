@@ -19,14 +19,32 @@ weight: 1
 `## Before you call this document done` 清单的东西落地 5/5，只在正文里被描述的落地 2/5，
 所以这条判据的对侧修复是把它写进那份清单（已做）。下一次实跑会说这两件事有没有用。
 
-⚠ **路径必须是 `**/`，2026-08-22 栽过一次。** 原来写的是 `path: tokens.input.json`——
-一个只匹配仓库根目录的 glob。而 `ui-contract-design/SKILL.md` 明写「Artifact paths come from
-`docs/ui-contract/config.md`'s paths table … **Never assume a path the config contradicts**」。
-**判据假设了一个产品明确规定不许假设的路径。**
+## 这一条只问「写没写」，不问「写在哪」
 
+`**/` 是**故意的松**，与 `tokens-input-at-pinned-path` 成对：前者答「文件存在吗」，
+后者答「在钉死的那个位置吗」。两条一起才把三种状态分开：
+
+| 本条 | `-at-pinned-path` | 读法 |
+|---|---|---|
+| ✓ | ✓ | 正确 |
+| ✓ | ✗ | **写了，但放错地方**——黑名单那条 regex 判据同时会 throw，原因在这里，不在判据 |
+| ✗ | ✗ | 根本没写 |
+
+不合成一条，是因为合了之后「没写」和「写错地方」会长得一模一样，
+而 2026-08-22 那两轮的全部代价正是花在分不开这两件事上。
+
+⚠ **`**/` 这个写法本身也是栽过一次才有的。** 原来写的是 `path: tokens.input.json`——
+一个只匹配仓库根目录的 glob，而当时产品**还没有**规定落点，`ui-contract-design/SKILL.md`
+反而明写「Artifact paths come from `docs/ui-contract/config.md`'s paths table …
+**Never assume a path the config contradicts**」。**判据假设了一个产品明确规定不许假设的路径。**
 被它误判的那次（run3）把文件写在 `docs/ui-contract/tokens.input.json`，是**正确行为**，
 判据报了 missing。这一条同时污染了此前所有「落地率」数字（2/5、7/8、2/3），那些数字
 测的不是「产品写不写」，而是「产品把它写在哪」，全部作废。
 
+那个理由**今天已经不成立了**：ADR-0009 把这个文件从可配置路径表里豁免出来、钉死在
+`docs/ui-contract/tokens.input.json`。所以「不许假设路径」不再是保留 `**/` 的理由，
+上面那张三态表才是。
+
 VERIFIED 2026-08-21，双向，在同一次跑里正负都出现过——**但那次的正负两个方向都可能是
-路径造成的**，所以这条验证跟着一起降级为待重验。
+路径造成的**。2026-08-22 复验 3/3（正方向），负方向仍无干净样本，所以正方向已结清、
+负方向待重验。
