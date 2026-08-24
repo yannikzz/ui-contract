@@ -123,9 +123,23 @@ run_out 0 'in the token file but not declared' \
 # 这条钉住的是一个**刻意的降级**：脚本只读得懂十六进制，而借来的那套命名当前
 # 写成 oklch()。看不见的时候必须报 skip，不许打绿勾——绿勾在这里就是假绿，
 # 正是这份脚本存在的理由。改这条之前先想清楚你是不是把假绿放了进来。
-run_out 0 'non-hex notations are not read here' \
+run_out 0 'oklch and friends are not read here' \
   "检查 8 · token 全是 oklch 时报 skip，不许打绿勾" \
   "sub src/tokens.css '--card: #ffffff;' '--card: oklch(1 0 0);' && sub src/tokens.css '--card-foreground: #1a1a1a;' '--card-foreground: oklch(0.2 0 0);'"
+
+# 基础对（background / foreground）。它不叫 background-foreground，所以 X/X-foreground
+# 那条规则看不见它——而 design.md 的阈值恰恰是**为它**写的（「正文与背景的对比度」）。
+# 补上之前：白底白字（1.00:1，最坏的情况）报 "no hex pairs"、"No drift found."、exit 0。
+run_case 1 "检查 8 · 基础 background/foreground 对低于阈值（不叫 -foreground 的那一对）" \
+  "printf '  --background: #ffffff;\n  --foreground: #ffffff;\n' >> src/tokens.css"
+# 对照：同一对达标时不许误报，否则上一条只证明了「这个脚本会红」。
+run_case 0 "检查 8 · 基础对达标时不误报（这条检查不许喊狼来了）" \
+  "printf '  --background: #ffffff;\n  --foreground: #111111;\n' >> src/tokens.css"
+# 容器键不是 token。ui-contract-assets 明确支持 theme.extend / theme object，
+# 而原来的取值把 `theme:` `extend:` `colors:` 三个都当成了没声明的 token 报出来。
+run_out 0 '!in the token file but not declared' \
+  "检查 7 · theme.extend 的容器键不算 token（合法形状不许报假 warn）" \
+  "printf 'theme: {\n  extend: {\n    colors: {\n    }\n  }\n}\n' >> src/tokens.css"
 
 echo "C. 无契约时的退出码"
 run_case 2 "没有 layout.md、也没有 config.md → exit 2（真的没东西可检）" "rm -f layout.md"

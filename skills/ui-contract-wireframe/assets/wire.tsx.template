@@ -34,7 +34,7 @@ import { Region, REGION_META, type RegionId } from '../../src/ui/region'
 // skin does, so none of it may follow the skin. A tooltip tinted by the theme
 // it is describing stops being able to describe it; a warning banner tinted by
 // the values it is warning about can disappear entirely.
-// The exception is declared by these markers so tests/structure.sh can honour it
+// The exception is declared by these markers so testing/structure/invariants.sh can honour it
 // exactly. Colour outside this block is drift; colour inside it is the design.
 const LabelsCtx = createContext(false)
 export const LabelsProvider = LabelsCtx.Provider
@@ -274,7 +274,12 @@ export function SkinEditor({
               {hex && (
                 <input
                   type="color"
-                  value={hex}
+                  // `<input type="color">` only accepts `#rrggbb`. Slicing the
+                  // alpha off is display-only: `cur` keeps the full value, and
+                  // sameValue still compares all eight digits. Picking a colour
+                  // here does drop the alpha — that is a real edit the user
+                  // made, and it now shows up as one instead of vanishing.
+                  value={hex.slice(0, 7)}
                   onChange={(e) => onChange(role, e.target.value)}
                   className="h-5 w-6 shrink-0 rounded border border-neutral-600 bg-transparent p-0"
                 />
@@ -325,7 +330,16 @@ export function toHex(v: string): string | null {
   cx.clearRect(0, 0, 1, 1)
   cx.fillRect(0, 0, 1, 1)
   const d = cx.getImageData(0, 0, 1, 1).data
-  return '#' + [d[0], d[1], d[2]].map((n) => n.toString(16).padStart(2, '0')).join('')
+  // Alpha is part of the value, so it is part of the identity: `#rrggbbaa` when
+  // the colour is translucent, `#rrggbb` when it is not. Returning six digits
+  // always is what made `sameValue` blind — rgba(0,0,0,.4) and rgba(0,0,0,.8)
+  // both resolved to `#000000`, so an opacity edit was reported as no edit:
+  // no dirty marker, and nothing in the prompt. ADR-0007 makes the prompt the
+  // only carrier of the user's intent, and a change that never reaches it is
+  // a change that never happened.
+  const n = (x: number) => x.toString(16).padStart(2, '0')
+  const rgb = '#' + n(d[0]) + n(d[1]) + n(d[2])
+  return d[3] === 255 ? rgb : rgb + n(d[3])
 }
 
 // ── INSPECT CHROME END ──────────────────────────────────────
@@ -334,7 +348,7 @@ export function toHex(v: string): string | null {
 /**
  * The wireframe's own neutral palette — **the only colour values in this project**.
  * Every part below reads these through var(). Add a colour anywhere else and the
- * assertion in tests/structure.sh fails, which is the point: an overturned
+ * assertion in testing/structure/invariants.sh fails, which is the point: an overturned
  * decision needs a mechanical guard, not a note.
  */
 export const NEUTRAL: Record<string, string> = {

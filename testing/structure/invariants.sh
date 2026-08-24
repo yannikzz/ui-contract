@@ -574,6 +574,73 @@ if fail: sys.exit(1)
 print(f'  \033[32m✓\033[0m {len(doc)} 个默认色值，产品文档与判据 pattern 一致')
 P29
 
+echo "30. 活文档里写到的开发树路径必须存在（skills/ 与 examples/，过期即失败）"
+# 不变量 27 的另一半，而且严格程度相反。27 判的是 `docs/adr/`：已接受的记录不编辑，
+# 所以路径过期只 warn。这一条判的是 `skills/` 与 `examples/`——**活文档**，
+# 没有「不编辑」的豁免，写错了就是错的，所以 fail。
+#
+# 它是被这次 review 催生的：ADR-0008 把 tests/ 改名成 testing/ 之后，
+# `skills/ui-contract-wireframe/` 里有 5 处、`examples/README.md` 里有 1 处
+# 仍然写着 `tests/structure.sh`。27 只扫 docs/adr/，一处都没看见。
+# 而 skills/ 是**唯一会安装到用户机器**的目录：那 5 处是发给用户的错误指路。
+#
+# 只认开发树的命名空间（tests / testing / evals / grader-check / docs/adr）。
+# skills/ 里绝大多数路径说的是**用户项目**（`layout.md`、`docs/ui-contract/config.md`、
+# `src/ui/region.tsx`），那些在本仓库磁盘上本来就不该存在，一律不判。
+python3 - <<'P30' || FAIL=1
+import re,os,sys,glob
+NS=re.compile(r'`((?:tests|testing|evals|grader-check|docs/adr)/[A-Za-z0-9_./*-]+)`')
+bad=[]; n=0
+files=[f for f in glob.glob('skills/**/*', recursive=True)
+       if os.path.isfile(f) and (f.endswith('.md') or f.endswith('.template'))]
+files+=[f for f in glob.glob('examples/**/*.md', recursive=True) if os.path.isfile(f)]
+for f in sorted(files):
+    for m in NS.finditer(open(f,encoding='utf-8').read()):
+        p=m.group(1)
+        if '*' in p: continue
+        n+=1
+        if not os.path.exists(p): bad.append((f,p))
+if bad:
+    for f,p in sorted(set(bad)):
+        print(f'  \033[31m✗\033[0m {f} 提到 `{p}`，磁盘上没有——活文档没有「不编辑」的豁免，而 skills/ 会安装到用户机器')
+    sys.exit(1)
+print(f'  \033[32m✓\033[0m {n} 处开发树路径引用全部解析')
+P30
+
+echo "31. 器具与体检对「什么算一对」的定义一致（同一个阈值的两个消费者）"
+# `design-md-outline.md` 写明这个阈值有两个消费者：调值器具实时判，体检脚本几个月后再判，
+# 而且「两者都不硬编码」。但**判什么**此前没人对齐：器具的 pairs() 有基础对特判
+# （`background|page|surface` 配 `foreground|text`），体检脚本没有。
+# 后果实测过：白底白字（1.00:1）在体检里报 "no hex pairs" 然后 exit 0，在器具里是红的。
+# 同一份 token 文件，两个工具两个答案，没有任何东西报错——正是 `wire.tsx` 那段注释
+# 警告过的形状。
+#
+# 两边一个是 awk 一个是 JS，比不了代码，能比的是**名单本身**：两个候选集合的字面量
+# 必须同时出现在两个文件里。它拦不住「改了配对逻辑但没动名单」，拦得住
+# 「给一边加了个别名，忘了另一边」——那是这次真实发生过的那一种。
+# 判据是**提取出来比对**，不是「这个字面量在不在文件里」。第一版就是子串检查，
+# 而给一边加个别名（`background|page|surface|canvas`）时原串仍是子串——绿着。
+# 这两条 effectiveness 用例当场把它抓了出来。
+python3 - <<'P31' || FAIL=1
+import re,sys
+INSTR='skills/ui-contract-design/assets/theme-studio.html.template'
+AUDIT='skills/ui-contract-audit/assets/audit.sh.template'
+# 两边碰巧都写成 `/^(a|b|c)$/`：器具是 JS 正则，体检是 awk 正则，同一个记法。
+G=re.compile(r'\^\(([a-z|]+)\)\$')
+def groups(f):
+    return sorted(tuple(sorted(m.split('|'))) for m in G.findall(open(f,encoding='utf-8').read()))
+a, b = groups(INSTR), groups(AUDIT)
+if not a:
+    print(f'  \033[31m✗\033[0m {INSTR} 里一个 `^(...)$` 名单都没有——配对规则改了记法，这条检查已经瞎了'); sys.exit(1)
+if a != b:
+    print(f'  \033[31m✗\033[0m 器具与体检的基础对名单分了家：')
+    print(f'      器具 {a}')
+    print(f'      体检 {b}')
+    print(f'      同一份 token 文件会在两个工具里得到两个答案，而没有任何东西报错')
+    sys.exit(1)
+print(f'  \033[32m✓\033[0m 器具与体检的基础对名单一致（{len(a)} 组）')
+P31
+
 echo "13. 包体量（ADR-0003：某包 SKILL.md 长期不足 30 行，说明切早了，应并回上游包）"
 for d in skills/*/; do
   n=$(wc -l < "$d/SKILL.md"); b=$(basename "$d")

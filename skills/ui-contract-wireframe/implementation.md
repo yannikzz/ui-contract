@@ -37,7 +37,7 @@ It was excluded once, and overturning that took ADR-0006 — read it before chan
 
 Rule 4 is aimed at the exact failure ADR-0001 named. Do not make it dismissible, and do not shrink it into a corner badge.
 
-**Inspect chrome does not follow the skin** — the annotation badges, the region outline, the tooltip, and the banner itself. They are apparatus, not product surfaces, and they carry fixed colours inside the `INSPECT CHROME` markers in `wire.tsx` (the one block `tests/structure.sh` exempts).
+**Inspect chrome does not follow the skin** — the annotation badges, the region outline, the tooltip, and the banner itself. They are apparatus, not product surfaces, and they carry fixed colours inside the `INSPECT CHROME` markers in `wire.tsx` (the one block `testing/structure/invariants.sh` exempts).
 
 Two different reasons, both measured:
 
@@ -52,7 +52,7 @@ Measured on a real wireframe: `wire.tsx` held 17 hardcoded colour classes, and *
 
 Convert all of them. Skip the page files and the preview skins only the parts that happen to route through a `wire.tsx` component, which looks like a half-broken theme rather than like a bug.
 
-⚠ **Nothing checks this in a user's project.** `tests/structure.sh` asserts rule 1 on the template shipped with this skill; the generated wireframe is not in that repo, and `ui-contract-audit` does not look at the wireframe directory at all (it audits the production tree). So on a real project rule 1 is enforced by review only. Do not read a green health check as "no colour leaked into the wireframe".
+⚠ **Nothing checks this in a user's project.** `testing/structure/invariants.sh` asserts rule 1 on the template shipped with this skill; the generated wireframe is not in that repo, and `ui-contract-audit` does not look at the wireframe directory at all (it audits the production tree). So on a real project rule 1 is enforced by review only. Do not read a green health check as "no colour leaked into the wireframe".
 
 ### The preview is editable, and the output is a prompt
 
@@ -95,7 +95,7 @@ Three things needed this exception, and they are one rule, not three:
 
 The third one was found by converting a real wireframe and watching the toggles change colour. `Sw` and `Group` sit at the bottom of `App.tsx`, well past the product markup, so a "convert everything below the product marker" pass takes them with it. Keep them hard-coded.
 
-Rule 1 is asserted in `tests/structure.sh`. An overturned decision needs a mechanical guard, not a note.
+Rule 1 is asserted in `testing/structure/invariants.sh`. An overturned decision needs a mechanical guard, not a note.
 
 ---
 

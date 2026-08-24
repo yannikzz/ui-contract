@@ -119,6 +119,11 @@ The rules that actually keep an interface from getting muddy:
 
 **The contrast threshold is a rule, so it lives here — once.** State the minimum ratio for body text on its background (4.5:1 unless this project has a reason for more), and state it in exactly one place. Two consumers read it from here: the value-tuning instrument checks it live while the user is turning knobs, and the health check re-checks it months later after somebody hand-edited the token file. Neither hardcodes it — they cannot even share code (one is an HTML template, the other a shell script), so this document is the only thing they can share.
 
+Two things about that pair of consumers, both learned the hard way:
+
+- **They must agree on what counts as a pair.** `X` with `X-foreground`, *and* the base pair — `background` (or `page` / `surface`) with `foreground` (or `text`), which is the pair this threshold is actually written for and the one the first rule cannot see, because the base foreground is not called `background-foreground`. The instrument had that case; the health check did not, so a token file with `background` and `foreground` both `#ffffff` — the worst contrast that exists — cleared the health check and failed the instrument, with nothing reporting a disagreement. Both carry the rule now, and an invariant compares the two name lists.
+- **A translucent value has no ratio.** What it looks like depends on whatever is painted behind it, and neither tool knows the stack. Both say so rather than answering about the opaque version of the colour — a checker that returns a plausible wrong number is worse than one that returns none.
+
 ## §3 Type
 
 - **Families**: body/UI, monospace, fallback chain. If stray families crept into the mockup, state plainly that it's an oversight and is to be corrected everywhere.

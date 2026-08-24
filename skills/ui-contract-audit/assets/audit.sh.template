@@ -207,12 +207,29 @@ decl_rows(){
 # "name hex" for every token the file states a hex colour for, and "name -" for
 # the rest. Quotes are stripped first so one expression covers CSS custom
 # properties, a JS/TS theme object and JSON without three separate patterns.
+#
+# **Leaf keys only.** A key whose value opens a block — `theme: {`, `extend: {`,
+# `colors: {` — is structure, not a token. `ui-contract-assets` supports exactly
+# those shapes (`theme.extend`, a theme object), so a normal Tailwind config was
+# reporting `theme`, `extend` and `colors` as three tokens the declaration table
+# forgot. Measured on a fixture. The comment above `decl_rows` promises this
+# family of checks "degrades to no check, never a wrong one" — three false
+# warnings on a supported shape is a wrong one, and a warn channel that cries
+# wolf on the common case is the same as no warn channel.
+#
+# Kept deliberately narrow: only a value that is empty or opens a brace/bracket
+# is dropped. Anything else is still a candidate, because guessing harder here
+# would start dropping real tokens and this check's whole value is that it does
+# not invent drift.
 token_pairs(){
   [ -f "$TOKENS" ] || return 0
   tr -d "\"'" < "$TOKENS" | awk '
     match($0, /[A-Za-z][A-Za-z0-9_-]*[ \t]*:/) {
       k=substr($0, RSTART, RLENGTH); gsub(/[^A-Za-z0-9_-]/, "", k)
       if (k == "") next
+      rest=substr($0, RSTART+RLENGTH)
+      sub(/^[ \t]+/, "", rest); sub(/[ \t]+$/, "", rest)
+      if (rest == "" || rest ~ /^[{[]/) next      # container key, not a token
       if (match($0, /#[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]/))
         print k "\t" substr($0, RSTART, RLENGTH)
       else print k "\t-"
@@ -258,17 +275,55 @@ else
     skip "no contrast threshold stated in $DESIGN — nothing to check against"
   else
     PAIRS=$(token_pairs | awk -F'\t' '$2!="-"')
-    HAVEPAIR=$(printf '%s\n' "$PAIRS" | awk -F'\t' '
+    # Which names form a surface / foreground pair. TWO rules, and the second is
+    # not an extra:
+    #
+    #   a) `X` with `X-foreground`
+    #   b) the base pair — `background` (or `page` / `surface`) with `foreground`
+    #      (or `text`)
+    #
+    # Rule (b) is the one design.md's threshold is actually *about*: the outline
+    # says "the minimum ratio for **body text on its background**". And it is
+    # exactly the pair rule (a) cannot see, because the base foreground is named
+    # `foreground`, not `background-foreground`.
+    #
+    # Without it, a token file with `background: #ffffff` and `foreground:
+    # #ffffff` — the worst contrast that exists — printed "no hex pairs", then
+    # "No drift found.", then exit 0. Measured on a fixture, not reasoned.
+    #
+    # The tuning instrument has carried this special case since it was written
+    # (`theme-studio.html.template`, `pairs()`). This script did not, so the two
+    # consumers of one threshold disagreed about what a pair *is* — the same
+    # token file cleared here and failed there, with nothing reporting an error.
+    # If you change one, change the other.
+    PAIRNAMES=$(printf '%s\n' "$PAIRS" | awk -F'\t' '
       {v[$1]=$2}
-      END{n=0; for(k in v){ if(k ~ /-foreground$/) continue; if((k "-foreground") in v) n++ } print n}')
-    if [ "${HAVEPAIR:-0}" -eq 0 ]; then
-      # Deliberately a skip, not a pass. Modern token conventions write colours
-      # in oklch(); this check reads hex only, so on such a project it can see
-      # nothing at all. Printing a green tick there would be the exact failure
-      # this script exists to catch — the instrument is where those get checked.
-      skip "no hex surface/-foreground pairs in $TOKENS (non-hex notations are not read here)"
+      END{
+        for (k in v){
+          if (k ~ /-foreground$/) continue
+          if ((k "-foreground") in v) print k "\t" k "-foreground" "\t" v[k] "\t" v[k "-foreground"]
+        }
+        base=""; basefg=""
+        for (k in v){
+          if (base   == "" && k ~ /^(background|page|surface)$/) base = k
+          if (basefg == "" && k ~ /^(foreground|text)$/)         basefg = k
+        }
+        # Only when rule (a) has not already claimed the base surface, so a
+        # project that really does declare `background-foreground` is not
+        # checked twice against two different foregrounds.
+        if (base != "" && basefg != "" && !((base "-foreground") in v))
+          print base "\t" basefg "\t" v[base] "\t" v[basefg]
+      }')
+    if [ -z "$PAIRNAMES" ]; then
+      # Deliberately a skip, not a pass. Two things land here and the message
+      # must not name only one of them: the token file may state its colours in
+      # oklch() (this check reads hex only), or it may genuinely declare no
+      # surface / foreground pair. Printing a green tick either way would be the
+      # exact failure this script exists to catch — the instrument is where
+      # non-hex notations get checked.
+      skip "no hex surface/foreground pair found in $TOKENS — either the colours are not hex (oklch and friends are not read here), or no such pair is declared"
     else
-      B=$(printf '%s\n' "$PAIRS" | awk -F'\t' -v min="$MIN" '
+      B=$(printf '%s\n' "$PAIRNAMES" | awk -F'\t' -v min="$MIN" '
         function h2d(s,   i,c,v,n){ n=0
           for(i=1;i<=length(s);i++){ c=tolower(substr(s,i,1))
             v=index("0123456789abcdef",c)-1; n=n*16+v } return n }
@@ -277,16 +332,11 @@ else
         function lum(h){ return 0.2126*lin(h2d(substr(h,2,2))) \
                               + 0.7152*lin(h2d(substr(h,4,2))) \
                               + 0.0722*lin(h2d(substr(h,6,2))) }
-        {v[$1]=$2}
-        END{
-          for (k in v){
-            if (k ~ /-foreground$/) continue
-            f=k "-foreground"; if (!(f in v)) continue
-            a=lum(v[k]); b=lum(v[f])
-            hi=(a>b)?a:b; lo=(a>b)?b:a
-            r=(hi+0.05)/(lo+0.05)
-            if (r < min) printf "%s on %s = %.2f:1, below %s:1\n", f, k, r, min
-          }
+        {
+          a=lum($3); b=lum($4)
+          hi=(a>b)?a:b; lo=(a>b)?b:a
+          r=(hi+0.05)/(lo+0.05)
+          if (r < min) printf "%s on %s = %.2f:1, below %s:1\n", $2, $1, r, min
         }')
       [ -z "$B" ] && ok "every hex pair clears ${MIN}:1" || drift "$B"
     fi

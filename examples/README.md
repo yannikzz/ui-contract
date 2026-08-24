@@ -10,7 +10,7 @@ Real output from this skill, not hand-written illustrations. Reading one is the 
 | The skin preview in the wireframe — `NEUTRAL`, `SKIN`, `useSkinVars`, `SkinBanner`, and the `INSPECT CHROME` block | [ADR-0006](../docs/adr/0006-wireframe-skin-preview.md) |
 | The skin **editor** — `useSkin`, `SkinEditor`, `toHex` | [ADR-0007](../docs/adr/0007-wireframe-edit-panel-emits-a-prompt.md) |
 
-Those names are listed one by one on purpose: `tests/structure.sh` reads this paragraph. Every symbol the template exports has to appear either in the example's `wire.tsx` or here. **Falling behind is allowed; falling behind silently is not.**
+Those names are listed one by one on purpose: `testing/structure/invariants.sh` reads this paragraph. Every symbol the template exports has to appear either in the example's `wire.tsx` or here. **Falling behind is allowed; falling behind silently is not.**
 
 **It is deliberately not hand-patched to close that gap.** Editing it to look like current output would make the first line of this file false — the example's only value is that a real run produced it. A stated gap is honest; a hand-written illustration claiming to be real output is not. Closing it properly means re-running the skill.
 

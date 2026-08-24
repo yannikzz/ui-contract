@@ -64,7 +64,7 @@
                letter-spacing:.05em;color:var(--ui-dim)}
   .c-row{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:2px 0;
          font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-  .pass{color:var(--ui-good)} .fail{color:var(--ui-bad)}
+  .pass{color:var(--ui-good)} .fail{color:var(--ui-bad)} .undef{color:var(--ui-dim)}
 
   /* ── Sample. Every colour below reads a --tk-* variable that `apply()` sets
      from ROLE + the loaded JSON. Nothing here names a token. ── */
@@ -217,14 +217,16 @@ function toRgb(v){
      exactly 1.00:1. A checker that returns plausible wrong numbers is worse
      than one that returns none, and this is the one place oklch CAN be checked
      — the health check's shell cannot read it at all.
-     Alpha is ignored: contrast against a translucent surface is undefined
-     without knowing what is behind it. */
+     Alpha comes back as the fourth element and is NOT folded into the other
+     three. Contrast against a translucent surface is undefined without knowing
+     what is behind it — so `ratio()` refuses to answer rather than answering
+     about the opaque version of the colour, which is a different colour. */
   cx.fillStyle = '#000000'
   cx.fillStyle = c1
   cx.clearRect(0, 0, 1, 1)
   cx.fillRect(0, 0, 1, 1)
   const d = cx.getImageData(0, 0, 1, 1).data
-  return [d[0], d[1], d[2]]
+  return [d[0], d[1], d[2], d[3]]
 }
 const isColour = v => typeof v === 'string' && toRgb(v) !== null && !/^\s*$/.test(v)
 const isLength = v => typeof v === 'string' && /^-?[\d.]+(px|rem|em|%)$/.test(v)
@@ -233,9 +235,20 @@ function luminance([r,g,b]){
   const f = x => { x /= 255; return x <= 0.03928 ? x/12.92 : Math.pow((x+0.055)/1.055, 2.4) }
   return 0.2126*f(r) + 0.7152*f(g) + 0.0722*f(b)
 }
+/* Returns a number, or a reason it is not a number. Never a number it cannot
+   stand behind — the same rule the oklch note above states, applied to the
+   other way this function can be wrong.
+
+   `'alpha'`: a translucent value has no contrast ratio of its own. What the
+   user sees depends on whatever is painted behind it, and this panel does not
+   know the stack. The previous version dropped alpha and carried on, so a
+   20%-black foreground on white reported 21.00:1 — the ratio of solid black,
+   off by an order of magnitude, printed with a green tick. Refusing to answer
+   is the honest output; compositing would mean inventing the backdrop. */
 function ratio(a,b){
   const A = toRgb(a), B = toRgb(b)
   if (!A || !B) return null
+  if (A[3] !== 255 || B[3] !== 255) return 'alpha'
   const [x,y] = [luminance(A), luminance(B)].sort((p,q) => q-p)
   return (x + 0.05) / (y + 0.05)
 }
@@ -275,9 +288,17 @@ function apply(){
     const n = ratio(tokens[bg], tokens[fg])
     const row = document.createElement('div')
     row.className = 'c-row'
-    const okv = n !== null && n >= CONTRAST_MIN
-    row.innerHTML = '<span>' + bg + '</span><span class="' + (okv ? 'pass' : 'fail') + '">'
-      + (n === null ? 'n/a' : n.toFixed(2)) + (okv ? ' ✓' : ' ✗') + '</span>'
+    /* Three states, not two. A pair this panel cannot judge must not be shown
+       in the same colour as one it judged and failed — that is how a checker
+       starts being read as noise. */
+    const undef = n === null || n === 'alpha'
+    const okv = !undef && n >= CONTRAST_MIN
+    const text = n === 'alpha' ? 'translucent — undefined'
+               : n === null    ? 'n/a'
+               :                 n.toFixed(2)
+    const mark = undef ? ' —' : okv ? ' ✓' : ' ✗'
+    row.innerHTML = '<span>' + bg + '</span><span class="'
+      + (undef ? 'undef' : okv ? 'pass' : 'fail') + '">' + text + mark + '</span>'
     box.appendChild(row)
   }
 }
