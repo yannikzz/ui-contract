@@ -43,6 +43,67 @@ export type RegionId =
   | 'inspector.body'
   | 'inspector.foot'
 
+// ── 其它交给类型系统把关的硬规则 ────────────────────────────────
+
+/** 页型枚举。layout.md §4.1 */
+export type PageKind = 'list' | 'wizard' | 'form' | 'overview'
+
+/**
+ * 允许出现属性面板的页型。**只有 list**。
+ * 这个窄联合是 layout.md §4.3 的编译期形态：向导页想渲染 InspectorSlot 会直接类型报错。
+ * 缺少 'wizard' / 'form' / 'overview' 是**刻意的，不是漏了**——
+ * 向导页的结构承诺是「当前这一步就是全部上下文」，一旦开了侧栏它会长成带侧栏的工作台。
+ */
+export type PageWithInspector = Extract<PageKind, 'list'>
+
+/**
+ * 属性面板的类型枚举。layout.md §5.1。
+ * 现在只有 1 型是**刻意的**：一等对象由本产品决定，不由 Agent 的记忆决定。
+ * 新增一型必须先过 §5.4 三条判据并写进 layout.md §5.1，不要复用 content-item 硬塞。
+ */
+export type InspectorKind = 'content-item'
+
+/**
+ * 表格列型。layout.md §6.2。
+ * **这里没有 'actions' 是刻意的，不是漏了**：单行操作的唯一宿主是 inspector.foot。
+ * 想加操作列 → 类型报错 → 去读 layout.md §10-1。
+ */
+export type TableColumnKind = 'select' | 'id' | 'text' | 'badge' | 'meta'
+
+/** 表格列定义。列优先级 = 数组顺序，宽度不足时从最右开始滚出（layout.md §4.6） */
+export type TableColumn = {
+  kind: TableColumnKind
+  label: string
+  /** 结构参数：列的基准宽度。id 列与 select 列永不滚出 */
+  width: number
+}
+
+
+/**
+ * 状态标签的**语义类**。layout.md §6.4。
+ *
+ * 这是一个封闭集，而且它住结构层不住视觉层——切线是「换品牌视觉时会不会变」，
+ * 而「待审核需要有人动手」换一套皮肤不会变。**哪一类用什么颜色**才归 design.md。
+ *
+ * 线框只认这五个类，不认颜色：它拿到 kind，颜色由 token 走 var() 进来。
+ * 少了这一层的话，线框要么全灰（看不出配色在做什么），要么自己编一张
+ * 「待审核 = 黄」的表——那就是第二个权威源。
+ *
+ * 加第六类要先过 layout.md §9 的变更流程。五类覆盖不了的状态，通常是
+ * 状态本身没想清楚，不是少了一类。
+ */
+export type StatusKind =
+  /** 还没进流程，或已经离开流程。不给语义色，用文字层级表达 */
+  | 'neutral'
+  /** 系统在跑，用户等着就行。不需要动手 */
+  | 'progress'
+  /** 需要有人动手，但没有东西被挡住 */
+  | 'attention'
+  /** 被挡住了，必须先处理才能往下走 */
+  | 'blocked'
+  /** 成功终态 */
+  | 'done'
+
 // ── 区域元信息 ────────────────────────────────────────────────
 /**
  * 人读名给人看，代码名给 Agent 用，desc 写清「**该放什么 / 不该放什么**」，

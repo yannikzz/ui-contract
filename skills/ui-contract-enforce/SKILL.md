@@ -41,8 +41,21 @@ Documents alone don't get read — least of all when the task sounds small ("jus
 |---|---|
 | **Entry** | A section in the repo-root `CLAUDE.md`: before changing any interface structure, walk `layout.md` §1; stop and use the change process if it doesn't land; every region name must be in the allowlist |
 | **Directory** | A `CLAUDE.md` inside the wireframe (if there is one): what to read before touching anything, the deliberate-tradeoffs list, which file is the single source for structural parameters |
-| **Compile time** | Allowlist → union type. Writing a name that isn't in the table fails type-checking |
+| **Compile time** | Allowlist → union type, **installed on the product source tree and covered by the project's own typecheck**. Writing a name that isn't in the table fails type-checking. See below — where this runs is part of the layer, not a detail |
 | **Asset boundary** | Token values must not be hardcoded in feature code — they come from the token file. Structural containers must be imported from the asset layer, never re-declared locally |
+
+### The compile-time layer has to sit on code that ships
+
+A union type only fires where something type-checks against it. So "the allowlist is a union type" is half a mechanism; the other half is **which typecheck it is part of**, and that half has been left implicit.
+
+**A wireframe's typecheck does not count.** The wireframe is a throwaway reference implementation — constraining it constrains nothing that ships, and if the project keeps its wireframe out of the repository, that typecheck does not run in CI at all. Either way the layer reports nothing and looks no different from one that is working.
+
+Two things have to be true, and both are checkable:
+
+1. The union type lives in the asset layer, inside the **product source tree**, and the command a contributor or CI actually runs (`tsc --noEmit`, `pnpm typecheck`, whatever the project uses) covers that path.
+2. Something fails **even when no product code happens to use a given region name yet**. On a young project most of the allowlist has no call sites, so an empty product tree type-checks clean against any union at all — including one somebody weakened. The assertion file in `constraint-by-types` §2 is what closes this; without it, the layer's strength is proportional to how much code already exists, which is backwards.
+
+**Verify it by breaking it.** Put an off-allowlist name into a product file, run the project's typecheck, and paste the error. A layer nobody has seen fail is a layer nobody has seen.
 
 The asset boundary is the newest layer and the least obvious. Layering the specs into production code created a new drift surface: the asset layer is real production code, so business pressure pushes changes into it directly — someone adds a slot to a container to ship a feature, and the spec never hears about it. The boundary clause is what makes that visible at review time.
 
@@ -61,4 +74,8 @@ Put a line at the top of `layout.md` §2 saying that changing the table requires
 - [ ] Region names are identical across the document, the type definition, and the code — grep every allowlist name and find it in all three
 - [ ] The repo-root `CLAUDE.md` entry clause exists and names the decision tree by section
 - [ ] Every "must not hold" entry that can be expressed as a type omission has been, with a comment marking the omission deliberate
+- [ ] **Each of those omissions also has a line in the assertion file** (`constraint-by-types` §2), so deleting the prohibition breaks the build instead of going silent
+- [ ] **The union type is in the product source tree, and the project's own typecheck command covers it** — name the command. A wireframe's typecheck does not satisfy this
+- [ ] **The assertion file is inside that same typecheck's `include`.** Nothing imports it, so a narrow `include` drops it silently
+- [ ] **Enforcement was verified by breaking it**: an off-allowlist name was written into a *product* file, the project's typecheck was run, and the real error is pasted
 - [ ] The asset boundary clause is written, and it names both halves (no hardcoded token values; no locally-declared structural containers)

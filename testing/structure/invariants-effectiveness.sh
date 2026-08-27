@@ -1,7 +1,11 @@
 #!/bin/sh
 # invariants.sh 的每条断言**真的能失败**。
 #
-# 覆盖范围（这一行是承诺，别让它变成散文）：**1–30 全部有用例**。
+# 覆盖范围（这一行是承诺，别让它变成散文）：**1–34 全部有用例**。
+#
+# 2026-08-25：这一行**真的变成过散文**——它写着 1–30 而检查已经有 31 条，没有任何东西
+# 在比对。现在由 invariants.sh 第 32 条机检：每条检查都有用例，且这一行的上界等于实际条数。
+# 一句自称是承诺的话，靠人守就不是承诺。
 # 其中 13 与 27 是 warn 档，用例期望 exit 0——它们证明的是「这条不改退出码」，
 # 那是声明过的宽，不是漏掉。
 #
@@ -15,7 +19,8 @@
 # 而断言本身就是代码，也会有它自己那份「看着像在检查」的写法：
 #   · 19 的第一版判「三个词在全文各出现一次」，注入后仍然绿；
 #     第二版判「某一行同时含两组词」，一句随口散文照样满足（本文件 C 节）。
-#   · 22 靠一对注释哨兵声明例外，而注释可以挪——END 搬到文件尾就是全文豁免。
+#   · 22 原先靠一对注释哨兵声明例外，而注释可以挪——END 搬到文件尾就是全文豁免。
+#     ADR-0012 把锚换成一个文件之后，这四条用例也跟着重写了：锚变了，攻击面就变了。
 # 两次都是断言写完、跑过、绿着，然后才发现它守不住。所以断言也要被注入验一遍。
 #
 # 每个用例：整树拷一份 → 注入一处违规 → 跑 structure.sh → 期望的退出码必须出现。
@@ -28,8 +33,9 @@ no(){ printf '  \033[31m✗\033[0m %s\n' "$1"; FAIL=1; }
 D="skills/ui-contract-design/SKILL.md"
 T="skills/ui-contract-design/assets/theme-studio.html.template"
 W_TPL="skills/ui-contract-wireframe/assets/wire.tsx.template"
+W_APP="skills/ui-contract-wireframe/assets/inspect.tsx.template"
 BL_GRD="testing/evals/greenfield-originate/graders/no-framework-default-values.md"
-for f in testing/structure/invariants.sh "$D" "$T" "$W_TPL" "$BL_GRD" examples/README.md; do
+for f in testing/structure/invariants.sh "$D" "$T" "$W_TPL" "$W_APP" "$BL_GRD" examples/README.md; do
   [ -f "$f" ] || { no "找不到 $f"; exit 1; }
 done
 
@@ -162,13 +168,17 @@ run_case 1 "20 · ROLE 映射表里填进了 token 名" \
   "sub $T \"pageBg:'', pageFg:''\" \"pageBg:'background', pageFg:'foreground'\""
 run_case 1 "21 · 器具样张里出现 IA 载体" \
   "sub $T '<body' '<body><nav class=\"x\">demo</nav'"
-run_case 1 "22 · 哨兵块外的产品组件写死了品牌色" \
+run_case 1 "22 · 装置文件之外的产品组件写死了品牌色" \
   "sub $W_TPL 'export function Badge({ children }: { children: ReactNode }) {' 'export function Badge({ children }: { children: ReactNode }) {
   const leak = \"#2563eb\"; void leak;'"
 run_case 1 "22 · SKIN 出厂就填好了 token 名" \
   "sub $W_TPL \"'--wire-surface': ''\" \"'--wire-surface': 'background'\""
 run_case 1 "23 · 模板新增导出，示例与 README 都没提" \
   "printf '\nexport function InjectedThing() { return null }\n' >> $W_TPL"
+# 这条断言的锚从「const|function|type 三种拼法」加宽到「行首 export + 声明关键字」之后，
+# 必须证明加宽真的生效：换一种拼法写同一个违规，旧锚会安静放行，新锚要照样红。
+run_case 1 "23 · 模板新增导出换成 export interface（旧锚只认三种拼法）" \
+  "printf '\nexport interface InjectedThing { x: number }\n' >> $W_TPL"
 
 echo "B2. 24-27 各注入一处违规，必须转红"
 # 这四条是这次重构新加的。第 26 条的第一版就是指纹——它只认「不变量 N」「检查 N」，
@@ -186,6 +196,16 @@ run_case 1 "26 · ADR 说「不变量 99」" \
 # 是「这条检查明说了自己不判失败」，两者的区别在于后者是**声明过的**。
 run_case 0 "27 · ADR 提到一个不存在的路径 → warn，退出码不变（声明过的宽）" \
   "printf '\n见 \`testing/nonexistent.sh\`。\n' >> docs/adr/0006-wireframe-skin-preview.md"
+
+# 注入到 theme-studio.html.template——那份模板在干净树上一处开发树引用都没有，
+# 所以红只可能来自注入。34 曾短暂是 warn 档（落地当天模板里还有 15 处），清干净后转失败。
+run_case 1 "34 · skills/ 里引用了插件自身的开发树" \
+  "printf '\n<!-- 详见 ADR-0099 与 testing/structure/invariants.sh -->\n' >> $T"
+
+# 同一个违规换个拼法。目录名后原本是 `[a-z]`，于是这两个路径——两个目录里最可能
+# 被引用的文件——一个都不匹配，而 ADR 编号那一支照样红，所以上面那条用例发现不了。
+run_case 1 "34 · 同上，引的是 examples/README.md 与 testing/README.md（首字母大写）" \
+  "printf '\n<!-- 见 examples/README.md 与 testing/README.md -->\n' >> $T"
 
 run_case 1 "28 · 技能调用指向本插件之外的包（真实发生过的那种写法）" \
   "printf '\nCall the Skill tool with \"frontend-design\".\n' >> skills/ui-contract-design/originate.md"
@@ -220,42 +240,94 @@ echo "C. 断言自己的绕过口"
 run_case 1 "19 · 删掉身份表，改用一句随口的散文" \
   "sub $D '| \`tokens.input.json\` | where the user left the knobs (an input record) | does not count |
 | the token file | the values that are currently correct | wins |' '' && printf '\ntokens.input.json is an input record. The token file holds values that are currently correct.\n' >> $D"
-# 22：哨兵只是两行注释，挪一下在 review 里长得像格式调整，而挪完整份文件都进
-# 豁免区。守法是「块外必须还有产品组件」——inspect 装置在块内，产品表面在块外。
-run_case 1 "22 · 把 INSPECT CHROME END 推到文件尾（全文豁免）" \
-  "sub $W_TPL '// ── INSPECT CHROME END ──────────────────────────────────────
-' '' && sub $W_TPL 'export function Badge({ children }: { children: ReactNode }) {' 'export function Badge({ children }: { children: ReactNode }) {
-  const leak = \"#2563eb\"; void leak;' && printf '\n// ── INSPECT CHROME END ──────────────────────────────────────\n' >> $W_TPL"
-# 同一个口子的另一种走法：不挪边界，另开一对把违规圈进去。
-# ⚠ 与上面两条不同，**这条在断言改掉之前就已经是红的**：正则取的是第一个 BEGIN
-# 到第一个 END，新开的一对落在原 END 之后，根本选不中。它留在这里是对照——
-# 记录这条路本来就走不通，免得下一个人误以为「各恰好一次」是它的修复。
-# 那句检查守的是另一种组合：先把原哨兵删掉或挪走，再另起一对。成本一行，留着。
-run_case 1 "22 · 另开一对哨兵，把品牌色圈进豁免区（旧断言下也红，对照用）" \
-  "sub $W_TPL 'export function Badge({ children }: { children: ReactNode }) {' '// ── INSPECT CHROME BEGIN ──
-export function Badge({ children }: { children: ReactNode }) {
-  const leak = \"#2563eb\"; void leak;
-// ── INSPECT CHROME END ──'"
+# 22 的锚 ADR-0012 换过一次：例外从一对注释哨兵变成一个文件。下面四条是**新锚的
+# 绕过口**，一一对应旧锚被实测穿透过的那两种（把 END 推到文件尾＝全文豁免；把产品
+# 组件搬进块内）。锚变了，攻击面也变了，所以用例必须跟着重写——留着打不中的旧用例
+# 比没有用例更糟，它会让「这条守得住」看起来有证据。
+#
+# 第一种：把产品零件搬进豁免文件，在里面写死颜色。这是旧锚下**一次搬一个就能穿过去**
+# 的那条路，现在由「装置文件的导出是封闭名单」挡住。
+run_case 1 "22 · 把产品零件搬进装置文件，在里面写死品牌色" \
+  "python3 - <<'INJ'
+import re
+P='skills/ui-contract-wireframe/assets/wire.tsx.template'
+A='skills/ui-contract-wireframe/assets/inspect.tsx.template'
+s=open(P,encoding='utf-8').read()
+m=re.search(r'\nexport function Btn\(\{.*?\n\}\n', s, re.S)
+blk=m.group(0).rstrip(chr(10))+chr(10)+\"const BTN_BRAND = '#2563eb'\"+chr(10)
+open(P,'w',encoding='utf-8').write(s[:m.start()]+chr(10)+s[m.end():])
+open(A,'a',encoding='utf-8').write(chr(10)+blk)
+INJ"
+# 第二种：不搬产品进来，只在豁免文件里多开一个导出。名单式检查的整个价值就在这里——
+# 它不判断什么该进来，只强制这个决定被写下来，而写下来会出现在 diff 里。
+run_case 1 "22 · 给装置文件加一个未声明的导出（豁免区不许悄悄变大）" \
+  "printf '\nexport function Sneaky() { return null }\n' >> skills/ui-contract-wireframe/assets/inspect.tsx.template"
+# 同一处违规，**只换一种拼法**。旧断言把导出名的锚放在 const|function|type 这三个词上，
+# 于是这两条一条都打不中：实测过，追加 `export async function Sneaky() { return "#2563eb" }`
+# 之后 check-colours.sh 照样印「apparatus exports match the declared list」。
+# 名单封的是名字，锚却封在拼法上——这正是本仓库那类「断言存在但打不中」的失效，
+# 而且它一次能穿掉 ADR-0012 的整个机制，不是穿掉一个角。
+run_case 1 "22 · 未声明的导出换成 export async function（旧锚只认三种拼法）" \
+  "printf '\nexport async function Sneaky() { return null }\n' >> skills/ui-contract-wireframe/assets/inspect.tsx.template"
+# 另一条拼法，走的是不同的分支（花括号名单而不是「跳修饰词取标识符」），所以要单独证。
+run_case 1 "22 · 未声明的导出换成 export { X as Y } 名单形式" \
+  "printf '\nconst sneaky = 1\nexport { sneaky as Sneaky }\n' >> skills/ui-contract-wireframe/assets/inspect.tsx.template"
+# 名单现在只有一个家，所以要证明那个家真的在被读：把声明行删掉必须红，
+# 不能因为「找不到声明」而当成「没有声明任何东西」——那会把整个文件悄悄豁免。
+run_case 1 "22 · 把 APPARATUS: 声明行删掉（缺席不是「没声明任何东西」）" \
+  "sub skills/ui-contract-wireframe/assets/inspect.tsx.template ' * APPARATUS: ' ' * 装置清单： '"
+# 反向：往声明里加一个名字、但文件里没有这个导出，不该红——名单是上界不是等式。
+# 少了这条，下一个人会把它改成相等判断，然后每次拆分组件都要同步改声明。
+run_case 0 "22 · 声明里多一个尚未存在的名字 → 不判红（名单是上界）" \
+  "sub skills/ui-contract-wireframe/assets/inspect.tsx.template 'APPARATUS: LabelsProvider' 'APPARATUS: NotYetWritten LabelsProvider'"
+# 第三种，方向相反、也最容易被忽略：把装置**搬出去**。它带着自己的固定色，一出豁免
+# 文件那些色就成了裸露的值。旧锚下这等于把代码挪到哨兵块外，是同一件事。
+run_case 1 "22 · 把装置搬出装置文件（固定色跟着离开豁免区）" \
+  "python3 - <<'INJ'
+import re
+P='skills/ui-contract-wireframe/assets/wire.tsx.template'
+A='skills/ui-contract-wireframe/assets/inspect.tsx.template'
+s=open(A,encoding='utf-8').read()
+m=re.search(r'export function SkinBanner\(\{.*?\n\}\n', s, re.S)
+open(A,'w',encoding='utf-8').write(s[:m.start()]+s[m.end():])
+open(P,'a',encoding='utf-8').write(chr(10)+m.group(0))
+INJ"
+# 第四种：整个删掉豁免文件。例外既然是一个文件，那个文件不在就不是「没有例外」，
+# 而是「断言不知道自己在判什么」——必须红，不能静静地判成全绿。
+run_case 1 "22 · 删掉装置文件（例外的载体没了，不许当成没有例外）" \
+  "rm -f skills/ui-contract-wireframe/assets/inspect.tsx.template"
 
 # 21 与 22 各自的名单/记法缺口：违规原封不动，只换一种写法。
 # 两条都是「名单式检查」的通病——名单永远差一个，所以补的时候连同**没补的**
 # 一起写进断言注释里，让下一个人看得见边界在哪，而不是以为它守住了全部。
-run_case 1 "22 · 把产品组件整段搬进哨兵块，在块内写死品牌色（一次搬一个）" \
-  "python3 - <<'INJ'
-import re
-p='skills/ui-contract-wireframe/assets/wire.tsx.template'
-s=open(p,encoding='utf-8').read()
-m=re.search(r'\nexport function Btn\(\{.*?\n\}\n', s, re.S)
-blk=m.group(0).rstrip('\n')+chr(10)+\"const BTN_BRAND = '#2563eb'\"+chr(10)
-s=s[:m.start()]+chr(10)+s[m.end():]
-s=s.replace('// ── INSPECT CHROME END', blk+'// ── INSPECT CHROME END',1)
-open(p,'w',encoding='utf-8').write(s)
-INJ"
 run_case 1 "21 · 用 <aside> 代替 <nav>（名单外的 IA 载体）" \
   "sub $T '<body' '<body><aside class=\"panel\">nav</aside'"
 run_case 1 "22 · 用 CSS 具名颜色写死值（记法外的颜色）" \
   "sub $W_TPL 'export function Badge({ children }: { children: ReactNode }) {' 'export function Badge({ children }: { children: ReactNode }) {
   const leak = { color: \"crimson\" }; void leak;'"
+
+echo "D. 32 · 覆盖承诺与检查数"
+# 这条断言守的是**这份文件自己**，所以它的用例也在这份文件里——递归但没问题：
+# 注入发生在临时副本里，跑的是那份副本的 invariants.sh 读那份副本的 effectiveness。
+run_case 1 "32 · 加一条检查但不加用例（CLAUDE.md 说这不算完成）" \
+  "printf '\necho \"99. 新检查\"\nok \"x\"\n' >> testing/structure/invariants.sh"
+# 锚必须带上行首的 `# 覆盖范围` 前缀。不带的话，`sub` 在副本里**先命中用例自己这一行**
+# ——参数里含着同一串字——于是注入「成功」了却没碰承诺行，副本干净、退出 0。
+# 第 32 条的检查早就为此把锚钉在行首注释上；用例这一侧漏了，2026-08-26 补上。
+run_case 1 "32 · 覆盖承诺的上界与实际条数对不上（那一行变回散文）" \
+  "sub testing/structure/invariants-effectiveness.sh '# 覆盖范围（这一行是承诺，别让它变成散文）：**1–34 全部有用例**' '# 覆盖范围（这一行是承诺，别让它变成散文）：**1–99 全部有用例**'"
+run_case 1 "32 · 覆盖承诺整句被删掉（唯一的全称声明不许消失）" \
+  "sub testing/structure/invariants-effectiveness.sh '# 覆盖范围（这一行是承诺，别让它变成散文）：**1–34 全部有用例**' '覆盖了一些检查'"
+
+echo "E. 33 · 颜色知识三份一致"
+# 漂移的三种走法各一条：改一份、把哨兵删掉、把名单裁短。
+run_case 1 "33 · 只改了 audit.sh 那一份的记法（三向漂移的起点）" \
+  "sub skills/ui-contract-audit/assets/audit.sh.template 'oklab' 'oklabX'"
+run_case 1 "33 · 只改了线框那一份的具名名单" \
+  "sub skills/ui-contract-wireframe/assets/check-colours.sh.template '|crimson|' '|'"
+# 哨兵没了就无从比对——那必须红，不能因为「找不到就当通过」而静默。
+run_case 1 "33 · 某一份的 COLOUR_NOTATION 哨兵被删掉" \
+  "sub skills/ui-contract-audit/assets/audit.sh.template 'COLOUR_NOTATION=' 'COLOUR_NOTATION_OLD='"
 
 printf '\n'
 # 已知抓不到、且刻意不写成用例的两处——写成用例就得给它们一个期望退出码，

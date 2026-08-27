@@ -2,24 +2,30 @@
 
 ## 这是什么
 
-`../layout.md` 的**参考实现**：一份低保真线框，**不是产品代码**。
+`../../layout.md` 的**参考实现**：一份低保真线框，**不是产品代码**。
 
 它存在的唯一目的：让你（Coding Agent）有一个「区域摆在哪、什么能放进哪个区域」的可运行参照，而不是靠猜。
 
+⚠ **是「本机参照」，不是「仓库里的参照」。** 它住在工作台 `.ui-contract-local/` 里，
+**一个真实项目不会提交这个目录**——不在时用 `ui-contract-wireframe` 技能重建，
+输入是 `../../layout.md`、`../../design.md` 与 `../../src/ui/region.tsx`，三个都是提交的。
+（本示例刻意提交了它，理由见 `../../.gitignore` 与 `examples/README.md`。）
+
 ## 动手之前（不可跳过）
 
-1. **读 `../layout.md` §1 落位决策树、§2 区域名白名单、§4.2 页型×部件矩阵。** 只改视觉的话读 `../design.md`。
-2. **走决策树。** 走通了直接实现；**走不通就停下**，按 `../layout.md` §9.3 写区域申请，不要挑一个最像的区域塞进去。
-3. **每个结构容器必须用 `<AnnotatedRegion id="...">`**，`id` 取值必须在 `../src/ui/region.tsx` 的 `RegionId` 里。手写 `<div data-region="...">` 绕过类型检查算违规。
-4. **新增区域的顺序写死**：改 `../layout.md` §2 白名单 → 改 `../src/ui/region.tsx` 的 `RegionId` 与 `REGION_META` → 写代码。**顺序不能反**，反了规范就退化成「给代码补的说明书」。
+1. **读 `../../layout.md` §1 落位决策树、§2 区域名白名单、§4.2 页型×部件矩阵。** 只改视觉的话读 `../../design.md`。
+2. **走决策树。** 走通了直接实现；**走不通就停下**，按 `../../layout.md` §9.3 写区域申请，不要挑一个最像的区域塞进去。
+3. **每个结构容器必须用 `<AnnotatedRegion id="...">`**，`id` 取值必须在 `../../src/ui/region.tsx` 的 `RegionId` 里。手写 `<div data-region="...">` 绕过类型检查算违规。
+4. **新增区域的顺序写死**：改 `../../layout.md` §2 白名单 → 改 `../../src/ui/region.tsx` 的 `RegionId` 与 `REGION_META` → 写代码。**顺序不能反**，反了规范就退化成「给代码补的说明书」。
 5. `REGION_META` 里的 `desc` 写「**该放什么 / 不该放什么**」，不是「这是什么」。说明写错比代码写错更危险——下一个 Agent 会照着它扩展。
 
 ## 分层：资产层 / 展示层
 
 | | 住哪 | 性质 |
 |---|---|---|
-| **资产层** | `../src/ui/region.tsx`（**在本目录之外**） | `RegionId` · `REGION_META` · 裸的 `Region` 结构容器。生产代码，长期维护，**不含品牌视觉、不含标注层** |
-| **展示层** | `src/wire.tsx`（本目录） | `AnnotatedRegion` 包装 + 中性零件。一次性，结构变了重新生成 |
+| **资产层** | `../../src/ui/region.tsx`（**在本目录之外**） | `RegionId` · `REGION_META` · 裸的 `Region` 结构容器。生产代码，长期维护，**不含品牌视觉、不含标注层** |
+| **展示层** | `src/wire.tsx`（本目录） | 中性零件 + `NEUTRAL` 色板。一次性，结构变了重新生成 |
+| **装置** | `src/inspect.tsx`（本目录） | 标注层 + 演示条外观。**这个文件就是颜色豁免**——它的导出是一份封闭名单，`check-colours.sh` 读它 |
 
 线框 import 资产层，**反过来永远不成立**。资产层住在本目录之外，正是为了让这条不可能被写反：**重新生成这个目录不会碰到它**。在展示层里声明区域名 = 项目有了两份白名单，强制机制会去守错的那一份。
 
@@ -37,6 +43,9 @@
 | **表格里一个按钮都没有** | `layout.md` §10-1：单行操作只在 `inspector.foot`。`TableColumnKind` 里**没有 `actions` 是刻意的**，不是漏了 |
 | **向导页没有右侧面板** | `layout.md` §4.3 硬禁止。`PageWithInspector` 只含 `'list'`，想加会类型报错 |
 | **属性面板类型枚举只有 1 型** | 一等对象由本产品决定。要加第 2 型先过 `layout.md` §5.4 三条判据，别复用 `content-item` 硬塞 |
+| **`PageKind` / `PageWithInspector` / `TableColumnKind` / `InspectorKind` 不在本目录声明** | 它们是 `layout.md` 的条款，约束的是**产品代码**。声明在一次性目录里就只约束得住一次性目录，产品照样能做被禁止的事。它们住 `../../src/ui/region.tsx`，本目录只转手 |
+| **颜色一律走 `var(--wire-*)`，值只在 `wire.tsx` 的 `NEUTRAL` 与 `inspect.tsx`** | 判据不是「这里没有颜色」，是「这里没有颜色的**值**」。`pnpm check-colours` 机检这一条 |
+| **没有换肤预览、没有换肤编辑器** | 本轮没做（ADR-0006 / 0007）。缺口在 `examples/README.md` 的落后表里点了名——**落后可以，隐瞒不行** |
 | 面板不会因为「后台有事发生」自动切换 | `layout.md` §5.5：不抢面板。信号靠导航角标 + 状态标签列补偿 |
 | 没有选中行时 `main.bulkbar` **整个不渲染**（不是 hidden） | 白名单里写死的：批量条不占常驻空间 |
 | 降级用 `ResizeObserver` 实测宽度，不用视口断点 | `layout.md` §10-8：断点不知道其它栏的状态，会在空间其实够时误收 |
@@ -45,13 +54,13 @@
 | 滚动容器里的区域角标会随内容滚走 | 已知的小毛病。修它要给每个滚动容器套壳，代价大于收益 |
 | 嵌套区域的角标互相压 | 标注模式下层级本来就叠着，不可避免 |
 | `Inspector.tsx` 里有 `void page` / `void kind` | 这两个参数现在取值唯一，但它们的**类型**就是约束本身。别因为「没用到」把参数删了 |
-| P3 表单页 / P4 概览页没有设计稿 | 是从「系统组必然要配置页、工作台必然要概览」推断的。见 [`adr/layout/0010`](../docs/ui-contract/adr/layout/0010-four-page-types-and-p4-grid.md) |
+| P3 表单页 / P4 概览页没有设计稿 | 是从「系统组必然要配置页、工作台必然要概览」推断的。见 [`adr/layout/0010`](../../docs/ui-contract/adr/layout/0010-four-page-types-and-p4-grid.md) |
 
 ## 结构参数的唯一来源
 
 `src/structure.ts` 的 `STRUCT`（栏宽、最小宽、上限、分页大小、网格列数）。
 
-**改这些常量等于改规范**，必须同步 `../layout.md` §3.2。降级判定是同文件的纯函数 `resolveShell`——改级联顺序等于改 `../layout.md` §3.4。
+**改这些常量等于改规范**，必须同步 `../../layout.md` §3.2。降级判定是同文件的纯函数 `resolveShell`——改级联顺序等于改 `../../layout.md` §3.4。
 
 视觉值（颜色、字号、圆角、间距）**不在这里**，也不该被加到这里。
 
@@ -67,4 +76,9 @@ pnpm typecheck  # ← 白名单校验就在这一步：写了不在 RegionId 里
 pnpm build
 ```
 
-**`pnpm typecheck` 是三层强制机制里的编译期那一层。** 提交前必须过。
+**`pnpm typecheck` 是编译期那一层，而它守的是产品代码**——白名单与四条禁令都住资产层，
+自断言在 `../../src/ui-contract.assert.ts`。提交前必须过。
+
+```bash
+pnpm check-colours   # 线框颜色纪律。**不是 CI 层**：工作台通常不提交，它跑不到 CI 里
+```

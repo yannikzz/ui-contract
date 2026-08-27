@@ -33,17 +33,41 @@
 | `layout.md` | 结构：区域树、栏宽、页型、拓展位、内容落位、降级 | 加功能、挪位置、新增页面 |
 | `design.md` | 视觉：颜色、字号、间距、圆角、状态样式、组件变体 | 调样式、加组件 |
 | `src/ui/region.tsx` | **资产层**：区域白名单的类型形态 + 结构容器。生产代码，业务从这里 import | 新增区域、写任何带区域标记的代码 |
-| `wireframe/` | 上面两份的可运行参考实现（低保真、刻意无品牌视觉）。**一次性**，消费资产层 | 想知道「这块到底摆在哪」时 |
-| `wireframe/CLAUDE.md` | 线框目录的硬约束 + **刻意的取舍清单** | 动 `wireframe/` 里任何代码之前 |
+| `.ui-contract-local/wireframe/` | 上面两份的可运行参考实现（低保真、刻意无品牌视觉）。**一次性**，消费资产层 | 想知道「这块到底摆在哪」时 |
+| `.ui-contract-local/wireframe/CLAUDE.md` | 线框目录的硬约束 + **刻意的取舍清单** | 动 `.ui-contract-local/wireframe/` 里任何代码之前 |
 | `docs/ui-contract/adr/layout/` | **决策记录**：每条重量级结构决策**为什么这么定、排除了什么、什么条件下复议**。只指向 `layout.md` 的条款，不复述条款 | 你觉得某条规则不合理时——先看有没有一份记录已经排除过你想提的方案 |
 | `docs/ui-contract/config.md` | 授权、文件位置、以及**本轮未验证的事项** | 想知道某个结论有没有证据支撑时 |
 
 ## 编译期校验
 
-区域白名单在 `src/ui/region.tsx`（资产层，**在线框目录之外**）里是 TypeScript 联合类型。写一个不在表里的区域名会**直接类型报错**。展示层 `wireframe/src/wire.tsx` 只把这个类型转发出去，**白名单只有这一份**。
+区域白名单在 `src/ui/region.tsx`（资产层，**在线框目录之外**）里是 TypeScript 联合类型。写一个不在表里的区域名会**直接类型报错**。展示层 `.ui-contract-local/wireframe/src/wire.tsx` 只把这个类型转发出去，**白名单只有这一份**。
 
 ```bash
 pnpm typecheck
 ```
 
-同类手法还用在别处（这几个住展示层 `wireframe/src/wire.tsx`）：`TableColumnKind` 里没有 `actions`、`PageWithInspector` 里只有 `'list'`、`InspectorKind` 里只有 `'content-item'`——**这些缺失都是刻意的**，规则由类型系统把关，不靠人记。看到「好像漏了一个」时先读 `layout.md` 对应小节，再决定是不是真要加。
+同类手法还用在别处，而且**同样住资产层**：`TableColumnKind` 里没有 `actions`、`PageWithInspector` 里只有 `'list'`、`InspectorKind` 里只有 `'content-item'`——**这些缺失都是刻意的**。看到「好像漏了一个」时先读 `layout.md` 对应小节，再决定是不是真要加。
+
+它们曾经声明在线框里。那样只约束得住线框——而线框是一次性的，**产品代码照样可以做被禁止的事，没有任何东西会响**。规则约束的是会发布的代码，所以类型必须和产品代码一起过类型检查。
+
+### 禁令是**双向**守住的
+
+省略只在一个方向上被强制：编译器抓「代码用了禁止的成员」，没有任何东西抓「有人把成员加回来」。加回来的那一刻所有调用点照样编译，注释开始描述一条已经不存在的规则，而**输出一模一样**。
+
+`src/ui-contract.assert.ts` 补的就是另一个方向：每条禁令一行 `@ts-expect-error`，禁令还在时它消费掉那个错误；**谁把禁止的成员加回去，指令就变成未使用，tsc 报 TS2578**。实测过：往 `TableColumnKind` 里加回 `'actions'` → `src/ui-contract.assert.ts(24,1): error TS2578`。
+
+那个文件没有任何人 import，**靠 tsconfig 的 `include` 覆盖到它**。改 `include` 时别把它漏掉——漏掉之后它和一个通过了的文件在输出里完全一样。
+
+## 工作台：`.ui-contract-local/`
+
+两个维度的**排练**住这里：线框（`layout` 维度）、旋钮记录与皮肤改动（`design` 维度）。两个维度的**权威**住仓库：`layout.md`、`design.md`、**token 文件 `src/tokens.css`**、`docs/ui-contract/`。
+
+**一个真实项目会把 `.ui-contract-local/` 加进 `.gitignore`。本项目刻意没有**——它是 ui-contract 的示例，存在的目的是被读，理由写在 `.gitignore` 里和 `examples/README.md`。
+
+线框不在仓库里时怎么重建：跑 `ui-contract-wireframe` 技能，输入是 `layout.md`、`design.md` 和 `src/ui/region.tsx`——三个都是提交的。
+
+```bash
+pnpm typecheck       # 白名单 + 禁令自断言
+pnpm check-colours   # 线框颜色纪律。**不是 CI 层**，见脚本头部
+pnpm build           # typecheck + vite build。check-colours 不在里面，见 examples/README.md「Verified」
+```

@@ -1,0 +1,576 @@
+/**
+ * Inspect apparatus. Starting point for <wireframe>/src/inspect.tsx.
+ *
+ * **This file IS the wireframe's colour exemption.** The exemption is a file, not a
+ * marker inside a file. Everything here is apparatus and never a
+ * product surface: region badges, the region outline, the tooltip, the skin-preview
+ * banner, the skin editor, and the whole demo toggle bar.
+ *
+ * All of it carries fixed colour values on purpose. Every surface here is something
+ * you use to control or interpret the wireframe, so it has to stay readable no matter
+ * what the skin does — which means none of it may follow the skin. Three of these were
+ * measured, not reasoned:
+ *
+ *   - A tooltip tinted by the theme it describes stops being able to describe it.
+ *   - A warning banner tinted by the values it warns about can vanish. The first
+ *     version used --wire-strong / --wire-strong-fg; a pale brand colour turned it
+ *     white-on-white, so the guard disappeared exactly where the theme made it
+ *     hardest to notice. A warning may not depend on what it warns about.
+ *   - The demo toggle bar holds the control that turns the skin OFF. Skin that, and a
+ *     bad theme becomes a trap you cannot get out of.
+ *
+ * The exports below are a CLOSED, DECLARED list, and this is where it is declared:
+ *
+ * APPARATUS: LabelsProvider useLabels AnnotatedRegion SkinBanner SkinEditor toHex DemoPanel ThemeSwitch Group Sw Readout Alert
+ *
+ * That line is the decision, and it lives here because here is where the decision is
+ * made — adding a name to it shows up in a diff of this file, next to the thing being
+ * added. `check-colours.sh` READS it and carries no copy of its own, so adding a name is
+ * one edit in one place.
+ *
+ * ⚠ The `APPARATUS:` marker stays ASCII even when this comment is written in the
+ * deliverable's language — same rule as the paths table's Key column and the
+ * declaration table's three keywords, and the same failure if it is translated: the
+ * readers stop finding it. `check-colours.sh` is required to fail loudly when it is
+ * missing rather than treat "no declaration" as "nothing declared". Moving a product
+ * component in here would buy it the right to hardcode colour, so adding a name has to be a
+ * decision somebody wrote down — and a file move is visible in a diff in a way that
+ * relocating two comment markers is not.
+ *
+ * Everything that is NOT apparatus lives in wire.tsx and takes its colour through
+ * var(--wire-*). The only values there are the NEUTRAL map.
+ */
+import { createContext, useContext, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import type { CSSProperties, ReactNode, RefObject } from 'react'
+
+// TODO point this at the project's asset layer (the file produced by ui-contract-assets).
+// The wireframe imports from the asset layer; never the reverse.
+// The depth below is counted from the default location, `.ui-contract-local/wireframe/src/`:
+// three levels up is the repo root. Re-count it if the wireframe is put somewhere else.
+import { Region, REGION_META, type RegionId } from '../../../src/ui/region'
+
+// SKIN is the role -> token-name map; the editor builds its fields from it. It lives
+// in wire.tsx with the other colour declarations, not here.
+import { SKIN } from './wire'
+
+const LabelsCtx = createContext(false)
+export const LabelsProvider = LabelsCtx.Provider
+export const useLabels = () => useContext(LabelsCtx)
+
+const TIP_W = 300
+
+/**
+ * Region badge. The tooltip is portalled to document.body with fixed positioning:
+ * ancestors' overflow-hidden can't clip it, and it doesn't compete in the
+ * prototype's stacking contexts — z-index alone can't fix this, because
+ * clipping ignores z-index.
+ *
+ * Flip direction and horizontal clamping are computed from real viewport space,
+ * so there's no hand-maintained list of "regions that open upward".
+ */
+function RegionLabel({ id, text, desc }: { id: RegionId; text: string; desc: string }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const [tip, setTip] = useState<{ left: number; top: number; up: boolean } | null>(null)
+
+  const show = () => {
+    const el = ref.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const up = r.bottom + 8 + 120 > window.innerHeight
+    setTip({
+      left: Math.min(Math.max(8, r.left), Math.max(8, window.innerWidth - TIP_W - 8)),
+      top: up ? r.top - 4 : r.bottom + 4,
+      up,
+    })
+  }
+
+  return (
+    <span
+      ref={ref}
+      onMouseEnter={show}
+      onMouseLeave={() => setTip(null)}
+      className="absolute -top-px left-0 z-10 cursor-help rounded-br bg-sky-600/85 px-1 text-[10px] leading-[15px] font-medium whitespace-nowrap text-white hover:bg-sky-700"
+    >
+      {text}
+      {tip &&
+        createPortal(
+          <div
+            style={{
+              position: 'fixed',
+              left: tip.left,
+              top: tip.top,
+              width: TIP_W,
+              transform: tip.up ? 'translateY(-100%)' : undefined,
+              zIndex: 9999,
+            }}
+            /* The annotation overlay stays hard-coded dark on purpose: it is inspect
+               chrome, not a product surface, so it must NOT follow the skin. Skinning
+               it would put the tooltip inside the thing the tooltip is describing. */
+            className="pointer-events-none rounded-lg border border-neutral-700 bg-neutral-900 p-2.5 shadow-xl"
+          >
+            <p className="font-mono text-[10px] break-all text-sky-300">data-region="{id}"</p>
+            {/* whitespace-normal is required: nowrap on the badge would inherit and overflow */}
+            <p className="mt-1 text-[11px] leading-relaxed font-normal break-words whitespace-normal text-neutral-200">
+              {desc}
+            </p>
+          </div>,
+          document.body,
+        )}
+    </span>
+  )
+}
+
+/**
+ * Annotated wrapper around the asset layer's `Region`.
+ *
+ * The wireframe renders every structural container through this; production code
+ * renders through the bare `Region`. Same id space, same runtime marker — the only
+ * difference is the inspect overlay, which is why it lives here and not there.
+ */
+export function AnnotatedRegion({
+  id,
+  children,
+  className = '',
+  style,
+  label,
+  elRef,
+}: {
+  id: RegionId
+  children?: ReactNode
+  className?: string
+  /** Computed structural values — a degradation rule has to be visibly live, not a fixed class */
+  style?: CSSProperties
+  /** Overrides the badge label (e.g. a region's collapsed form) */
+  label?: string
+  elRef?: RefObject<HTMLDivElement | null>
+}) {
+  const on = useLabels()
+  const meta = REGION_META[id]
+  return (
+    <Region
+      id={id}
+      elRef={elRef}
+      style={style}
+      className={`${className} ${on ? 'relative outline-1 outline-dashed outline-sky-500/50' : ''}`}
+    >
+      {on && <RegionLabel id={id} text={label ?? meta.label} desc={meta.desc} />}
+      {children}
+    </Region>
+  )
+}
+
+/**
+ * The marker that travels with a screenshot.
+ *
+ * The failure this guards against: six months on nobody remembers the preview
+ * defaults to off, an agent opens it, screenshots it, and copies from there.
+ * Default-off does not reach that agent — a picture does. Render this whenever
+ * the preview is on, and do not make it dismissible.
+ *
+ * Its colours are FIXED, and that is the whole point. The first version painted
+ * it with --wire-strong / --wire-strong-fg and it came out tinted by the very
+ * skin it was warning about: map --wire-strong to a pale brand colour and the
+ * banner goes white-on-white, i.e. the guard disappears exactly when the theme
+ * makes it hardest to notice. A warning may not depend on what it warns about.
+ */
+export function SkinBanner({ tokenFile }: { tokenFile: string }) {
+  return (
+    <div className="bg-amber-400 px-3 py-1 text-center font-mono text-[11px] font-medium text-neutral-950">
+      SKIN PREVIEW ON · values are read live from {tokenFile} · do not copy them from here
+    </div>
+  )
+}
+
+/**
+ * Skin editor. Turns the preview from "look" into "look and adjust" — the reason
+ * being that only the wireframe shows this product's real IA, so it is the only
+ * place where "that spacing is wrong at this density" can be noticed AND acted on.
+ *
+ * It writes nothing. Values live in memory; the output is a prompt you hand to an
+ * agent, which edits tokens.input.json. The instrument stays the JSON's only
+ * writer, so two open editors cannot overwrite each other.
+ *
+ * KNOWN COST, accepted deliberately: the hop from "turned a knob here" to "the
+ * JSON changed" goes through an agent and is not recorded. Do not paper over it.
+ */
+/**
+ * Two values are the same value if they resolve to the same colour, even when
+ * they are written differently.
+ *
+ * Without this, opening the native colour picker and closing it again rewrites
+ * `oklch(0.47 0.15 258)` as `#1a57ad` — identical colour, different notation —
+ * and the prompt reports it as a change. **A prompt that invents changes is
+ * worse than no prompt**: an agent applying it would quietly convert the
+ * project's colour space to hex, and the user never asked for that.
+ *
+ * Non-colours (a radius, a length) fall back to string comparison.
+ */
+function sameValue(a: string, b: string): boolean {
+  if (a === b) return true
+  const ha = toHex(a)
+  const hb = toHex(b)
+  return ha !== null && hb !== null && ha === hb
+}
+
+export function SkinEditor({
+  base,
+  draft,
+  onChange,
+  onReset,
+  tokenFile,
+  theme,
+  chosen,
+  themeLabel,
+}: {
+  /** what the token file currently says, per --wire-* role */
+  base: Record<string, string>
+  /** edited values, per role; absent means unchanged */
+  draft: Record<string, string>
+  onChange: (role: string, value: string) => void
+  onReset: () => void
+  tokenFile: string
+  /** the direction currently previewed */
+  theme: string
+  /** the direction design.md §1 already settled on */
+  chosen: string
+  themeLabel: (id: string) => string
+}) {
+  // Three states, not a boolean. **"copy failed" and "not clicked yet" must not share
+  // one** — merged, a failure looks like an untouched button while the user already
+  // believes they hold the text.
+  const [copyState, setCopyState] = useState<'idle' | 'ok' | 'failed'>('idle')
+  const taRef = useRef<HTMLTextAreaElement>(null)
+  const rows = Object.entries(SKIN).filter(([, token]) => token)
+  const changed = rows
+    .map(([role, token]) => ({ role, token, from: base[role] ?? '', to: draft[role] }))
+    .filter((r) => r.to !== undefined && !sameValue(r.from, r.to))
+
+  // Switching direction and tuning a token are **two different things**, and the prompt
+  // must not flatten them into one.
+  //
+  // A direction change is an `originate` Step 1 decision: the document changes first
+  // (§1 — the direction, its cost, whether the hue basis moves), then the values are
+  // re-derived, then the structural numbers that depend on the scale get re-checked.
+  // Emitting a token diff instead sends an agent to edit the token file while the
+  // document still names the old direction — **the document says one thing and the
+  // values say another**, which is the second authority this whole split prevents.
+  //
+  // So the direction section comes first, and it carries a process, not numbers.
+  //
+  // TODO both sections in the deliverable's language. The shapes are what matter:
+  // exact old -> new for edits, and document-first ordering for a direction change.
+  const switched = theme !== chosen
+  const lines: string[] = []
+  if (switched) {
+    lines.push(
+      `Prefer ${themeLabel(theme)} over the settled ${themeLabel(chosen)}, seen at real density.`,
+      ``,
+      `This is a DIRECTION change, not a tuning change. The order does not reverse:`,
+      `  1. design.md §1 first — the direction, its cost, and whether the hue basis moves`,
+      `  2. re-derive the values from the new coordinates into ${tokenFile}`,
+      `  3. re-check the structural numbers that depend on the scale (layout.md)`,
+      ``,
+      `Do not skip step 1 and edit tokens — that leaves the document naming one direction`,
+      `and the values carrying another.`,
+    )
+  }
+  if (changed.length) {
+    if (switched) lines.push(``, `Also tuned by hand on top of ${themeLabel(theme)}:`, ``)
+    else
+      lines.push(
+        `Update ${tokenFile}. These were tuned in the wireframe against it;`,
+        `the wireframe stores nothing, so nothing has been written yet.`,
+        ``,
+      )
+    lines.push(...changed.map((c) => `  ${c.token}  ${c.from}  ->  ${c.to}`))
+    lines.push(``, `Keep the names exactly as written — design.md is the name authority.`)
+  }
+  const prompt = lines.join('\n')
+
+  return (
+    <div className="border-t border-neutral-700 bg-neutral-900 p-2 text-[11px] text-neutral-200">
+      <div className="mb-1.5 flex items-center gap-2">
+        <span className="font-mono text-neutral-400">skin editor</span>
+        <span className="text-neutral-500">
+          {changed.length ? `${changed.length} changed` : 'no changes'}
+        </span>
+        <button
+          className="ml-auto rounded border border-neutral-600 px-1.5 py-0.5 hover:bg-neutral-800"
+          onClick={onReset}
+        >
+          reset
+        </button>
+        <button
+          className="rounded border border-amber-400 bg-amber-400 px-1.5 py-0.5 font-medium text-neutral-950 disabled:opacity-40"
+          disabled={!prompt}
+          onClick={async () => {
+            // The clipboard API does not exist in a non-secure context — opened over a
+            // LAN IP, or with permission refused. The first version wrote
+            // `navigator.clipboard?.writeText(...)`, so it silently did nothing and then
+            // reported success: **it lied**, about the one thing that carries
+            // the user's intent in this path. Report what actually happened,
+            // and on failure select the text so it can still be taken by hand.
+            try {
+              if (!navigator.clipboard) throw new Error('no clipboard in this context')
+              await navigator.clipboard.writeText(prompt)
+              setCopyState('ok')
+            } catch {
+              setCopyState('failed')
+              taRef.current?.select()
+            }
+            setTimeout(() => setCopyState('idle'), 2500)
+          }}
+        >
+          {copyState === 'ok' ? 'copied' : copyState === 'failed' ? 'selected — press ⌘C' : 'copy prompt'}
+        </button>
+      </div>
+      {prompt ? (
+        <textarea
+          ref={taRef}
+          readOnly
+          value={prompt}
+          onFocus={(e) => e.currentTarget.select()}
+          rows={Math.min(10, prompt.split('\n').length)}
+          className="mb-1.5 w-full resize-y rounded border border-neutral-700 bg-neutral-950 p-1.5 font-mono text-[10px] leading-relaxed text-neutral-200"
+        />
+      ) : (
+        // Say why the button is grey. Left as bare `disabled`, it reads as broken.
+        <p className="mb-1.5 text-neutral-500">TODO, in the deliverable's language: change a value and the prompt appears here.</p>
+      )}
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-x-3 gap-y-1">
+        {rows.map(([role, token]) => {
+          const cur = draft[role] ?? base[role] ?? ''
+          const dirty = draft[role] !== undefined && !sameValue(base[role] ?? '', draft[role])
+          const hex = toHex(cur)
+          return (
+            <label key={role} className="flex items-center gap-1.5">
+              <span
+                className={`w-28 shrink-0 truncate font-mono ${dirty ? 'text-amber-300' : 'text-neutral-400'}`}
+                title={`${token}  (${role})`}
+              >
+                {token}
+              </span>
+              {hex && (
+                <input
+                  type="color"
+                  // `<input type="color">` only accepts `#rrggbb`. Slicing the
+                  // alpha off is display-only: `cur` keeps the full value, and
+                  // sameValue still compares all eight digits. Picking a colour
+                  // here does drop the alpha — that is a real edit the user
+                  // made, and it now shows up as one instead of vanishing.
+                  value={hex.slice(0, 7)}
+                  onChange={(e) => onChange(role, e.target.value)}
+                  className="h-5 w-6 shrink-0 rounded border border-neutral-600 bg-transparent p-0"
+                />
+              )}
+              <input
+                type="text"
+                value={cur}
+                onChange={(e) => onChange(role, e.target.value)}
+                className="min-w-0 flex-1 rounded border border-neutral-600 bg-neutral-950 px-1 py-0.5 font-mono text-neutral-200"
+              />
+            </label>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Resolve any CSS colour to #rrggbb by PAINTING it, so oklch()/lab()/color()
+ * work. Reading digits out of getComputedStyle does not: modern browsers keep
+ * `oklch(...)` as `oklch(...)`, and scraping it reads lightness/chroma/hue as
+ * if they were r/g/b — no error, plausible numbers, all wrong.
+ *
+ * There is a second copy of this in the tuning instrument's template. They
+ * cannot share code: one is an HTML template, the other a tsx template, in two
+ * packages, and cross-package references are forbidden. If the two ever
+ * disagree, the symptom is the same value shown differently in the two tools,
+ * with nothing reporting an error.
+ */
+let cx: CanvasRenderingContext2D | null = null
+export function toHex(v: string): string | null {
+  if (typeof window === 'undefined' || !v?.trim()) return null
+  if (!cx) {
+    const c = document.createElement('canvas')
+    c.width = c.height = 1
+    cx = c.getContext('2d', { willReadFrequently: true })
+  }
+  if (!cx) return null
+  // An invalid value leaves the previous fillStyle standing, so two different
+  // sentinels tell "rejected" apart from "happens to equal the sentinel".
+  cx.fillStyle = '#010203'
+  cx.fillStyle = v
+  const a = cx.fillStyle
+  cx.fillStyle = '#040506'
+  cx.fillStyle = v
+  if (a !== cx.fillStyle) return null
+  cx.clearRect(0, 0, 1, 1)
+  cx.fillRect(0, 0, 1, 1)
+  const d = cx.getImageData(0, 0, 1, 1).data
+  // Alpha is part of the value, so it is part of the identity: `#rrggbbaa` when
+  // the colour is translucent, `#rrggbb` when it is not. Returning six digits
+  // always is what made `sameValue` blind — rgba(0,0,0,.4) and rgba(0,0,0,.8)
+  // both resolved to `#000000`, so an opacity edit was reported as no edit:
+  // no dirty marker, and nothing in the prompt. The prompt is the only carrier
+  // of the user's intent, and a change that never reaches it is a change that
+  // never happened.
+  const n = (x: number) => x.toString(16).padStart(2, '0')
+  const rgb = '#' + n(d[0]) + n(d[1]) + n(d[2])
+  return d[3] === 255 ? rgb : rgb + n(d[3])
+}
+
+// ── The demo toggle bar ───────────────────────
+/**
+ * The bar is not part of the product interface — it sits outside the window so a
+ * person can verify the spec. Its chrome lives in this file for one reason: **it
+ * holds the control that turns the skin off.**
+ *
+ * This placement also removes a trap that used to be a note. `Sw` and `Group` sat at
+ * the bottom of App.tsx, well past the product markup, so a "convert everything below
+ * the product marker to var()" pass took them along and the toggles started changing
+ * colour with the theme. A note said "keep them hard-coded"; a file boundary makes
+ * that pass impossible to write wrongly.
+ *
+ * App.tsx composes these and carries no colour of its own.
+ */
+export function DemoPanel({
+  open,
+  onToggle,
+  children,
+}: {
+  open: boolean
+  onToggle: () => void
+  children: ReactNode
+}) {
+  // 收起态**必须仍然是一个看得出来能点的东西**。第一版收起后留下一条 560px 宽的黑条，
+  // 宽度没变、只是空了——读起来像残留而不是入口，用户找不到回去的路。
+  // 所以收起时缩成一个自适应宽度的角标，展开时才铺开。
+  if (!open) {
+    return (
+      <button
+        onClick={onToggle}
+        title="expand"
+        className="fixed bottom-3 left-3 z-50 rounded border border-neutral-600 bg-neutral-900 px-2.5 py-1.5 text-[11px] font-medium text-white shadow-lg hover:bg-neutral-800"
+      >
+        ⚙ TODO name it in the deliverable's language
+      </button>
+    )
+  }
+  return (
+    <div className="fixed bottom-3 left-3 z-50 flex max-h-[85vh] w-[min(560px,calc(100vw-1.5rem))] flex-col rounded border border-neutral-600 bg-neutral-900 text-white shadow-xl">
+      <button
+        onClick={onToggle}
+        className="flex shrink-0 items-center justify-between gap-3 px-3 py-1.5 text-left text-[11px] font-medium hover:bg-neutral-800"
+      >
+        <span>TODO name it in the deliverable's language</span>
+        <span className="text-neutral-400">收起 ▾</span>
+      </button>
+      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto border-t border-neutral-700 px-3 py-2">
+        {children}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Direction switch — **this project's own candidate directions**, not themes this
+ * plugin ships.
+ *
+ * The distinction is hard, not stylistic: a plugin shipping three brand palettes is
+ * "generate a default brand" three times over — the one thing this method refuses —
+ * and the values would live in a throwaway file, a second value authority. What
+ * belongs here is the set of directions `originate` Step 1 already put to the user:
+ * the chosen one, and the ones that were declined. Switching between them answers
+ * "what did we turn down" **at real density**, which is the one question paper
+ * cannot answer.
+ *
+ * Read the candidates from the knobs record; do not write values into this file.
+ *
+ * ⚠ It swaps **tokens**, so it shows the token-level difference between directions and
+ * nothing else. A direction whose defining trait is a *treatment* — filling whole rows
+ * rather than marking their edge — will look nearly identical here. Say so when you
+ * hand it over, or the switch quietly claims to preview more than it does.
+ */
+export function ThemeSwitch({
+  value,
+  onChange,
+  options,
+}: {
+  value: string
+  onChange: (id: string) => void
+  options: { id: string; label: string; axes: string }[]
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+      <span className="text-neutral-400">TODO label, in the deliverable's language</span>
+      {options.map((o) => (
+        <button
+          key={o.id}
+          onClick={() => onChange(o.id)}
+          title={o.axes}
+          className={`rounded border px-1.5 py-0.5 ${
+            value === o.id ? 'border-white bg-white text-neutral-900' : 'border-neutral-600 text-neutral-300'
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** One labelled cluster of switches. */
+export function Group({ name, children }: { name: string; children: ReactNode }) {
+  return (
+    <div className="flex items-center gap-1.5 text-[11px]">
+      <span className="text-neutral-400">{name}</span>
+      <div className="flex flex-wrap gap-1">{children}</div>
+    </div>
+  )
+}
+
+/** One switch. `on` is the selected state. */
+export function Sw({
+  on,
+  onClick,
+  children,
+}: {
+  on: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded border px-1.5 py-0.5 text-[11px] ${
+        on ? 'border-white bg-white text-neutral-900' : 'border-neutral-600 text-neutral-300'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+/**
+ * The live readout row. A degradation rule has to be checkable against numbers rather
+ * than by feel, so print the measured width, each column's resolved state, the
+ * threshold, and which steps fired.
+ */
+export function Readout({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-neutral-700 pt-1.5 font-mono text-[10px] text-neutral-300">
+      {children}
+    </div>
+  )
+}
+
+/**
+ * A readout value that means a rule fired. Fixed colour, same reason as everything
+ * else here: a readout you cannot read under the current skin cannot report on it.
+ */
+export function Alert({ children }: { children: ReactNode }) {
+  return <span className="text-amber-300">{children}</span>
+}

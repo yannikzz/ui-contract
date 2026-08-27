@@ -46,6 +46,35 @@ The user picks **one of three points** in that space. Each point is described as
 
 **How to place the points:** the three must differ on **at least two axes**. Three points that are all somewhat soft and differ only in degree are not mutually exclusive — the user has nothing to choose between, and the interview has produced the appearance of a decision.
 
+### Ground the points in this product's world, not in "admin console"
+
+Three points drawn from the category are three points every product in that category could
+have been offered. The subject's own world — what the people using it are actually doing, the
+materials and instruments and vocabulary of that work — is where a point stops being generic.
+
+A review queue is not "an admin console": it is somebody moving through a backlog for hours,
+where the question every row has to answer is *does this one need me*. A monitoring console is
+not that. Points named from the work land differently from points named from the category.
+
+**Test it by swapping the product.** Take the three points and ask whether they would be
+offered, unchanged, for a different product in the same category. If yes, they were drawn from
+the category and the interview is about to produce the appearance of a decision.
+
+### One of the three has to cost something
+
+Three safe points are not a choice. If every option is defensible to everyone, the user is
+picking a favourite rather than making a trade, and the result is the direction that offends
+nobody — which is the same direction every similar product already has.
+
+So **at least one of the three is deliberately unconventional for this category**, and its cost
+is stated as plainly as the others'. Not a wild one: one that a reasonable person might pick
+*because* of what it buys, while knowing what it gives up.
+
+⚠ **The risk still belongs to the user, not to you.** This plugin does not produce the user's
+answers. What this section asks for is a real option on the table, not an
+agent taking an aesthetic risk on somebody's product. Offering a bold point and having it
+declined is the mechanism working; picking it yourself is not.
+
 ### Costs
 
 Every option carries a cost, and the cost is written as **a specific consequence in this product**:
@@ -63,12 +92,11 @@ The chosen direction and its stated cost land in `design.md` §1, marked 🌡 �
 
 ## Step 2 — derive the first values
 
-This step used to say "call `frontend-design`". It no longer does, and the reason is not
+This step used to say "call `frontend-design`", and the reason it no longer does is not
 tidiness: that skill ships in a different marketplace, so most installs never had it. Measured
-across real runs, the branch then behaved two different ways — some runs derived the values
-anyway, others deferred them to "a later round" and declared the work finished. Both produced a
-deliverable that reads as complete. A step whose behaviour depends on whether an unrelated
-plugin happens to be installed is not a step.
+across real runs, the branch then went two ways — some derived the values anyway, others
+deferred them to "a later round" and declared the work finished. Both deliverables read as
+complete. A step whose behaviour depends on an unrelated plugin being installed is not a step.
 
 So it is derived here. That inherits the problem the delegation existed to avoid — **the most
 likely outcome of "generate a brand" is another default framework blue** — and the rest of this
@@ -86,9 +114,9 @@ The interview produced coordinates, and the axes already name which token group 
 | Restrained ↔ expressive | How many colours exist, how saturated they are, how much area the accent may cover |
 
 **A value you cannot trace back to a coordinate is a value you defaulted.** That is the whole
-test, and it is worth stating as the negative: a default is not a bad-looking value, it is a
-value that arrived without a reason. Two derivations from the same point should land close;
-two derivations from different points must not.
+test, stated as the negative: a default is not a bad-looking value, it is one that arrived
+without a reason. Two derivations from the same point should land close; from different points,
+they must not.
 
 ### The gap the axes do not close: hue
 
@@ -122,6 +150,55 @@ names instead — "the category convention, pushed darker and less saturated" �
 `tokens.input.json` hold the number. The rule this collides with is not new; it is the one at the
 top of `SKILL.md`, and an explanation is not an exemption from it.
 
+### The signature: one recurring treatment this product is recognisable by
+
+A set of values can be perfectly coherent and still be the set every product in the category
+has. Coherence is what the axes buy; **recognisability is a separate thing and nothing above
+produces it.**
+
+So name one — exactly one — **recurring visual treatment** that carries the direction and
+appears wherever its condition appears. For a design *system* the signature is not a hero
+moment; it is a treatment, because a system's job is to repeat.
+
+| A signature is | A signature is not |
+|---|---|
+| How the thing this product is *for* gets expressed, everywhere it appears | A decorative element added on top |
+| Derivable from the chosen direction — you can say which coordinate forced it | A flourish that would survive a change of direction unchanged |
+| One thing | Three things, which is the same as none |
+
+**Spend the boldness there and keep everything around it quiet.** A system with three signatures
+has none, and the surrounding restraint is what makes the one legible.
+
+Write it into `design.md` §1 beside the direction, and say **which coordinate forced it**. A
+signature you cannot trace to a coordinate is decoration, and it is the first thing to cut.
+
+### Then check whether you produced the category's answer
+
+Before writing anything, run the derivation back the other way: **would this same set come out
+for a different product in this category?**
+
+Do it concretely, not as a feeling: take the brief, swap the product for a neighbour in the same
+category, re-derive. Landing in the same place means the values came from the category rather
+than this product — those are the parts to revise. Say which ones you changed and why.
+
+This is not a taste check. It is the same test as "every value traces to a coordinate", applied
+one level up: **a set that any similar brief produces is a set that arrived without a reason.**
+
+⚠ The most common outcome of skipping it: a coherent, defensible, entirely generic system that
+nobody can fault and nobody would recognise. It passes every check in this document — every value
+traces, no framework default appears, contrast clears — and it is still the answer the category
+would have given.
+
+### Typefaces are a choice about this product, not a fallback
+
+The axes fix size, line height and measure; they say nothing about **which faces**. Same shape
+as hue: an unconstrained slot, and therefore where the default arrives.
+
+Name why these faces suit this product's work — what they do at the density the direction asks
+for, what the reading pattern is (scanning a column of statuses is not reading prose).
+"The system stack" is legitimate when the reason is stated: on a tool people use for hours,
+matching the OS is a decision, not an absence of one.
+
 ### Do not emit a framework default
 
 These are the values that appear when the derivation did not happen. Emitting one is a signal,
@@ -139,31 +216,76 @@ If a derivation genuinely lands on one of these, move it — the nearest hue tha
 consistent with the stated basis is fine, and the point is that the value stops being the one
 you would have written without thinking.
 
-### The output lands as `tokens.input.json`
+### The same trap one level up: look-level defaults
 
-Not rendered into the instrument's HTML. Three reasons, and the third is the one that pays:
+The list above catches a *value*. There are also whole *looks* that arrive without a reason —
+generated design currently clusters around a few, and they appear regardless of subject:
 
-1. Values rendered into a one-off file are lost the moment the page is regenerated.
+- warm cream ground with a high-contrast serif display and a terracotta accent
+- near-black ground with a single acid-green or vermilion accent
+- broadsheet layout: hairline rules, zero radius, dense newspaper columns
+
+Each is legitimate **for a brief that calls for it**, and where the user asked for one their
+words win. What is not legitimate is arriving at one because it was nearest to hand. Same test:
+could you say which coordinate forced it? If the honest answer is "it is what I would have drawn
+anyway", it is a default wearing a direction's clothes.
+
+### The output lands as the token file, and this step writes it
+
+The derived values go **straight into the project's token file** — the real one, at the path and
+in the format `config.md`'s paths table gives, committed with the repository. That file is the
+value authority; production code reads it; `design.md` points at it for every value.
+
+**Write it here rather than handing the values on.** An earlier version wrote a record and left
+another unit to land it, and that hop was measured as the least reliable link in the whole chain:
+across five valid runs the handoff file landed **2 out of 5** times, and the traces of the runs
+that skipped it mention the file 12 and 8 times — *thought about it, did not write it*.
+
+The same shape appeared one link upstream — `originate` depending on a skill that was not
+installed, failing silently, both branches producing deliverables that looked complete from
+outside — and it was resolved the same way: **remove the hop, do not add a reminder.**
+
+If the paths table's format column is empty, **ask**. Inferring the format by reading a
+neighbouring file works most of the time, and the times it works nobody can tell it was inferred.
+If the project has no token file at all yet, this step creates it — that is the greenfield case,
+and it is the normal one on this branch.
+
+### And a knobs record, which is scratch for the tuning session
+
+Also write `tokens.input.json`: the same values, keyed by the declaration table's names, as the
+starting state for Step 3's instrument.
+
+**Know what it is before writing it — it is session scratch, not an artifact.** After option A its
+whole reader list is: the instrument (Step 3), the wireframe's skin editor (same tuning session),
+and one grader that runs the moment the run ends. Nothing reads it before a session and nothing
+reads it after one. Once the tuned values are in the token file it is inert, and deleting it costs
+nothing.
+
+It survives at all for one reason: **it is format-neutral.** The token file may be CSS custom
+properties, a `theme.extend` block, or a theme object, and the instrument is a generic HTML page
+that cannot parse each of those. The JSON is the one shape every tool in that session can read.
+
+So: never tell the user to keep it, never suggest committing it, and never describe it as where
+the values live. It is written at all for two reasons:
+
+1. Values rendered into a one-off HTML file are lost the moment the page is regenerated.
 2. A template that differs on every run is not a template.
-3. v1 (what was derived here) and the final version (what the user tuned) become **two revisions
-   of one file, and therefore diffable**. ADR-0001 决定 B hangs its revisit condition on "the
-   proportion of generated brands the user overrides" — a number that has never had a source.
-   This diff is that source.
 
-**Write the file before moving to Step 3.** Not "plan to write it", not "describe it in
-`design.md`" — the file on disk, now. Reason 3 is void without it: a revisit condition whose
-only data source exists some of the time is not a revisit condition.
+**It goes in the workbench, at `.ui-contract-local/tokens.input.json`.** Fixed, not chosen — the
+paths table exists so a project can put its **specs** where it wants them, and this is not a spec.
+Two rounds of measurement earned the pinning: with nothing said, runs split three to two over
+where to put it, every choice defensible; then "record where it went in the paths table" was
+tried, and the split stayed exactly where it was. Writing a choice down makes it visible; it does
+not make it the same choice twice.
 
-**It goes beside `config.md`, at `docs/ui-contract/tokens.input.json`.** Fixed, not chosen.
+The reason for pinning changed when the handoff was removed, and the old one is no longer true:
+it used to be that a **downstream unit** had to find the file. There is no downstream unit any
+more. What is left is the instrument and a grader, both of which need one answer rather than a
+recorded one — and a grader's `target.path` is not a glob.
 
-This is the one artifact with a pinned location, and the exception has a reason: the paths table
-exists so a project can put its **specs** where it wants them. This is not a spec — it is a
-working record of where the knobs were left, in the same drawer as `config.md`. Two rounds of
-measurement earned the rule: with nothing said, runs split three ways to two between the repo
-root and `docs/ui-contract/`, every choice defensible. Then "record where it went in the paths
-table" was tried, and the split stayed exactly where it was — writing the choice down makes it
-visible, it does not make it the same choice twice. `ui-contract-assets` has to find this file
-later, and a grader has to read it now; both need one answer, not a recorded one.
+⚠ **The two files are not interchangeable, and the difference is the point.** The token file is
+committed and authoritative. The knobs record is local, disposable, and loses to the token file
+in any disagreement — see Step 4.
 
 ---
 
@@ -189,18 +311,13 @@ The right column is information architecture, not controls. Ship those and the i
 
 ## Step 4 — landing the values
 
-⚠ **The JSON's identity has to be written down, or it becomes a second value authority:**
+⚠ **The JSON's identity has to be written down, or it becomes a second value authority.**
+The identity table is in `ui-contract-design`'s own body — carry it into the deliverable from
+there rather than from a copy here, and do not demote it to a code comment.
 
-| | Records | On conflict |
-|---|---|---|
-| `tokens.input.json` | where the user left the knobs (an input record) | does not count |
-| the token file | the values that are currently correct (the value authority) | wins |
+**The JSON's keys are the names from the declaration table.** The mapping into the project's format — CSS custom properties, `theme.extend`, a theme object — changes the *format* and never the *names*. That is where cross-stack naming actually pays off.
 
-Do not leave this in a comment. The same class of mistake has been made twice in this repo, and both times the output looked entirely normal.
-
-**The JSON's keys are the names from the declaration table.** Per-stack mapping changes the *format* — CSS custom properties, `theme.extend`, a theme object — and never the *names*. That is where cross-stack naming actually pays off; it is not a property of the document, it is a property of this file.
-
-The JSON stays stack-neutral. `ui-contract-assets` maps it using the token source **and format** recorded in `config.md`.
+The JSON stays stack-neutral; the token file is where the format is chosen. **Both are written in Step 2, by this unit.** `ui-contract-assets` does not land values from the record any more — it consumes the token file, exactly as production code does. A second unit reading a local, uncommitted record and re-deriving the authority from it is the hop that was removed.
 
 ---
 

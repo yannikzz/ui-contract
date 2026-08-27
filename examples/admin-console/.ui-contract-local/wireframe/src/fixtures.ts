@@ -1,3 +1,4 @@
+import type { StatusKind } from '../../../src/ui/region'
 /**
  * 假数据。**这不是规格。**
  *
@@ -51,6 +52,19 @@ export const NAV_SETTINGS: { group: string; items: NavItem[] }[] = [
 
 // ── P1 列表页 ──────────────────────────────────────────────────
 /** 列优先级 = 数组顺序。宽度不足时从最右开始横向滚出；select 与 id 永不滚出（layout.md §4.6） */
+/**
+ * 状态 → 语义类。**这张表是 layout.md §6.4 的代码形态**，`Record` 是穷尽的，
+ * 所以加一个状态就必须给它归类，忘了会类型报错。
+ */
+export const STATUS_KIND: Record<string, StatusKind> = {
+  草稿: 'neutral',
+  已归档: 'neutral',   // 终态但不是成功——刻意不归 done
+  处理中: 'progress',
+  待审核: 'attention',
+  被驳回: 'blocked',
+  已发布: 'done',
+}
+
 export const TABLE_COLUMNS: TableColumn[] = [
   { kind: 'select', label: '', width: 36 },
   { kind: 'id', label: '标题', width: 300 },

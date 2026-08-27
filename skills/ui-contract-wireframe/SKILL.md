@@ -46,7 +46,12 @@ Note the vocabulary: this is the wireframe **exposing holes**, at construction t
 ## Before you call this done
 
 - [ ] It runs, and the dev server was started for the user
-- [ ] No colour value appears outside the `NEUTRAL` map — **checked in every file, not just `wire.tsx`**; the skin preview is off by default and is not persisted
+- [ ] **It was built inside the workbench**, at the path the config's paths table gives — and that path has a line in `.gitignore`
+- [ ] **The regeneration steps are in the repo-root `CLAUDE.md`** (which is committed), because a fresh clone has no wireframe and nothing else will say how to get one
+- [ ] **Neither the generated `CLAUDE.md` nor the `README.md` calls it "a runnable reference for coding agents" unqualified** — it is a local one; say so and name the way back
+- [ ] No colour value appears outside the `NEUTRAL` map and `inspect.tsx` — **checked in every file**; the skin preview is off by default and is not persisted
+- [ ] **`check-colours.sh` was shipped with the wireframe, wired into the task runner, and run — with its real output pasted.** It is not a CI gate (the workbench is not committed), so the moment it runs is the only moment the rule is mechanical
+- [ ] **`inspect.tsx` exists and its exports match the declared list** in both the file's header and `check-colours.sh`. The exemption is that file; an undeclared export there is a product component that just bought the right to hardcode colour
 - [ ] The demo toggle bar, the annotation layer, the skin banner and the editor panel all keep fixed colours; turning the skin on cannot make the control that turns it off unreadable
 - [ ] The user was told, in words, that the editor writes nothing and its edits die with the tab — and that the prompt is what carries them out
 - [ ] The directory `CLAUDE.md` lists "grey by default, preview off by default" as deliberate — not as a gap to fill
@@ -54,8 +59,9 @@ Note the vocabulary: this is the wireframe **exposing holes**, at construction t
 - [ ] Density is real — real copy, real row counts, the realistic ceiling — not a shell
 - [ ] Every region renders through `AnnotatedRegion`, with ids imported from the asset layer
 - [ ] No region name is declared in the wireframe
+- [ ] **No closed set the spec declares is declared here either** — page archetypes, which archetypes carry a panel, table column kinds. They are imported from the asset layer. A prohibition encoded in a throwaway file constrains only the throwaway file, while reading exactly like one that constrains the product (`ui-contract-assets` §The prohibition types belong here)
 - [ ] The asset layer's brand is overridden to neutral, and the directory `CLAUDE.md` says that is deliberate
 - [ ] Degradation rules are implemented and their live computation is on screen — **this one is on loan**, see below
 - [ ] Stated plainly what was verified and what wasn't
 
-The degradation item was ruled to belong to the asset layer, not here. It stays for now because the asset layer has no `Shell` to carry it yet, so dropping it would mean nobody implements the rules at all. Recorded as item 9 in ADR-0003's deferred list; when `Shell` lands, this moves with it.
+The degradation item was ruled to belong to the asset layer, not here. It stays for now because the asset layer has no `Shell` to carry it yet, so dropping it would mean nobody implements the rules at all. `ui-contract-assets` records the same deferral from the other side; when `Shell` lands there, this moves with it.

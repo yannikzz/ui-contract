@@ -29,7 +29,7 @@ The entry point for the whole document. Must answer: given a new interface requi
 
 Structure:
 
-1. **Short-circuits** (3–6) — the cases where the answer is obvious; catch them first. Typically: process events, long content that needs width, action buttons. Rows get inserted into this list as traces find holes, so **cite a short-circuit by its condition, never by its position** — here and in code. A `§1.1 short-circuit 3` written into a component comment goes silently wrong the moment a row lands above it, and nothing reports it.
+1. **Short-circuits** (3–6) — where the answer is obvious; catch them first. Typically process events, long content needing width, action buttons. Rows get inserted as traces find holes, so **cite a short-circuit by its condition, never its position** — here and in code. A `§1.1 short-circuit 3` in a component comment goes silently wrong the moment a row lands above it.
 2. **The trunk** (4–6 questions) — drawn as an ASCII tree, where every leaf is a **specific region name**, not a description.
 3. **What to do when nothing matches** — write "stop" explicitly, and point to §9. That sentence matters more than the whole tree: without it, an agent picks the closest-looking region and stuffs the thing in.
 4. **A reverse checklist** — "if you're about to do any of the following, you've already gone off course" — 4–6 of the most common overreaches.
@@ -38,25 +38,25 @@ Ordering principle for the trunk: **the most discriminating question goes first.
 
 ### The tree has to be total
 
-A tree that answers *most* inputs isn't a spec — it's a spec with a hole, and the hole is exactly where agents improvise. Totality is what makes it binding: **every input reaches exactly one region name, or the explicit stop. Never zero destinations, never two.**
+A tree that answers *most* inputs is a spec with a hole, and the hole is where agents improvise. **Every input reaches exactly one region name or the explicit stop — never zero, never two.**
 
-Five ways it breaks. Every one of these shipped inside a tree whose author had already confirmed "there is a decision tree, and it has a stop":
+Five ways it breaks, all five shipped in trees whose author had confirmed "there is a tree, and it has a stop":
 
-| Break | What it looked like | What it actually means |
+| Break | What it looked like | What it means |
 |---|---|---|
-| **Gap** | A one-off action on the whole library fell between short-circuit 1 and short-circuit 3, matching no branch | A question is missing, or a short-circuit's real scope is narrower than its wording suggests |
-| **Two answers** | A leaf read "overlay.body *or* board.detail" — no adjudicating criterion, no § pointer | The deciding question is missing. Two plausible destinations calls for one more question, not a coin flip |
-| **Fallback into a real region** | "Nothing matched → settings" | The fallback is *stop → §9*, never a region. Whichever region gets named as the catch-all becomes the junk drawer — which is the complaint that brought the user here |
-| **Loop** | The fallback routed back into the trunk, which routed back to the fallback | The stop is a leaf: it leaves the document for the change process. A fallback that re-enters the tree can't terminate |
-| **Open boundary** | A nav segment capped at 2 said nothing about reaching the cap, while the segment capped at 4 said it twice | Every cap and every closed enumeration states what happens when it's full, or "an 11th item arrives" is an input with nowhere to go |
+| **Gap** | A one-off library action fell between short-circuits 1 and 3, matching no branch | A question is missing, or a short-circuit's scope is narrower than its wording |
+| **Two answers** | A leaf read "overlay.body *or* board.detail" — no criterion, no § pointer | Two plausible destinations calls for one more question, not a coin flip |
+| **Fallback into a real region** | "Nothing matched → settings" | The fallback is *stop → §9*, never a region: the catch-all becomes the junk drawer the user came here to fix |
+| **Loop** | The fallback routed back into the trunk, which routed back to the fallback | The stop is a leaf — it leaves the document for the change process. A fallback that re-enters can't terminate |
+| **Open boundary** | A nav segment capped at 2 said nothing about reaching the cap; the one capped at 4 said it twice | Every cap and closed enumeration states what happens when it's full, or "an 11th item arrives" has nowhere to go |
 
-**When the fallback contradicts the rest of the document, the tree is what's wrong.** One run's fallback routed a global action into settings, contradicting the short-circuit that forbade it, §2's "must not hold" cell, an anti-pattern, and the union type — all at once. The pull is then to relax the prohibition, which is backwards: four places agreeing against one means the trunk lost a branch.
+**When the fallback contradicts the rest of the document, the tree is what's wrong.** One run's fallback routed a global action into settings, contradicting at once the short-circuit that forbade it, §2's "must not hold" cell, an anti-pattern, and the union type. The pull is to relax the prohibition — backwards: four places against one means the trunk lost a branch.
 
 ### Verify it by trying to break it
 
 Trace the finished tree with inputs picked to be hostile, and **record where each one lands in Appendix C**.
 
-Tracing in the conversation and not in the document is the same as not tracing. The next person to edit the tree cannot tell a branch that was shaped to stop a specific bad input from a branch somebody wrote off the cuff — so they "tidy it up", and the input it existed to catch walks straight through. Nothing in the output reveals that the verification ever happened, which is why this has to be an artifact requirement and not a habit:
+Tracing in the conversation and not in the document is the same as not tracing. The next editor cannot tell a branch shaped to stop a specific bad input from one written off the cuff — so they "tidy it up", and the input it caught walks straight through. Nothing in the output reveals the verification happened, which is why this is an artifact requirement and not a habit:
 
 1. **A one-off action belonging to no object** — export everything, bulk import, contact support. The most common gap, and the source of the worst observed failure: a confident "put it in settings".
 2. **Something that plausibly fits two regions** — checks that leaves are single-valued.
@@ -65,7 +65,7 @@ Tracing in the conversation and not in the document is the same as not tracing. 
 
 A friendly input passes on any tree, hole included. That is precisely how this defect survives review: "can it place a new metric card" gets asked, "can it place the export button" doesn't.
 
-**Then trace three or four ordinary requirements too, and require each to land on a region name — those go in Appendix C as well.** Totality is trivially satisfiable by stopping on everything, and the hostile traces above won't catch that — they'd all pass. A tree that sends everyday work to §9 isn't a contract, it's a permission queue: the user arrived because "where does this go" had no answer, and "file an application" is not an answer. When an ordinary input stops, the tree is usually missing a whole class rather than facing a genuinely new region — controls (search, filter, sort) are the class most often absent, because they aren't a facet of any object and aren't a destination, so they fall through every branch.
+**Then trace three or four ordinary requirements too, each landing on a region name — also in Appendix C.** Totality is trivially satisfiable by stopping on everything, and the hostile traces would all pass such a tree. One that sends everyday work to §9 is a permission queue, not a contract: the user arrived because "where does this go" had no answer, and "file an application" is not an answer. An ordinary input that stops usually means a whole class is missing rather than a genuinely new region — most often controls (search, filter, sort), which are neither a facet of an object nor a destination, so they fall through every branch.
 
 ## §2 Region-name allowlist
 
@@ -88,6 +88,32 @@ Draw the region tree as ASCII, annotating fixed sizes and elasticity. After the 
 The degradation subsection covers: the trigger (minimum usable size, not viewport breakpoints), the collapse order, **what remains after collapse**, and **who wins between a manual toggle and automatic degradation** (recommend the user, in both directions).
 
 If the product's context has multiple forms (shared space versus private space, containers at different levels), give it its own section: the hierarchy of each, its boundary, its unit of division — and **explicitly distinguish any two similar concepts**, or agents will conflate them.
+
+### Numbers this document cannot settle alone — mark them ⏳
+
+Some structural parameters are only correct relative to a type scale and a spacing scale, and both of those belong to the visual spec:
+
+| The structural number | What only the visual spec can answer |
+|---|---|
+| A fixed panel width | do the fields and actions fit at the chosen type size |
+| A minimum usable width (the degradation trigger) | is that width readable at the chosen scale |
+| A page size / row count | do that many rows fit a screen at the chosen row height |
+
+Writing them plainly claims a certainty nobody has. **Mark each one ⏳ and name what would settle it.** `ui-contract-design` carries a completion criterion that clears every ⏳; `ui-contract-audit` reports unresolved ones as a warning, not as drift — an unsettled number is honest, an unmarked guess is not.
+
+```
+| Panel width | 360 | ⏳ pending the type scale — do 9 fields and 5 actions fit? |
+```
+
+**Put ⏳ in the number's own table cell, on one line, with the question on it.** Both the handover note and `ui-contract-audit`'s check 10 lift these lines verbatim, and they find them by looking for **table rows** carrying the marker — a ⏳ whose reason lives in a paragraph three lines below arrives at the visual owner without its reason, and a ⏳ used in prose *about* the marker gets counted as a pending number.
+
+That second one is measured, not hypothetical: a document explaining its own ⏳ convention in three sentences reported six pending numbers where there were three. Explain the convention in words ("the pending marker") rather than by using the character, or accept that the prose lines will be filtered out by the table-row rule and keep the marker itself in the cells.
+
+⏳ is **not** the same as `design.md`'s 🌡. 🌡 says a clause is a hypothesis about the world. ⏳ says a number is waiting on a decision that is definitely coming, from a named place. A ⏳ that is still there when the interface ships is a process failure; a 🌡 that is still there is normal.
+
+**Do not write the visual value here to resolve it.** The resolution is: the visual spec settles its scale, someone checks the number against it, and the ⏳ becomes a plain number — or a different number. A `layout.md` that starts carrying font sizes to justify its widths has become the thing the split exists to prevent, and `no-visual-values-in-structure` will say so.
+
+⚠ **This only catches couplings somebody noticed.** One nobody spotted sails straight through, and the wireframe stays the backstop that finds it. Do not read "no ⏳ left" as "no coupling left".
 
 ## §4 Page archetypes
 
@@ -119,6 +145,27 @@ Must answer: how many classes of content · which region each lands in · in wha
 Four columns: content | destination | form | why. End with a **catch-all**: anything not in these classes means stop and use §9 — no inventing form N+1.
 
 If the interview settled on "actions only in one place", give it a section covering: what the other place holds (a reference plus a summary), what clicking does, what gets no exception, and the difference between "one component, several entry points" and "two implementations".
+
+### Status labels: the classes are structural, the colours are not
+
+If the product shows status, the **set of semantic classes** belongs here, not in the visual
+spec. The cut is the usual one: "needs somebody to act on it" does not change when the brand
+changes; which colour says so does.
+
+Write two tables: the classes (closed set, each with the test that puts a status in it), and
+every status this product has mapped to one. The code form is an exhaustive `Record`, so
+**adding a status forces classifying it** — forget and the type check fails.
+
+Four or five classes is usually right. Two failure modes, both common:
+
+| | |
+|---|---|
+| Collapsing "needs action" and "blocked" | The user's next move is different — go do it, versus go resolve something else first. Merged, the column only says "something / nothing" |
+| Giving a terminal state the success class because it is terminal | Archiving a draft that was rejected three times and abandoned should not read as an achievement |
+
+**Do not skip the classes and map statuses straight to colours.** Six statuses mapped to six
+colours is not a classification, and the seventh arrives with nothing forcing anyone to think
+about where it belongs.
 
 ## §7 Navigation admission rules
 
@@ -154,7 +201,9 @@ List the questions **explicitly out of scope** and where they belong instead (vi
 
 Four columns: was | became | why overturned.
 
-**Never delete when overturning a conclusion.** Overturned judgments are easier to re-tread than current ones, because they look reasonable (they looked reasonable to you too, once).
+**Never delete when overturning a conclusion.**
+
+This appendix is a **declared exception** to `decision-record`'s cut. By that rule "what was ruled out and why" is a decision and belongs in a decision record, not in the authoritative document; this appendix is claimed under the exception that skill states, and the reason for never deleting lives there. Do not resolve the apparent contradiction by moving this appendix out — that was considered and rejected, see Appendix C.
 
 ## Appendix C — Traces
 
@@ -165,8 +214,11 @@ Both kinds must be present. Hostile-only proves nothing about a tree that stops 
 - **Every row names a leaf** — a region name from §2, or the explicit stop. "Roughly the inspector" is not a landing.
 - **Record the traces that found something, not only the ones that passed.** A trace whose "what it exposed" column is empty on every row means either a perfect tree or a trace that was written after the fact to look like one, and a reader cannot tell which. The rows that changed the tree are the ones worth keeping.
 - **When a trace lands on the stop but another chapter says the thing has a home, the tree is what's wrong** — fix the tree, then record both the finding and the fix here. Do not record a known hole and leave it.
+- **Every pass carries its date and what triggered it** — "2026-08-21, after the row inserted into §1.1", not a bare date. Appending seats a superseded pass beside a current one: the date orders them, and only the trigger says which tree each was verified against. Without it the staleness the paragraph below permits stops being readable and becomes merely present.
 
 This appendix goes stale as the tree changes, and that is acceptable: it is dated evidence of one verification pass, not a rule. Re-trace when the trunk changes, and append rather than rewrite.
+
+Being "not a rule" is exactly why it is also a **declared exception** to `decision-record`'s cut, on the same footing as Appendix B — and it carries a second reason Appendix B does not. **Whether the verification happened at all is invisible in the output unless it leaves a trace here.** That was measured, not reasoned: six runs produced sound trees and sound fallbacks, and not one of them left a trace; nothing in the result disagreed. Moving the traces into a separate file has been proposed twice (it would let a judge grade trace *quality* on a short input) and rejected both times on this ground.
 
 ---
 

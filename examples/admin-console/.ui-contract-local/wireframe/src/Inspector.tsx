@@ -6,7 +6,8 @@
  * - `kind: InspectorKind` 现在只有 'content-item' 一型，新增一型要先过 §5.4 三条判据
  */
 import { useState } from 'react'
-import { Badge, Btn, Field, AnnotatedRegion, StateBlock } from './wire'
+import { Badge, Btn, Field, StateBlock } from './wire'
+import { AnnotatedRegion } from './inspect'
 import type { InspectorKind, PageWithInspector } from './wire'
 import type { InspectorMode } from './structure'
 import { STRUCT } from './structure'
@@ -16,6 +17,7 @@ import {
   INSPECTOR_RELATIONS,
   INSPECTOR_SUMMARY,
   INSPECTOR_TABS,
+  STATUS_KIND,
 } from './fixtures'
 import type { Row } from './fixtures'
 
@@ -50,8 +52,8 @@ export function InspectorSlot({
         mode === 'overlay'
           ? /* 覆盖态用一条更重的左边界表示「浮在表格上方」。
                线框不用真实阴影——阴影刻度归 design.md，抄进骨架会变成第二权威源 */
-            'absolute top-0 right-0 bottom-0 z-20 flex flex-col border-l-2 border-neutral-500 bg-white'
-          : 'flex shrink-0 flex-col border-l border-neutral-300 bg-white'
+            'absolute top-0 right-0 bottom-0 z-20 flex flex-col border-l-2 border-[var(--wire-line-contrast)] bg-[var(--wire-surface)]'
+          : 'flex shrink-0 flex-col border-l border-[var(--wire-line-strong)] bg-[var(--wire-surface)]'
       }
       label={mode === 'overlay' ? '属性面板（覆盖态）' : undefined}
       style={{ width: STRUCT.inspectorWidth }}
@@ -59,30 +61,30 @@ export function InspectorSlot({
       {/* 自给自足：面板必须自己说清「你在看谁」，不能依赖用户记得点了哪一行 */}
       <AnnotatedRegion
         id="inspector.head"
-        className="flex items-start gap-2 border-b border-neutral-200 px-4 py-3"
+        className="flex items-start gap-2 border-b border-[var(--wire-line)] px-4 py-3"
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[10px] text-neutral-400">内容条目</span>
-            <Badge>{row.status}</Badge>
+            <span className="font-mono text-[10px] text-[var(--wire-faint-fg)]">内容条目</span>
+            <Badge kind={STATUS_KIND[row.status]}>{row.status}</Badge>
           </div>
-          <p className="mt-1 line-clamp-2 text-sm font-semibold text-neutral-800">{row.title}</p>
-          <p className="mt-0.5 font-mono text-[10px] text-neutral-400">{row.id}</p>
+          <p className="mt-1 line-clamp-2 text-sm font-semibold text-[var(--wire-fg)]">{row.title}</p>
+          <p className="mt-0.5 font-mono text-[10px] text-[var(--wire-faint-fg)]">{row.id}</p>
         </div>
         <Btn weight="ghost" onClick={onClose}>
           关闭
         </Btn>
       </AnnotatedRegion>
 
-      <AnnotatedRegion id="inspector.tabs" className="flex gap-1 border-b border-neutral-200 px-3">
+      <AnnotatedRegion id="inspector.tabs" className="flex gap-1 border-b border-[var(--wire-line)] px-3">
         {INSPECTOR_TABS.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`-mb-px border-b-2 px-2 py-2 text-xs ${
               tab === t
-                ? 'border-neutral-700 font-medium text-neutral-900'
-                : 'border-transparent text-neutral-500'
+                ? 'border-[var(--wire-line-contrast)] font-medium text-[var(--wire-fg-strong)]'
+                : 'border-transparent text-[var(--wire-muted-fg)]'
             }`}
           >
             {t}
@@ -100,18 +102,18 @@ export function InspectorSlot({
           <StateBlock kind="整区失败" text="属性读取失败：审核服务无响应。面板不会自动关闭。" action="重试" />
         )}
         {state === '正常' && tab === '概要' && (
-          <div className="divide-y divide-neutral-100">
+          <div className="divide-y divide-[var(--wire-line)]">
             {INSPECTOR_SUMMARY.map((f) => (
               <Field key={f.k} k={f.k} v={f.v} />
             ))}
           </div>
         )}
         {state === '正常' && tab === '关联' && (
-          <div className="divide-y divide-neutral-100">
+          <div className="divide-y divide-[var(--wire-line)]">
             {INSPECTOR_RELATIONS.map((f) => (
               <Field key={f.k} k={f.k} v={f.v} />
             ))}
-            <div className="pt-2 text-[11px] text-neutral-400">
+            <div className="pt-2 text-[11px] text-[var(--wire-faint-fg)]">
               关联对象只放引用行。点进去是换对象，不是在本面板里嵌第二个对象（§5.5）。
             </div>
           </div>
@@ -120,10 +122,10 @@ export function InspectorSlot({
           <div className="py-1">
             {/* 过程性事件的落位：一天几十条，进主区会把主线冲散（§1.1 短路「过程性事件」） */}
             {INSPECTOR_HISTORY.map((h, i) => (
-              <div key={i} className="flex gap-2 border-l border-neutral-200 py-1.5 pl-3 text-xs">
-                <span className="w-14 shrink-0 text-neutral-400">{h.t}</span>
-                <span className="min-w-0 flex-1 text-neutral-600">
-                  <span className="text-neutral-800">{h.who}</span> {h.what}
+              <div key={i} className="flex gap-2 border-l border-[var(--wire-line)] py-1.5 pl-3 text-xs">
+                <span className="w-14 shrink-0 text-[var(--wire-faint-fg)]">{h.t}</span>
+                <span className="min-w-0 flex-1 text-[var(--wire-body-fg)]">
+                  <span className="text-[var(--wire-fg)]">{h.who}</span> {h.what}
                 </span>
               </div>
             ))}
@@ -135,7 +137,7 @@ export function InspectorSlot({
       {state === '正常' && (
         <AnnotatedRegion
           id="inspector.foot"
-          className="flex flex-wrap gap-1.5 border-t border-neutral-200 bg-neutral-50 px-3 py-2.5"
+          className="flex flex-wrap gap-1.5 border-t border-[var(--wire-line)] bg-[var(--wire-canvas)] px-3 py-2.5"
         >
           {INSPECTOR_ACTIONS.map((a, i) => (
             <Btn key={a} weight={i === 0 ? 'primary' : 'secondary'}>

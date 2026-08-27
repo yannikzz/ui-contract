@@ -2,7 +2,7 @@
 
 Owns the **visual** layer: everything that changes when you swap the brand skin. No region tree, no column widths, no page archetypes — those live in `layout.md`.
 
-**This document holds rules, not values.** Every color value, size, radius step and spacing step lives in the **token file**, which is the single value authority in code. Where a value is needed here, write the token's name and "see the token file" — never the literal. This is the same shape as `layout.md` holding no visual values at all: the cut hasn't moved, there is just one more hop.
+**This document holds rules, not values.** Every colour, size, radius step and spacing step lives in the **token file**, the single value authority in code. Where a value is needed, write the token's name and "see the token file", never the literal. Same shape as `layout.md` holding no visual values: the cut hasn't moved, there is one more hop.
 
 A worked table of steps is still a rule (it says *how many steps exist and what each is for*). A hex code, a px size, or a radius literal is a value, and it belongs in the token file.
 
@@ -16,9 +16,9 @@ Put a blockquote right under the title stating: what this document owns, what `l
 
 Its purpose is that an agent reading either document knows where the other half is.
 
-**When the project has no token file yet**, that blockquote states the gap instead of naming a file: the token file is the value authority, this project does not have one, the names below are written as they should be, and whoever builds it fills the values in under those names. A pointer to a path that is not on disk reads as a stale spec; a stated gap reads as an honest one. See `SKILL.md` §When there is no token file yet.
+**When the project has no token file yet**, the blockquote states the gap instead of naming a file: the token file is the value authority, this project has none, the names below are written as they should be, and whoever builds it fills in the values. A pointer to a path that is not on disk reads as a stale spec; a stated gap reads as an honest one. See `SKILL.md` §When there is no token file yet.
 
-The blockquote also states the other half of the same division: **this document is the name authority.** The token file holds the values; which names exist is settled here. Without that sentence an external convention silently becomes the authority instead, and nothing in the output reveals it — a token file generated either way looks identical.
+The blockquote states the other half too: **this document is the name authority.** The token file holds values; which names exist is settled here. Without that sentence an external convention silently becomes the authority, and nothing in the output reveals it — a token file generated either way looks identical.
 
 ### The naming declaration
 
@@ -35,7 +35,7 @@ Directly under the blockquote, one line naming the convention followed and one t
 
 Three origins and no others: **borrowed** (in the list below), **this project** (invented here, follows the pairing rule), **not used** (in the list but deliberately absent, with the reason on the same row). A borrowed name that is not in the list, or a name in the token file with no row here, is drift — see `ui-contract-audit`.
 
-⚠ **Those three keywords stay in ASCII, exactly as written, even when the rest of the document is in another language.** They are the only handle a script has on this table: the health check anchors on the keywords, not on the header row, precisely so that a spec written in the user's language is still readable. Translate them and the check finds nothing and stays quiet — it degrades to no check, never a wrong one, which is the right failure but a silent one. Put the translation in the header row or a note beside the table instead.
+⚠ **Those three keywords stay in ASCII, exactly as written, even when the rest of the document is in another language.** They are the only handle a script has on this table — the health check anchors on the keywords, not the header row, precisely so a spec in the user's language stays readable. Translate them and the check finds nothing and goes quiet: the right failure, but a silent one. Put the translation in the header row or beside the table.
 
 This is the one place in this document where an English word is not a default to be localised. Say so beside the table, or the next person will helpfully translate it.
 
@@ -43,7 +43,7 @@ Keep the table flat. Nesting it by chapter is the first step toward maintaining 
 
 ## Token names: what this document borrows
 
-Token names are borrowed rather than invented, for one reason only: **the same concept keeps the same name across stacks.** Invent per project and the same surface is `muted` here and `subtle` there, and the asset layer needs a translation table for every stack it touches — which is the condition ADR-0001 决定 A names as its own revisit trigger.
+Token names are borrowed rather than invented, for one reason only: **the same concept keeps the same name across stacks.** Invent per project and the same surface is `muted` here and `subtle` there, and the asset layer needs a translation table for every stack it touches. That is the condition under which borrowing stops paying, and it is worth reopening then.
 
 The borrowed set is shadcn's, minus two groups. It is identical word-for-word in shadcn/ui and shadcn-svelte, and that identity **is** the benefit:
 
@@ -106,9 +106,39 @@ A generated brand is 🌡 by default — it is a hypothesis until real users hav
 
 Three tables:
 
-- **Surfaces and layers**: background / card face / borders / fill levels / disabled. This table defines spatial hierarchy.
+- **Surfaces and layers**: background / card face / fill levels / disabled. This table defines spatial hierarchy.
+- **Borders — one width, an enumerated set of levels.** See below; it is not a row in the surfaces table.
+
+### Borders need their own section, and this is measured
+
+Left inside the surfaces table, borders get one or two entries and no rules — and the
+implementation then invents the rest. Measured on a real wireframe: the visual spec declared
+**two** border levels and the wireframe was using **six**, three of which no token mapped at
+all. With the skin preview on those three stayed wireframe grey, so the interface rendered as a
+half-broken theme rather than as a missing decision. **Where there is no spec, the
+implementation writes one.**
+
+The section answers three things:
+
+| | |
+|---|---|
+| **Width** | Pick one and say so. A second width is a second signal, and nobody ever defines what it means — it gets read as "more important" and spreads to everything anyone wants to emphasise. Need a stronger separation? Move a level, do not widen |
+| **Levels** | An enumerated set, each with **its use sites** and a reason it exists that the others do not cover. Two is usually too few: a border drawn on a filled surface disappears at the hairline level, and that is a third job, not a preference |
+| **Prohibitions** | No further level (want one? ask first whether you mean *hierarchy* — that belongs to surface contrast, not to borders), and no second width |
+
+⚠ **The implementation's level count must equal this section's.** A wireframe with more roles
+than the spec has levels is inventing spec; `check-colours.sh` check 3 reports roles that were
+never mapped, which is how the six-versus-two above was found.
 - **Text hierarchy**: **cap it at 4–5 levels and write "no adding a further level" explicitly**. State each level's use, what distinguishes adjacent levels, and which way round they go.
 - **Brand and semantic colors**: for each, its meaning and an **enumerated set of use sites**.
+- **Semantic class → token**, if the product has status labels. One row per class. The **classes**
+  themselves are not defined here — they are structural (they do not change when the brand does),
+  so they live in the structural spec and this table only says which token each one uses.
+
+  Without that split the implementation has two bad options: paint every status the same grey —
+  in which case the skin preview shows almost nothing on a product whose visual life is its status
+  column — or invent a status→colour table of its own, which is a second authority. Measured: the
+  first one, on a review queue, where turning the preview on changed one button and one nav row.
 
 The rules that actually keep an interface from getting muddy:
 
@@ -197,7 +227,7 @@ Also flag which of the converged items **actually change how things look**, and 
 ## When a visual spec already exists (start C)
 
 1. **Add the division-of-labor statement** (see Opening). Change nothing else yet.
-1b. **Move values out to the token file.** Every literal in the normative body becomes a token reference. If the project already has a token source (`tailwind.config.*`, `tokens.css`, a theme file), that is the token file — do not create a second one. If it has none, **say so in the document as well as to the user**, and write no path to a file that isn't there — see `SKILL.md` §When there is no token file yet.
+1b. **Move values out to the token file.** Every literal in the normative body becomes a token reference. Which file that is, `ui-contract-design` states — not restated here. If the project has none, **say so in the document as well as to the user**, and write no path to a file that isn't there.
 2. **Move structural content out**: find the sections that describe region trees, column widths, page archetypes; move the structure into `layout.md`, leaving behind only spacing/feel values plus a one-line "structure: see layout.md §X". Rename the section too if its title promised structure ("Layout skeleton" → "Skeleton spacing and feel").
 3. **Align region names with the allowlist**: replace old component-style names (camel-cased widget names) with allowlist names. This step is easy to half-finish — grep out every old name and replace them one by one, touching **only the normative body**; leave mockup-reality appendices as they are.
 4. Report to the user afterwards: which sections you touched, how many region names you replaced, and what you deliberately left alone.

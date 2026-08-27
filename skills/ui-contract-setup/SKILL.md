@@ -17,6 +17,7 @@ For the deliverable's language and terminology, call the Skill tool with "delive
 - Existing `design.md` / `DESIGN.md` / `design-system.md` / `tokens.css` / `tailwind.config.*` / `theme.*`
 - Existing `layout.md` / `IA.md` / `architecture.md` / any doc that already describes structure
 - Existing prototype or frontend code: stack, component layout, whether TypeScript is in use
+- **Where the product's own UI code lives** — the directory the health check will audit. Read it off the repo (where the components are, what the build config points at), and write it into the paths table's `src` row. **Do not ask**: it is visible on disk, and this skill's whole discipline is that a question the repo can answer is not a question. If the project genuinely has no product UI yet — only an asset layer — say so in **Not verified this round**, because every check that reads call sites then has nothing to judge. It does not go red — the call-site checks pass on an empty set, and the allowlist-coverage check skips rather than reporting the whole allowlist. Measured on a project in exactly this state. That is the danger worth writing down: a green audit at this point is not evidence that anything is enforced, it is evidence that nothing has been built yet
 - `CLAUDE.md` / `AGENTS.md` at the repo root and in subdirectories
 - `docs/adr/` — note it, but **do not merge into it**. That directory is the code and architecture namespace; interface-structure and visual decisions are a different category and get their own
 
@@ -34,15 +35,22 @@ Tell the user which start you identified and what you found, then proceed.
 
 ## Ask only what cannot be derived
 
-Three things, and nothing else:
+Four things, and nothing else:
 
 1. **May the existing visual spec be edited?** Aligning the boundary means slimming that document — structural content moves out. That is somebody's document; ask before touching it.
-2. **Where do the files go and what are they called?** **Default: both specs at the repo root**, side by side, so they apply across sub-projects. `docs/ui-contract/` holds the config and the decision records — **not the specs**. The wireframe gets its own directory.
+2. **Where do the files go and what are they called?** **Default: both specs at the repo root**, side by side, so they apply across sub-projects. `docs/ui-contract/` holds the config and the decision records — **not the specs**. The wireframe lives inside the workbench, `.ui-contract-local/wireframe/`.
 
    Only move the specs elsewhere if the user says so, and **record the chosen paths in the config file's paths table**. Every later unit reads that table instead of guessing: the root `CLAUDE.md` entry clause points at the structural spec by path, the capability units gate on its existence, and the health-check script greps it. A spec that quietly lands somewhere else silently breaks all three at once.
 3. **Where does the asset layer live** in the production tree?
+4. **Is the same person answering for both dimensions — structure and visuals?** Not who *owns* them on an org chart; who will actually answer the questions. `ui-contract-design` runs differently on the two answers: same person means the structural numbers waiting on a type scale get folded into one interview; different people means that list becomes a handover note instead. Getting this wrong costs a round trip in one direction and an interview somebody could not answer in the other.
 
 Everything else waits. In particular, **do not ask about legacy strategy here** — freeze line, migrate first, hybrid. That question cannot be answered before the gap has been measured, and asking it early only produces a guess. It belongs to `ui-contract-baseline`, which writes its answer into the same config file.
+
+## The workbench needs an ignore rule, and writing the path down is not one
+
+Filling in the Workbench row records an intention. **`.gitignore` is what carries it out.** Add the line yourself — it is one line, it is committed, and without it the throwaway tree gets committed while the config file goes on claiming otherwise. Nothing about the project looks wrong in that state; the files are simply there.
+
+Say in one sentence what the workbench is for, because the next person to read `.gitignore` will not have this conversation: rehearsal for both dimensions of the UI, regenerated on demand, never an authority for anything. `config-template.md` §The workbench has the table of what may and may not live there — **the token file is the one that matters**, and `ui-contract-audit` check 9 enforces it.
 
 ## Writing discipline
 

@@ -3,7 +3,7 @@ type: regex
 target:
   source: file
   path: design.md
-pattern: "#[0-9a-fA-F]{6}\\b|oklch\\(|rgba?\\("
+pattern: "#[0-9a-fA-F]{3,8}\\b|\\brgba?\\(|\\bhsla?\\(|\\boklch\\(|\\boklab\\(|\\blab\\(|\\blch\\(|\\bcolor\\("
 flags: "i"
 match: not_contains
 weight: 1

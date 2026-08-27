@@ -7,8 +7,9 @@
  * - 筛选条里只有缩小结果范围的控件，导出/新建都不在这里
  * - 批量操作条在没有选中时**不渲染**，不是隐藏
  */
-import { Badge, Btn, Card, Pill, AnnotatedRegion, StateBlock } from '../wire'
-import { FILTERS, ROWS, TABLE_COLUMNS } from '../fixtures'
+import { Badge, Btn, Card, Pill, StateBlock, StatusEdge } from '../wire'
+import { AnnotatedRegion } from '../inspect'
+import { FILTERS, ROWS, TABLE_COLUMNS, STATUS_KIND } from '../fixtures'
 import { STRUCT } from '../structure'
 
 export type DataState = '正常' | '空' | '筛选后空' | '加载' | '局部失败' | '整区失败'
@@ -37,11 +38,11 @@ export function ListPage({
     <>
       <AnnotatedRegion
         id="main.pagehead"
-        className="flex items-start justify-between gap-4 border-b border-neutral-200 bg-white px-5 py-3"
+        className="flex items-start justify-between gap-4 border-b border-[var(--wire-line)] bg-[var(--wire-surface)] px-5 py-3"
       >
         <div className="min-w-0">
-          <h1 className="truncate text-base font-semibold text-neutral-800">全部内容</h1>
-          <p className="mt-0.5 truncate text-xs text-neutral-500">
+          <h1 className="truncate text-base font-semibold text-[var(--wire-fg)]">全部内容</h1>
+          <p className="mt-0.5 truncate text-xs text-[var(--wire-muted-fg)]">
             共 {rows.length ? 1284 : 0} 条 · 当前筛选命中 {rows.length ? 218 : 0} 条
           </p>
         </div>
@@ -55,21 +56,21 @@ export function ListPage({
       {/* 只放「缩小结果范围」的控件。刻意放满 6 个，看面板打开后（宽度 -360）会不会换行 */}
       <AnnotatedRegion
         id="main.filters"
-        className="flex flex-wrap items-center gap-1.5 border-b border-neutral-200 bg-white px-5 py-2.5"
+        className="flex flex-wrap items-center gap-1.5 border-b border-[var(--wire-line)] bg-[var(--wire-surface)] px-5 py-2.5"
       >
         {FILTERS.map((f) => (
           <Pill key={f}>{f}</Pill>
         ))}
-        <button className="ml-1 text-[11px] text-neutral-500 underline">清除全部条件</button>
+        <button className="ml-1 text-[11px] text-[var(--wire-muted-fg)] underline">清除全部条件</button>
       </AnnotatedRegion>
 
       {/* 没有选中行时本区不渲染（不是 hidden）。这是 §2.2 白名单里写死的 */}
       {selected.length > 0 && (
         <AnnotatedRegion
           id="main.bulkbar"
-          className="flex items-center gap-2 border-b border-neutral-200 bg-neutral-100 px-5 py-2"
+          className="flex items-center gap-2 border-b border-[var(--wire-line)] bg-[var(--wire-muted)] px-5 py-2"
         >
-          <span className="text-xs font-medium text-neutral-700">已选 {selected.length} 条</span>
+          <span className="text-xs font-medium text-[var(--wire-fg-2)]">已选 {selected.length} 条</span>
           <Btn weight="secondary">批量通过</Btn>
           <Btn weight="secondary">批量改栏目</Btn>
           <Btn weight="secondary">批量加标签</Btn>
@@ -80,7 +81,7 @@ export function ListPage({
         </AnnotatedRegion>
       )}
 
-      <AnnotatedRegion id="main.table" className="min-h-0 flex-1 overflow-auto bg-white">
+      <AnnotatedRegion id="main.table" className="min-h-0 flex-1 overflow-auto bg-[var(--wire-surface)]">
         {state === '加载' && (
           /* §8.1：表头保留可见，只有行区在加载。禁止整区骨架屏 */
           <>
@@ -108,7 +109,7 @@ export function ListPage({
         {(state === '正常' || state === '局部失败') && (
           <table className="w-full border-collapse text-left" style={{ minWidth: 846 }}>
             <thead className="sticky top-0 z-10">
-              <tr className="bg-neutral-100">
+              <tr className="bg-[var(--wire-muted)]">
                 {TABLE_COLUMNS.map((c, i) => (
                   <th
                     key={c.label + i}
@@ -117,8 +118,8 @@ export function ListPage({
                       minWidth: c.width,
                       left: i < 2 ? STICKY_LEFT[i] : undefined,
                     }}
-                    className={`border-b border-neutral-300 px-3 py-2 text-[11px] font-normal text-neutral-500 ${
-                      i < 2 ? 'sticky z-10 bg-neutral-100' : ''
+                    className={`border-b border-[var(--wire-line-strong)] px-3 py-2 text-[11px] font-normal text-[var(--wire-muted-fg)] ${
+                      i < 2 ? 'sticky z-10 bg-[var(--wire-muted)]' : ''
                     }`}
                   >
                     {c.kind === 'select' ? <input type="checkbox" /> : c.label}
@@ -135,14 +136,16 @@ export function ListPage({
                   <tr
                     key={r.id}
                     onClick={() => onOpenRow(r.id)}
-                    className={`cursor-pointer border-b border-neutral-100 ${
-                      active ? 'bg-neutral-200/70' : 'hover:bg-neutral-50'
+                    className={`cursor-pointer border-b border-[var(--wire-line)] ${
+                      active ? 'bg-[var(--wire-selected)]' : 'hover:bg-[var(--wire-canvas)]'
                     }`}
                   >
                     <td
                       style={{ left: STICKY_LEFT[0] }}
-                      className={`sticky z-[1] px-3 py-2 ${active ? 'bg-neutral-200/70' : 'bg-white'}`}
+                      className={`relative sticky z-[1] px-3 py-2 ${active ? 'bg-[var(--wire-selected)]' : 'bg-[var(--wire-surface)]'}`}
                     >
+                      {/* signature：design.md §1.1。neutral 类没有色块 */}
+                      <StatusEdge kind={broken ? 'neutral' : STATUS_KIND[r.status]} />
                       <input
                         type="checkbox"
                         checked={on}
@@ -153,23 +156,23 @@ export function ListPage({
                     {/* id 列：点击即在面板打开该对象。这是表格里唯一的入口 */}
                     <td
                       style={{ left: STICKY_LEFT[1], width: TABLE_COLUMNS[1].width }}
-                      className={`sticky z-[1] px-3 py-2 ${active ? 'bg-neutral-200/70' : 'bg-white'}`}
+                      className={`sticky z-[1] px-3 py-2 ${active ? 'bg-[var(--wire-selected)]' : 'bg-[var(--wire-surface)]'}`}
                     >
-                      <div className="truncate text-xs font-medium text-neutral-800">{r.title}</div>
+                      <div className="truncate text-xs font-medium text-[var(--wire-fg)]">{r.title}</div>
                       {broken && (
                         /* §8.1 局部失败：出错的那一行原地标出，其它行照常可用 */
-                        <div className="mt-0.5 text-[10px] text-neutral-500">
+                        <div className="mt-0.5 text-[10px] text-[var(--wire-muted-fg)]">
                           这一行的审核状态读取失败 · 重试
                         </div>
                       )}
                     </td>
                     <td className="px-3 py-2">
-                      <Badge>{broken ? '未知' : r.status}</Badge>
+                      <Badge kind={broken ? 'neutral' : STATUS_KIND[r.status]}>{broken ? '未知' : r.status}</Badge>
                     </td>
-                    <td className="px-3 py-2 text-xs text-neutral-600">{r.channel}</td>
-                    <td className="px-3 py-2 text-xs text-neutral-600">{r.author}</td>
-                    <td className="px-3 py-2 text-xs whitespace-nowrap text-neutral-400">{r.updated}</td>
-                    <td className="px-3 py-2 text-xs text-neutral-400">{r.operator}</td>
+                    <td className="px-3 py-2 text-xs text-[var(--wire-body-fg)]">{r.channel}</td>
+                    <td className="px-3 py-2 text-xs text-[var(--wire-body-fg)]">{r.author}</td>
+                    <td className="px-3 py-2 text-xs whitespace-nowrap text-[var(--wire-faint-fg)]">{r.updated}</td>
+                    <td className="px-3 py-2 text-xs text-[var(--wire-faint-fg)]">{r.operator}</td>
                     {/* 这里没有第 8 列。TableColumnKind 里没有 'actions'，写不出来 —— 刻意的 */}
                   </tr>
                 )
@@ -181,13 +184,13 @@ export function ListPage({
 
       <AnnotatedRegion
         id="main.pager"
-        className="flex items-center justify-between border-t border-neutral-200 bg-white px-5 py-2"
+        className="flex items-center justify-between border-t border-[var(--wire-line)] bg-[var(--wire-surface)] px-5 py-2"
       >
-        <span className="text-[11px] text-neutral-500">
+        <span className="text-[11px] text-[var(--wire-muted-fg)]">
           第 1–{Math.min(STRUCT.tablePageSize, rows.length)} 条 / 共 {rows.length ? 218 : 0} 条
         </span>
         <div className="flex items-center gap-1.5">
-          <span className="text-[11px] text-neutral-500">每页 {STRUCT.tablePageSize} 条</span>
+          <span className="text-[11px] text-[var(--wire-muted-fg)]">每页 {STRUCT.tablePageSize} 条</span>
           <Btn weight="outline" disabled>
             上一页
           </Btn>
@@ -201,12 +204,12 @@ export function ListPage({
 
 function TableHead() {
   return (
-    <div className="flex bg-neutral-100 text-[11px] text-neutral-500">
+    <div className="flex bg-[var(--wire-muted)] text-[11px] text-[var(--wire-muted-fg)]">
       {TABLE_COLUMNS.map((c, i) => (
         <div
           key={c.label + i}
           style={{ width: c.width, minWidth: c.width }}
-          className="border-b border-neutral-300 px-3 py-2"
+          className="border-b border-[var(--wire-line-strong)] px-3 py-2"
         >
           {c.kind === 'select' ? '' : c.label}
         </div>

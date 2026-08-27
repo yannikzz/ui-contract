@@ -14,7 +14,7 @@ Once the user sees something running, change requests arrive. For each one:
 1. **First judge whether it belongs in the spec at all.** Recording "right-align it" or "add a button" verbatim is nearly worthless; the value is in the **rule it forces**. Ask: what constraint is behind this request, and would it still hold under different surface choices?
 2. **Name the existing clause it collides with.** New requests frequently contradict prohibitions you wrote yourself — surface that, then change the prohibition or the request. **Never let both stand.**
 3. **Documents change first, code follows.** Always.
-4. **When overturning an old conclusion, don't delete it.** Move it to the *Overturned* appendix with the reasoning. Overturned judgements are easier to re-tread than current ones, precisely because they looked reasonable — they looked reasonable to you too, once.
+4. **When overturning an old conclusion, don't delete it.** Move it to the *Overturned* appendix with the reasoning, or to a decision record. Which of the two, and why the appendix is allowed to exist at all, is `decision-record`'s call — not restated here, because the reason moved there and a second copy of it would drift.
 5. **Report precisely what changed**: which sections, which new prohibitions, what followed in the code.
 
 ## Building the thing exposes the spec's holes

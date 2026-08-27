@@ -101,6 +101,11 @@ run_case 1 "检查 3 · 非 token 的样式表里有硬编码色值" \
   "printf '.card { background: #123456; }\n' > src/feature.css"
 run_case 1 "检查 4 · 视觉规范里写死了色值" \
   "printf '\n正文色 #445566。\n' >> design.md"
+# 同一条违规的**另一种写法**。锚在 {6} 上时这条是绿的——量过：三份判据拷贝、
+# 体检检查 4、以及判 layout.md 的那条，四处全部只认 6 位，`#fff` 一处都抓不到。
+# 2026-08-26 统一放宽到 {3,8}；在 11 份真实产物上量过，零额外命中。
+run_case 1 "检查 4 · 三位十六进制（原来的 {6} 锚放过的那种写法）" \
+  "printf '\n正文色 #fff。\n' >> design.md"
 run_case 1 "检查 5 · 白名单某行没写「禁止放什么」" \
   "sub layout.md '| \`inspector\` | 单对象属性 | 列表、批量动作 |' '| \`inspector\` | 单对象属性 |  |'"
 run_case 1 "检查 8 · 一对 surface/-foreground 的对比度低于 design.md 的阈值" \
@@ -109,6 +114,36 @@ run_case 1 "检查 6 · 白名单里的区域名从没被渲染" \
   "sub src/ui/region.tsx \"  | 'inspector'\" \"  | 'inspector'
   | 'never-rendered-anywhere'\" && sub src/ui/region.tsx '  inspector: {' \"  'never-rendered-anywhere': { label: 'X', desc: '禁止 X。' },
   inspector: {\""
+
+# —— 检查 6 现在是**三档**，上面那条只钉住了中间那档。三档是一个整体，所以放在一起，
+# 哪怕其中两条是绿的（同下面 2b 的跨技术栈那组：一个行为一组用例，红绿混排）。
+#
+#   · $SRC 里一个白名单名字都找不到 → skip。$SRC 是生产树，线框住在工作台、不在里面，
+#     所以「规范写完、资产层生成了、功能代码还没开始」的项目就是这个样子。
+#   · 找到一部分、缺一部分 → 判红，点名缺的那些。上面那条就是这一档（缺 1、找到 4）。
+#   · 全找到 → 绿。
+#
+# 放宽一档只有一个失败方向：把一条**能失败**的检查变成永远不会响的检查。所以离 skip
+# 最近的那一端要单钉——只渲染一个区域、其余四个全缺时必须**仍然**判红。
+# 两头都量过，不是读出来的：
+#   · 用 HEAD 上的旧模板跑 `rm src/App.tsx`，旧版打
+#     「declared but never rendered: app-shell inspector main main.pagehead nav」并 exit 1；
+#     新版打 skip 并 exit 0。所以下面两条 skip 用例对旧行为是红的。
+#   · 红那条：把检查 6 里的 drift 换成 ok 之后它就绿了——exit 1 只由检查 6 给，
+#     不是别的检查顺手给的（就是 9b 那种「红得毫无关系」的病）。
+#
+# skip 与 drift 钉在**同一句话**上，方向相反：drift 那句被改写时，skip 那条的否定
+# needle 会空过，但红那条的肯定 needle 立刻变红。放过的是 skip 那句自己被改写——
+# 它只由 exit 0 那一半兜着。
+run_out 0 'feature code has not started' \
+  "检查 6 · 生产树里一个白名单名字都找不到 → skip，不许判红（功能代码还没开始）" \
+  "rm -f src/App.tsx"
+run_out 0 '!declared but never rendered' \
+  "检查 6 · 同上，整张白名单不许被报成漂移（旧版在这里 exit 1）" \
+  "rm -f src/App.tsx"
+run_out 1 'declared but never rendered:' \
+  "检查 6 · 只渲染一个区域、其余全缺 → 仍然判红（离 skip 最近的那一端）" \
+  "printf 'import { Region } from \"./ui/region\"\nexport const App = () => <Region id=\"nav\" />\n' > src/App.tsx"
 
 # —— 检查 2b 的跨技术栈行为。三条都来自 2026-08-25 的 Vue / React Native 实测端口，
 # 每一条在改动之前都是**绿的**，而三种失效方向各不相同。
@@ -153,6 +188,24 @@ run_case 0 "检查 8 · 基础对达标时不误报（这条检查不许喊狼�
   "printf '  --background: #ffffff;\n  --foreground: #111111;\n' >> src/tokens.css"
 # 容器键不是 token。ui-contract-assets 明确支持 theme.extend / theme object，
 # 而原来的取值把 `theme:` `extend:` `colors:` 三个都当成了没声明的 token 报出来。
+# token 名以 `--` 开头，不加终止符的话 grep 会把它当成自己的选项：往 stderr 打一屏 usage，
+# 然后把每一个都报成「缺失」。**错误答案 + 噪音**，而且在任何按 CSS 写法写声明表的项目上
+# 都会发生。夹具原来的声明表写的是裸名（`card`），所以这个洞在夹具里从不触发。
+run_out 0 '!declared but not in the token file' \
+  "检查 7 · 声明表按 CSS 写法带 -- 前缀时不许误报（grep 把它当选项）" \
+  "sub design.md '| \`card\` |' '| \`--card\` |'"
+# 命名空间前缀属于**格式**不属于名字：Tailwind v4 的 token 文件写 --color-brand，
+# 而声明表说的名字是 brand。按字面比会把整张表和整个 token 文件互报为缺失（实测 10 + 27 条，全假）。
+run_out 0 '!in the token file but not declared' \
+  "检查 7 · Tailwind v4 的 --color-* 前缀不算改名（格式 ≠ 名字）" \
+  "sub src/tokens.css '--card:' '--color-card:'"
+# 值写在下一行的声明（长字体栈的常规写法）到达解析器时值是空的，和容器键长得一样，
+# 于是被跳过 → 该 token 静默消失 → 检查 7 报「声明了但 token 文件里没有」，
+# **答案是错的，而且指向了文档而不是指向这个解析器**。与多行 JSX 调用点同一种形状。
+run_out 0 '!declared but not in the token file' \
+  "检查 7 · 值换行写的 token 不许被当成容器键漏掉（行式解析的老洞）" \
+  "sub design.md '| \`brand\` | this project |' '| \`brand\` | this project |
+| \`wrapped\` | this project |' && printf '  --wrapped:\n    a, b, c;\n' >> src/tokens.css"
 run_out 0 '!in the token file but not declared' \
   "检查 7 · theme.extend 的容器键不算 token（合法形状不许报假 warn）" \
   "printf 'theme: {\n  extend: {\n    colors: {\n    }\n  }\n}\n' >> src/tokens.css"
@@ -167,26 +220,132 @@ run_out 0 '!every marker goes through the container' \
   "检查 2b · 同上，绿勾那句话不许出现" \
   "sub audit.sh 'MARKER_EXCLUSIVE=\"yes\"' 'MARKER_EXCLUSIVE=\"no\"'"
 
-echo "C. 无契约时的退出码"
-run_case 2 "没有 layout.md、也没有 config.md → exit 2（真的没东西可检）" "rm -f layout.md"
-# 「没东西可检」和「配置说有、脚本找不到」必须分开。共用 exit 2 时后者会伪装成前者：
-# 输出是一句平静的 "there is no contract to check"，读起来像通过，实际是路径失配。
-# 夹具本身不含 config.md（它刻意最小），所以这一条在临时副本里现造一个。
-run_case 3 "没有 layout.md 但有 config.md → exit 3（路径表与脚本对不上）" \
-  "mkdir -p docs/ui-contract && printf '# UI contract — configuration\n' > docs/ui-contract/config.md && rm -f layout.md"
-# 反方向才是会**绿着挂**的那个：config 把规范搬走了，根目录还留着一份旧的，
-# 于是下面每条检查都认认真真审了一份被弃用的文件，最后打印 "No drift found."
-# 注意夹具里这一行的第三列（Default）仍然写着 `layout.md`——脚本只读第二列（Path），
-# 读错列的话这条用例会绿，这条用例存在的意义就是钉住这一点。
-run_case 3 "有 layout.md，但 config 的路径表指向别处 → exit 3（别审一份没人认的文件）" \
-  "mkdir -p docs/ui-contract && printf '| 结构规范 | \`docs/spec/layout.md\` | \`layout.md\` at the repo root |\n' > docs/ui-contract/config.md"
-# setup 允许项目给规范改名，所以「路径表指向另一个文件名」和「指向另一个目录」是
-# 两件事——后者脚本的旧路径会落空，前者旧路径照样指着一个真文件，于是七条检查全跑完、
-# 报 "No drift found."。按 Path 列去猜「哪个路径长得像 layout.md」正好漏掉这一种。
+echo "C. 退出码：没有契约 / 契约在但这次跑没看到它"
+# 夹具现在自带一份带 Key 列的 config.md，所以基线本身就在走推导路径。
+run_case 2 "没有 layout.md、config 也删掉 → exit 2（真的没东西可检）" \
+  "rm -f layout.md docs/ui-contract/config.md"
+# 「没东西可检」和「配置说有、这次跑却没看到」必须分开。共用 exit 2 时后者会伪装成前者：
+# 输出是一句平静的 "there is no contract to check"，读起来像通过，实际是 setup 没做完。
+run_case 3 "路径表说 layout.md，而它不在磁盘上 → exit 3" "rm -f layout.md"
+# 反方向才是会**绿着挂**的那个：路径表把规范改了名，根目录还留着一份旧的。
+# 旧检测方式是「比较脚本里的常量和表里的值」；现在脚本直接用表里的值，
+# 于是这种失效换了形状——表指着的那个名字不在磁盘上。旧 layout.md 还在也不会被误审。
 run_case 3 "路径表把规范改了名，旧 layout.md 还在原地 → exit 3（最会假绿的一种）" \
-  "mkdir -p docs/ui-contract && printf '| 结构规范 | \`UI-STRUCTURE.md\` | \`layout.md\` at the repo root |\n' > docs/ui-contract/config.md"
-run_case 0 "config 的路径表与脚本一致时不误报（这条检查不许喊狼来了）" \
-  "mkdir -p docs/ui-contract && printf '| 结构规范 | \`layout.md\` | \`layout.md\` at the repo root |\n' > docs/ui-contract/config.md"
+  "sub docs/ui-contract/config.md '| \`layout\` | 结构规范 | \`layout.md\` |' '| \`layout\` | 结构规范 | \`UI-STRUCTURE.md\` |'"
+# 空单元 ≠ 用默认值。「没有 config」是合法状态，「config 开了个头没填完」不是——
+# 悄悄替换成默认值会去审一个没人选过的路径，而报告读起来完全正常。
+run_case 3 "路径表里有 Key 但 Path 是空的 → exit 3（setup 没做完）" \
+  "sub docs/ui-contract/config.md '| \`src\` | 生产代码树 | \`src\` |' '| \`src\` | 生产代码树 |  |'"
+# 同一个键上，「行在、单元空」和「整行不在」只差一行的存在与否，结论却相反。上面那条钉
+# 的是前者（src），这条钉同一档的 workbench——单钉它，是因为 workbench 恰好是刚开了
+# 「整行不在就用默认值」这条宽的那个键。宽只许开在「没有这一行」上，不许顺手把空单元
+# 也放过去。量过：把 BLANK 那个 abort 改成 `if false`，这处注入就 exit 0——
+# exit 3 只由它给，不是别的地方顺手给的。
+run_out 3 'empty Path cells for: workbench' \
+  "workbench 行在、Path 单元是空的 → 仍然 exit 3（宽只开给「整行不在」）" \
+  "sub docs/ui-contract/config.md '| \`workbench\` | 工作台 | \`.ui-contract-local\` |' '| \`workbench\` | 工作台 |  |'"
+# 整行不在，是**旧 config**，不是没填完的 setup——和「没有 Key 列」是同一件事，只是少
+# 一行而不是少一列。workbench 是最近才进表的那一行，所以「早于这次改动的项目」不是假设：
+# 用 HEAD 上的旧模板跑同一处注入量过，旧版打的是「has empty Path cells for: workbench」
+# 并 exit 3，一条检查都没跑就死了——一句关于一个**根本不存在的单元**的话，正是这份脚本
+# 存在的那种「自信的错答案」。
+NO_WORKBENCH_ROW="sub docs/ui-contract/config.md '| \`workbench\` | 工作台 | \`.ui-contract-local\` | 仓库根，不提交 |
+' ''"
+# 锚在那句黄字横幅上，连键名一起。**exit 0 才是这条的重点**：横幅是在两个 abort
+# **之前**打的，所以横幅出现证明不了这一轮真的跑完了，证明它的是退出码。
+run_out 0 'has no row for: workbench' \
+  "路径表里没有 workbench 这一行 → 降级成默认值并点名，不是 exit 3（旧 config）" \
+  "$NO_WORKBENCH_ROW"
+# 另一半：旧版那句事实错误的话不许回来。表里没有那个单元，却报「空单元」——
+# 这种话一旦重新出现，退出码可能还是 0（只要 abort 被挪走），单看退出码看不出来。
+run_out 0 '!empty Path cells' \
+  "同上，那句关于「空单元」的话不许出现（表里根本没有那个单元）" \
+  "$NO_WORKBENCH_ROW"
+# 存量 config 没有 Key 列。那不是「没填完」，是**旧格式**——按 exit 3 处理会让所有
+# 早于这次改动的项目一律报红。降级成默认值 + 明说，而不是报错。
+run_out 0 'no Key column' "旧格式 config（无 Key 列）→ 用默认值并说明，不是 exit 3" \
+  "printf '| 结构规范 | \`layout.md\` | \`layout.md\` at the repo root |\n' > docs/ui-contract/config.md"
+run_out 0 'defaults' "完全没有 config → 用默认值并说明" "rm -f docs/ui-contract/config.md"
+# 上面四条只钉住了 layout 与 src 两行。exit 3 的那句话说的是「表里指着的路径不在磁盘上」，
+# 是个全称，而循环一度只查三条派生路径——漏掉的两条恰好是失效得最难看的两条，
+# 且**两种失效的形状相反**，所以分开各钉一条：
+#
+#   · design 过期 → 检查 4 降级成一行黄色 skip，整轮还能 exit 0（**安静地少判**）
+#   · tokens 过期 → 检查 3 把 token 文件自己的色值报成硬编码漂移（**自信的错答案**）
+#
+# 第二条尤其要留着：它和 audit.sh 头部拿来论证「砍掉 6 个路径旋钮」的症状是同一个。
+# 旋钮搬进路径表只是换了错路径的来源，没有让错路径不再产出那份报告。
+run_case 3 "路径表把 design.md 改了名 → exit 3（否则检查 4 静默降级成 skip）" \
+  "sub docs/ui-contract/config.md '| \`design\` | 视觉规范 | \`design.md\` |' '| \`design\` | 视觉规范 | \`docs/visual-spec.md\` |'"
+run_out 3 'TOKENS=' "路径表把 token 文件改了名 → exit 3（否则检查 3 把 token 文件自己报成漂移）" \
+  "sub docs/ui-contract/config.md '| \`tokens\` | Token 文件 | \`src/tokens.css\` |' '| \`tokens\` | Token 文件 | \`src/theme/tokens.css\` |'"
+# 反方向的宽必须同时钉住，否则上面两条会诱使人把 none yet 也判成 exit 3——
+# 而「这个项目还没有视觉规范」是合法状态，不是没填完的 setup。
+run_out 0 '!TOKENS=' "design 写 none yet → 不是 exit 3（还没写视觉规范是合法状态）" \
+  "rm -f design.md && sub docs/ui-contract/config.md '| \`design\` | 视觉规范 | \`design.md\` |' '| \`design\` | 视觉规范 | none yet |'"
+
+echo "D. 检查 9 · 工作台不许被提交，也不许住着权威"
+# 夹具刻意没有工作台目录，所以 9a 在基线上报 skip。**这个 skip 本身要被钉住**：
+# 它是这条检查唯一的宽，而「没建过线框」和「建了但忘了 ignore」在输出里只差一个词。
+run_case 0 "9a · 没有工作台目录时报 skip，不许判红（噪音落在正确的仓库上就没人读了）" "true"
+run_out 0 "not on disk" "9a · 同上，skip 那句话必须说清是「磁盘上没有」而不是「通过了」" "true"
+run_case 1 "9a · 工作台在磁盘上，但根本没有 .gitignore（整个被提交）" \
+  "mkdir -p .ui-contract-local/wireframe"
+run_case 1 "9a · 有 .gitignore，但没写工作台那一行（最容易发生的一种）" \
+  "mkdir -p .ui-contract-local/wireframe && printf 'node_modules\ndist\n' > .gitignore"
+# 注释掉的那一行是真会出现的写法，而 `grep -q .ui-contract-local` 会被它骗过去。
+run_case 1 "9a · 工作台那一行被注释掉了（子串匹配会放它过去）" \
+  "mkdir -p .ui-contract-local/wireframe && printf 'node_modules\n# .ui-contract-local/\n' > .gitignore"
+run_case 0 "9a · 正确 ignore 时不误报（这条检查不许喊狼来了）" \
+  "mkdir -p .ui-contract-local/wireframe && printf 'node_modules\n.ui-contract-local/\n' > .gitignore"
+# 9b 才是值钱的那半：token 文件是值权威，落进一个永不提交的目录里，
+# 别人 clone 到的是一份值指向空处的规范。
+# **注入形状变了**：TOKENS 不再是脚本里的常量，它从路径表推导——所以注入路径表，
+# 那也更接近真实失效（真实项目里没人改脚本常量，是 setup 把行填错了）。
+#
+# **注入必须把文件也搬过去，不能只改路径表。** 理由和下面 `none yet` 那条一样：
+# 只改表的话，表指着的那个路径在磁盘上不存在，于是 exit 3（「配置指着的路径不在磁盘上」）
+# 先于 9b 命中，这条用例就在测另一件事了。而真实的 9b 失效里那个文件是**存在**的——
+# admin-console 当初的 `wireframe/src/index.css` 就真的躺在那儿——所以搬文件才是那个形状。
+#
+# **这条只能用 run_out，不能用 run_case。** 原来这里并排放着一条只看退出码的
+# `run_case 1`，而它是死的：量过——把检查 9b 整段摘掉，它照样绿。token 文件一旦离开
+# 生产树，检查 3 的排除项（`grep -v "^$TOKENS:"`）就不再排除它、检查 7 也对不上账，
+# 退出码由那些无关的检查决定，9b 在不在都一样。这正是本文件开头说的那种病，
+# 只是长在测试自己身上。**分开红与红的唯一办法是看那句话**，所以只留 run_out。
+TO_WORKBENCH="mkdir -p .ui-contract-local/wireframe/src && mv src/tokens.css .ui-contract-local/wireframe/src/index.css && sub docs/ui-contract/config.md '| \`tokens\` | Token 文件 | \`src/tokens.css\` |' '| \`tokens\` | Token 文件 | \`.ui-contract-local/wireframe/src/index.css\` |'"
+run_out 1 "value authority" "9b · 路径表把 token 文件填进了工作台，报错必须说清它是值权威" "$TO_WORKBENCH"
+# `none yet` 是路径表里的合法值，不是路径。当成路径去比会得到一句莫名其妙的绿勾。
+# 注入要连夹具的 token 文件一起删掉：只改路径表的话，那个文件不再被检查 3 排除，
+# 于是退出码被一条无关的检查决定，这条用例就不再测它自称在测的东西。
+run_out 0 "no token file yet" "9b · 路径表写着 none yet 时报 skip（那不是一个路径）" \
+  "rm -f src/tokens.css && sub docs/ui-contract/config.md '| \`tokens\` | Token 文件 | \`src/tokens.css\` |' '| \`tokens\` | Token 文件 | none yet |'"
+
+# workbench 的 none yet 分支要单独钉：它刚从**死代码**里救活。原来那个 `[ -z "$WORKBENCH" ]`
+# 永远进不去（derive 要么给默认值、要么在上游 exit 3），所以它写错了也没人知道。
+# 上面那条 9b 走的是 tokens 行，碰不到这一段——一条用例覆盖不了另一行的同名值。
+# 判据取报错里那句话，不取退出码：这一档是 skip，退出码证明不了它进没进这个分支。
+run_out 0 'names no workbench' "9a · workbench 写 none yet 时报 skip（占位符不是目录名）" \
+  "sub docs/ui-contract/config.md '| \`workbench\` | 工作台 | \`.ui-contract-local\` |' '| \`workbench\` | 工作台 | none yet |'"
+
+echo "E. 检查 10 · 结构参数还在等视觉刻度"
+# 这条是 warn 档：退出码证明不了它，只能证明它**不**改退出码。所以两条都看输出。
+# 「不许喊狼来了」那一半单列，因为 warn 计数一旦虚高，最后那句 warning(s) 就没人读了。
+run_out 0 "still marked" "10 · layout.md 里有未结清的 ⏳ → warn 并列出来（退出码不变）" \
+  "printf '\n| 面板宽 | 360 | ⏳ 等字号刻度 |\n' >> layout.md"
+run_out 0 "!still marked" "10 · 没有 ⏳ 时不许报 warn（这条检查不许喊狼来了）" "true"
+# 交接单必须**逐字**带上那几行，不能改写——改写等于这个脚本在替别人发明需求，
+# 而这份提示词是唯一会送到视觉那一侧的东西（同 ADR-0007 对提示词的要求）。
+run_out 0 "⏳ 等字号刻度" "10 · 提示词逐字带上 ⏳ 那一行（不许改写成自己的话）" \
+  "printf '\n| 面板宽 | 360 | ⏳ 等字号刻度 |\n' >> layout.md"
+run_out 0 "copy from here" "10 · 输出的是可以整段拷走的交接单，不是一句提醒" \
+  "printf '\n| 面板宽 | 360 | ⏳ 等字号刻度 |\n' >> layout.md"
+run_out 0 "!copy from here" "10 · 没有 ⏳ 时不许打印交接单" "true"
+# 实测出来的：解释 ⏳ 约定的那几句散文自己也含这个字符。第一版锚在字符上，
+# 一份只有 3 个待定数字的文档被报成 6 个，交接单里带出三段关于它自己的话。
+# **一个没人敢信的计数比没有计数更糟**，何况这份提示词是唯一会送到视觉那侧的东西。
+run_out 0 "!copy from here" "10 · 散文里提到 ⏳ 不算一个待定数字（锚在表格行，不在字符）" \
+  "printf '\n关于 ⏳ 的约定：它表示这个数还在等视觉刻度。\n' >> layout.md"
 
 printf '\n'
 [ $FAIL -eq 0 ] && printf '  \033[32m%s 个用例全部符合预期（%s）\033[0m\n' "$CASES" "$(basename "$SH")" \

@@ -1,0 +1,44 @@
+# 网关 0：磁盘结构，以及每条断言真的能失败。
+#
+# **这里只跑四道网关里的第一道。** 另外三道进不来，各有各的理由，写在这里而不是
+# 让下一个人去猜：
+#
+#   网关 1（testing/preflight.sh）  要 `claude` CLI、要鉴权、还被一个按组织灰度的
+#                                  feature gate 挡着。它本身是 $0 的，但拿不到那三样
+#                                  东西的 runner 上跑不了。
+#   网关 2（testing/grader-check/） 花钱（实测 $0.74 一轮）。
+#   网关 3（testing/evals/）        花钱（实测约 $2.60/run，全量约 $36）。
+#
+# 所以：**CI 绿不等于可以合并。** 它只保证结构层没塌。改了 skills/ 或 testing/
+# 之后仍然要在本地跑 ./testing/run.sh，那一条会连网关 1 一起跑。
+#
+# 脚本用 glob 发现，不写死名字：testing/structure/ 下新增一个 *.sh，CI 自动带上它。
+# 手维护一张脚本清单，就是又一个会和磁盘吵架的事实源——CLAUDE.md 反对的正是这个。
+name: gates
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  gate-0:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # dash 是刻意的：模板自称要能在 dash 下跑，audit-effectiveness.sh 会优先用它，
+      # 没有就退回 sh。ubuntu-latest 自带 dash，这里显式验一下它在。
+      - name: 依赖自检
+        run: |
+          command -v python3
+          command -v dash || echo "没有 dash，脚本会退回 sh——dash 专属的问题将测不到"
+
+      - name: 网关 0
+        run: |
+          fail=0
+          for s in testing/structure/*.sh; do
+            printf '\n=== %s ===\n' "$s"
+            "$s" || fail=1
+          done
+          exit $fail

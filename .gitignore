@@ -4,5 +4,6 @@ dist/
 *.log
 testing/evals/results/
 testing/grader-check/results/
+testing/evals-probe/results/
 testing/stack-probes/*/node_modules/
 testing/stack-probes/*/package-lock.json

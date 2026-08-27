@@ -1,15 +1,22 @@
 # 线框原型
 
-`../layout.md` 的可运行参考实现。**它长得很朴素是故意的**——原因见 `CLAUDE.md` 的「刻意的取舍清单」。
+`../../layout.md` 的可运行参考实现。**它长得很朴素是故意的**——原因见 `CLAUDE.md` 的「刻意的取舍清单」。
 
-从**项目根**（`..`）跑，不是从这个目录——依赖与配置住在项目根，这里只有源码。
+⚠ **它住在工作台里，真实项目不提交这个目录。** 不在时用 `ui-contract-wireframe` 技能重建，
+输入（`layout.md` / `design.md` / `src/ui/region.tsx`）都是提交的。本示例刻意提交了它，
+理由见项目根 `.gitignore`。
+
+从**项目根**（`../..`）跑，不是从这个目录——依赖与配置住在项目根，这里只有源码。
 
 ```bash
-cd .. && pnpm install
+cd ../.. && pnpm install
 pnpm dev
+pnpm typecheck       # 白名单 + 四条禁令的自断言
+pnpm check-colours   # 线框颜色纪律
 ```
 
-> ⚠️ 交付时**没有执行过 `pnpm install`、`pnpm typecheck`、`pnpm build`**（环境离线）。第一次跑之前先 install，再 typecheck。如果有类型错误，那是我没验证到的，直接告诉我。
+> 2026-08-25 重建后实跑过：`tsc --noEmit` 干净、`vite build` 干净、`check-colours.sh` 干净。
+> **渲染结果仍然没人看过**——下面「重点验这几处」那一节仍然有效。
 
 ## 为什么是灰的
 
@@ -58,24 +65,28 @@ pnpm dev
 
 ```
 admin-console/                 项目根：依赖、构建配置、两份规范都在这里
-├── package.json · tsconfig.json · vite.config.ts
+├── package.json · tsconfig.json · vite.config.ts · check-colours.sh
 ├── layout.md · design.md
-├── src/
-│   └── ui/region.tsx          资产层：区域白名单（RegionId）+ 区域元信息 + 结构容器
-│                              生产代码，长期维护。**在线框目录之外，重建线框碰不到它**
-└── wireframe/                 ← 本目录。一次性，结构变了整个重新生成
-    ├── CLAUDE.md              目录级硬约束 + 刻意的取舍清单（改代码前必读）
-    ├── README.md              本文件
-    ├── index.html
-    └── src/
-        ├── wire.tsx           展示层：区域标注层 + 中性线框零件 + 其它硬规则的类型形态
-        ├── structure.ts       结构参数（STRUCT）+ 降级判定纯函数（resolveShell）
-        ├── fixtures.ts        假数据（**不是规格**）
-        ├── Inspector.tsx      聚焦槽（属性面板）
-        ├── App.tsx            外壳 + 页型路由 + 降级实算 + 演示开关条
-        └── pages/             每种页型一个文件
+├── src/                       生产代码。**重建线框碰不到这里**
+│   ├── tokens.css             token 文件：值的权威
+│   ├── ui/region.tsx          资产层：RegionId + 四条禁令类型 + 元信息 + 结构容器
+│   └── ui-contract.assert.ts  禁令自断言：删掉禁令会让 tsc 报 TS2578
+└── .ui-contract-local/        工作台。**真实项目不提交；本示例刻意提交**
+    └── wireframe/             ← 本目录。一次性，结构变了整个重新生成
+        ├── CLAUDE.md          目录级硬约束 + 刻意的取舍清单（改代码前必读）
+        ├── README.md          本文件
+        ├── index.html
+        └── src/
+            ├── inspect.tsx    装置：区域标注层 + 演示条外观。**颜色豁免就是这个文件**
+            ├── wire.tsx       中性零件 + NEUTRAL 色板（唯一允许写颜色值的另一处）
+            ├── structure.ts   结构参数（STRUCT）+ 降级判定纯函数（resolveShell）
+            ├── fixtures.ts    假数据（**不是规格**）
+            ├── Inspector.tsx  聚焦槽（属性面板）
+            ├── App.tsx        外壳 + 页型路由 + 降级实算 + 演示开关条（自己不带颜色）
+            └── pages/         每种页型一个文件
 ```
 
-`src/ui/region.tsx` 住在这个目录之外，是刻意的：线框自称一次性、结构变了重新生成，
-而白名单不能跟着一起被重新生成掉。同理，`vite.config.ts` 把 root 设成 `wireframe/`，
+`src/` 整个住在这个目录之外，是刻意的：线框自称一次性、结构变了重新生成，
+而白名单、四条禁令类型、自断言和 token 文件**都不能跟着一起被重新生成掉**——
+它们约束的是会发布的代码。`vite.config.ts` 把 root 设成 `.ui-contract-local/wireframe`，
 但依赖与类型检查是整个项目的。

@@ -48,6 +48,10 @@ This decides whether a second persistent column is needed at all. "Neither" is a
 
 ## Group 3 — Extension slots *(this group is where the spec earns its keep)*
 
+*Q5 and Q6 were removed. The numbering is **deliberately not compacted**: produced `layout.md`
+files cite these numbers, so renumbering would silently point an existing citation at a different
+question. Cite a question by what it asks, not by its number — same rule as §1's short-circuits.*
+
 **Q7 What model governs the focus slot outside the main area?**
 *(If Q3 answered "no second column", ask the equivalent about replaceable blocks inside the main area.)*
 

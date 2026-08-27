@@ -5,12 +5,13 @@
  * 演示开关条不属于产品界面，它在窗口外（README 里有「开关 → 验什么」的表）。
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
-import { Badge, Btn, GroupLabel, LabelsProvider, NavRow, AnnotatedRegion, Tile } from './wire'
+import { Badge, Btn, GroupLabel, NavRow, Tile, useSkin } from './wire'
+import { LabelsProvider, AnnotatedRegion, DemoPanel, Group, Sw, Readout, Alert, SkinBanner, ThemeSwitch, SkinEditor } from './inspect'
+import candidates from '../../tokens.input.json'
 import type { PageKind } from './wire'
 import { STRUCT, resolveShell } from './structure'
 import type { Pref } from './structure'
-import { NAV_GROUPS, NAV_SETTINGS, ROWS } from './fixtures'
+import { NAV_GROUPS, NAV_SETTINGS, ROWS, STATUS_KIND } from './fixtures'
 import { InspectorSlot } from './Inspector'
 import type { InspectorState } from './Inspector'
 import { ListPage } from './pages/ListPage'
@@ -34,6 +35,10 @@ const CLAMPS = [0, 1440, 1180, 1024, 900, 680] as const
 
 export default function App() {
   const [labels, setLabels] = useState(true)
+  // §ADR-0006 规则 3：默认关，且**不持久化**——每次重开都是灰的
+  const [skin, setSkin] = useState(false)
+  const [panelOpen, setPanelOpen] = useState(true)
+  const sk = useSkin(skin)
   const [page, setPage] = useState<PageKind>('list')
   const [navPref, setNavPref] = useState<Pref>('auto')
   const [clamp, setClamp] = useState<number>(0)
@@ -82,10 +87,10 @@ export default function App() {
 
   return (
     <LabelsProvider value={labels}>
-      <div className="flex h-screen flex-col bg-neutral-200 font-sans text-neutral-900">
+      <div style={sk.vars} className="flex h-screen flex-col bg-[var(--wire-shell)] font-sans text-[var(--wire-fg-strong)]">
         {/* ── 演示开关条（不属于产品界面）──────────────────────────── */}
-        <div className="shrink-0 space-y-1.5 border-b border-neutral-400 bg-neutral-800 px-3 py-2 text-white">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px]">
+        <DemoPanel open={panelOpen} onToggle={() => setPanelOpen(!panelOpen)}>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
             <Group name="页型">
               {(Object.keys(PAGE_LABEL) as PageKind[]).map((p) => (
                 <Sw key={p} on={page === p} onClick={() => setPage(p)}>
@@ -114,9 +119,12 @@ export default function App() {
               <Sw on={overlay} onClick={() => setOverlay(!overlay)}>
                 覆盖层
               </Sw>
+              <Sw on={skin} onClick={() => setSkin(!skin)}>
+                换肤预览
+              </Sw>
             </Group>
           </div>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px]">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
             <Group name={page === 'list' ? '列表状态' : '页面状态'}>
               {(['正常', '空', '筛选后空', '加载', '局部失败', '整区失败'] as DataState[]).map((s) => (
                 <Sw key={s} on={dataState === s} onClick={() => setDataState(s)}>
@@ -142,7 +150,7 @@ export default function App() {
             )}
           </div>
           {/* 实时数据行：降级规则能被对着数字验证，而不是靠感觉 */}
-          <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-neutral-700 pt-1.5 font-mono text-[10px] text-neutral-300">
+          <Readout>
             <span>外壳实测 {shellWidth}</span>
             <span>导航 {shell.navWidth}（{shell.nav}）</span>
             <span>面板 {shell.inspector}</span>
@@ -150,42 +158,69 @@ export default function App() {
               主区 {shell.mainWidth} / 阈值 {STRUCT.mainMinWidth}
             </span>
             <span>偏好 nav={navPref}</span>
-            <span className={shell.triggered.length ? 'text-amber-300' : ''}>
-              降级：{shell.triggered.length ? shell.triggered.join(' · ') : '未触发'}
-            </span>
-            {shell.atFloor && <span className="text-amber-300">已触底，表格横向滚动</span>}
-          </div>
-        </div>
+            {shell.triggered.length ? (
+              <Alert>降级：{shell.triggered.join(' · ')}</Alert>
+            ) : (
+              <span>降级：未触发</span>
+            )}
+            {shell.atFloor && <Alert>已触底，表格横向滚动</Alert>}
+          </Readout>
+          {skin && (
+            <>
+              <ThemeSwitch
+                value={sk.theme}
+                onChange={sk.setTheme}
+                options={(['A', 'B', 'C'] as const).map((id) => ({
+                  id,
+                  label: candidates._candidates[id].label,
+                  axes: candidates._candidates[id].axes,
+                }))}
+              />
+              <SkinEditor
+                base={sk.base}
+                draft={sk.draft}
+                onChange={sk.set}
+                onReset={sk.reset}
+                tokenFile="src/tokens.css"
+                theme={sk.theme}
+                chosen="A"
+                themeLabel={(id) => candidates._candidates[id as 'A' | 'B' | 'C']?.label ?? id}
+              />
+            </>
+          )}
+        </DemoPanel>
+        {/* 横幅**不随面板收起而消失**：这个警告不许被折叠掉 */}
+        {skin && <SkinBanner tokenFile="src/tokens.css" />}
 
         {/* ── 产品界面 ─────────────────────────────────────────── */}
         <div className="flex min-h-0 flex-1 justify-center overflow-hidden p-3">
           <AnnotatedRegion
             id="app-shell"
             elRef={shellRef}
-            className="flex min-h-0 w-full overflow-hidden rounded border border-neutral-400 bg-neutral-50"
+            className="flex min-h-0 w-full overflow-hidden rounded border border-[var(--wire-line-contrast)] bg-[var(--wire-canvas)]"
             style={clamp ? { maxWidth: clamp } : undefined}
           >
             {/* ── nav ───────────────────────────────────────── */}
             <AnnotatedRegion
               id="nav"
-              className="flex shrink-0 flex-col border-r border-neutral-300 bg-neutral-100"
+              className="flex shrink-0 flex-col border-r border-[var(--wire-line-strong)] bg-[var(--wire-muted)]"
               label={shell.nav === 'rail' ? '全局导航（图标条）' : undefined}
               style={{ width: shell.navWidth }}
             >
               <AnnotatedRegion
                 id="nav.brand"
-                className="flex items-center gap-2 border-b border-neutral-200 px-2.5 py-2.5"
+                className="flex items-center gap-2 border-b border-[var(--wire-line)] px-2.5 py-2.5"
               >
                 <Tile size={22} />
                 {shell.nav === 'full' && (
-                  <span className="flex-1 truncate text-xs font-semibold text-neutral-700">
+                  <span className="flex-1 truncate text-xs font-semibold text-[var(--wire-fg-2)]">
                     内容管理后台
                   </span>
                 )}
                 <button
                   title="收起 / 展开（手动优先，双向生效）"
                   onClick={() => setNavPref(shell.nav === 'full' ? 'closed' : 'open')}
-                  className="shrink-0 rounded border border-neutral-300 px-1 text-[10px] text-neutral-500"
+                  className="shrink-0 rounded border border-[var(--wire-line-strong)] px-1 text-[10px] text-[var(--wire-muted-fg)]"
                 >
                   {shell.nav === 'full' ? '«' : '»'}
                 </button>
@@ -197,7 +232,7 @@ export default function App() {
                     {shell.nav === 'full' ? (
                       <GroupLabel>{g.group}</GroupLabel>
                     ) : (
-                      <div className="mx-2 mt-3 mb-1 border-t border-neutral-300" />
+                      <div className="mx-2 mt-3 mb-1 border-t border-[var(--wire-line-strong)]" />
                     )}
                     {g.items.map((it) => (
                       <NavRow
@@ -210,7 +245,7 @@ export default function App() {
                         right={
                           /* 队列型才带角标；库型禁止带（§7.1）。收起后角标必须保留（§3.4 级1） */
                           it.count ? (
-                            <span className="shrink-0 rounded-full border border-neutral-400 px-1.5 text-[10px] leading-[15px] text-neutral-600">
+                            <span className="shrink-0 rounded-full border border-[var(--wire-line-contrast)] px-1.5 text-[10px] leading-[15px] text-[var(--wire-body-fg)]">
                               {it.count}
                             </span>
                           ) : undefined
@@ -229,7 +264,7 @@ export default function App() {
               </AnnotatedRegion>
 
               {/* 配置类去处贴底独立成段：导航变长也不会被滚走，且禁止带角标 */}
-              <AnnotatedRegion id="nav.settings" className="border-t border-neutral-200 px-1.5 pt-1 pb-2">
+              <AnnotatedRegion id="nav.settings" className="border-t border-[var(--wire-line)] px-1.5 pt-1 pb-2">
                 {NAV_SETTINGS.map((g) => (
                   <div key={g.group}>
                     {shell.nav === 'full' ? (
@@ -257,7 +292,7 @@ export default function App() {
                 {/* main：最小可用宽 640，触底后横向滚动 */}
                 <AnnotatedRegion
                   id="main"
-                  className="flex min-w-0 flex-1 flex-col overflow-hidden bg-neutral-50"
+                  className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[var(--wire-canvas)]"
                   style={{ minWidth: STRUCT.mainMinWidth }}
                 >
                   {page === 'list' && (
@@ -304,14 +339,14 @@ export default function App() {
                 {overlay && (
                   <AnnotatedRegion
                     id="overlay"
-                    className="absolute inset-0 z-30 flex flex-col bg-white/98 backdrop-blur-[1px]"
+                    className="absolute inset-0 z-30 flex flex-col bg-[var(--wire-overlay)] backdrop-blur-[1px]"
                   >
-                    <div className="flex items-center justify-between border-b border-neutral-300 px-5 py-3">
+                    <div className="flex items-center justify-between border-b border-[var(--wire-line-strong)] px-5 py-3">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-neutral-800">
+                        <p className="truncate text-sm font-semibold text-[var(--wire-fg)]">
                           正文全文预览 · {row.id}
                         </p>
-                        <p className="mt-0.5 truncate text-[11px] text-neutral-500">
+                        <p className="mt-0.5 truncate text-[11px] text-[var(--wire-muted-fg)]">
                           覆盖层自带头部：它盖住了页头，不自带头部用户就不知道自己在哪
                         </p>
                       </div>
@@ -320,10 +355,10 @@ export default function App() {
                       </Btn>
                     </div>
                     <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-8 py-5">
-                      <h2 className="text-base font-semibold text-neutral-800">{row.title}</h2>
+                      <h2 className="text-base font-semibold text-[var(--wire-fg)]">{row.title}</h2>
                       <div className="flex gap-2">
-                        <Badge>{row.status}</Badge>
-                        <span className="text-[11px] text-neutral-400">
+                        <Badge kind={STATUS_KIND[row.status]}>{row.status}</Badge>
+                        <span className="text-[11px] text-[var(--wire-faint-fg)]">
                           {row.author} · {row.updated}
                         </span>
                       </div>
@@ -333,11 +368,11 @@ export default function App() {
                         '三、数据缺口。B 市 7 月 18—20 日自动售票系统升级，期间数据由人工闸机计数补录；C 市未提供分线路数据，本期以全网合计呈现。',
                         '四、准点率与投诉。全网平均准点率 99.2%，较上月下降 0.1 个百分点；每百万人次投诉量 2.4 件，主要集中在早高峰限流与空调温度两类。',
                       ].map((p, i) => (
-                        <p key={i} className="max-w-[70ch] text-xs leading-relaxed text-neutral-700">
+                        <p key={i} className="max-w-[70ch] text-xs leading-relaxed text-[var(--wire-fg-2)]">
                           {p}
                         </p>
                       ))}
-                      <p className="text-[11px] text-neutral-400">
+                      <p className="text-[11px] text-[var(--wire-faint-fg)]">
                         这类内容需要宽度，所以它在覆盖层而不是 360 的面板里（§1.1 短路「需要宽度」）。
                         禁止在这上面再叠第二层覆盖层。
                       </p>
@@ -353,32 +388,3 @@ export default function App() {
   )
 }
 
-function Group({ name, children }: { name: string; children: ReactNode }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <span className="text-neutral-400">{name}</span>
-      <div className="flex flex-wrap gap-1">{children}</div>
-    </div>
-  )
-}
-
-function Sw({
-  on,
-  onClick,
-  children,
-}: {
-  on: boolean
-  onClick: () => void
-  children: ReactNode
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded border px-1.5 py-0.5 ${
-        on ? 'border-white bg-white text-neutral-900' : 'border-neutral-600 text-neutral-300'
-      }`}
-    >
-      {children}
-    </button>
-  )
-}

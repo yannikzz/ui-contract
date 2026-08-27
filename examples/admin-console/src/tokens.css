@@ -1,0 +1,84 @@
+/*
+ * Token 文件 —— **值的权威**。
+ *
+ * 它住在生产代码树里，不在工作台里，而且这一点是被检查的：
+ * `ui-contract-audit` 的检查 9b 会判「token 文件落在不提交的工作台内」为漂移。
+ *
+ * 名字的权威是 `design.md` 的命名声明表，不是这里。这里只有值。
+ * 这些值是 `originate` 从属性坐标**派生**出来的（design.md §1.0），不是量出来的：
+ * 密实 · 锐利 · 克制。每个值都能回指到一条坐标——回指不到的就是默认值。
+ *
+ * ⚠ 整套值标 🌡：生成的品牌在真实用户看过之前是假设。色相是其中最弱的一个
+ *   （三条轴不管色相），调校时先动它。
+ */
+@theme {
+  /* ── 字体：栈里写全中文回退，缺了中文会落到宋体 ─────────────── */
+  --font-sans:
+    system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, 'Cascadia Mono', 'Noto Sans Mono CJK SC', monospace;
+
+  /*
+   * ── 表面：三档。密度高，所以层级靠表面色差而不是阴影（§1.2 一）。
+   *
+   * ⚠ 第一版这三档之间只有 1.06 / 1.08——肉眼看不出来，层级实际上全落到了 hairline 上，
+   * 与 §1.2 第一条自己的话相反。病因是把「克制」读成了「哪儿都低对比」，
+   * 而克制那条轴管的是**颜色数量、饱和度、强调色面积**，不管表面层级。
+   * 一条坐标渗进了不属于它的 token 组，正是那张轴表要防的事。现在是 1.17 / 1.14。
+   */
+  --color-surface-page: #eaeeed;
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #dae0df;
+
+  /* ── 描边：两档，1px。「锐利」坐标 = 有描边、无阴影 ───────────── */
+  --color-border-hairline: #ccd4d3;
+  --color-border-strong: #a4afad;
+  /* 只用在填充面上：hairline 在填充面上会消失。design.md §6b */
+  --color-border-contrast: #8d9997;
+
+  /* ── 交互填充：三档，见 §5 ─────────────────────────────────── */
+  --color-fill-subtle: #e2e8e7;
+  --color-fill-selected: #cddad7;
+  --color-fill-disabled: #dae0df;
+
+  /* ── 文字：四级，禁止第 5 级（§2.2）───────────────────────── */
+  --color-text-primary: #14201f;
+  --color-text-secondary: #3d4a49;
+  --color-text-tertiary: #596361;
+  --color-text-disabled: #96a2a0;
+
+  /*
+   * ── 强调色 ──────────────────────────────────────────────────
+   * 色相基准：领域惯例，刻意逆反 + 邻接回避（design.md §1.1）。
+   * 「克制」坐标压低了饱和度并限制了覆盖面积——它只出现在主操作与当前选中项上。
+   * 与下面三个语义色各自拉得开，这是低饱和方向必须满足的条件。
+   */
+  --color-brand: #1f5f5b;
+  --color-brand-foreground: #ffffff;
+  /* 浅底上的品牌色文字/图标。与 --color-brand 不可互换（design.md §2.3）：
+     brand 是色块底色，直接当正文色用对比度不够。 */
+  --color-brand-ink: #174a47;
+
+  /* ── 语义三色：只出现在状态上，不做装饰（§1.2 二）───────────── */
+  --color-success: #2f6b46;
+  --color-warning: #8a5a12;
+  --color-danger: #9c3a2c;
+  --color-info: #3f5c6b;
+
+  /* ── 圆角：两档，都很小。「锐利」坐标（§7）──────────────────── */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+
+  /*
+   * ── 间距刻度：4px 基数，低端步进 ~1.5 而不是 2×。
+   * 「密实」坐标：在这个刻度下表格行高落在 36px，控件高 28px。
+   * 那两个数正是 layout.md 三个 ⏳ 结清时对着核的东西。
+   */
+  --spacing-1: 4px;
+  --spacing-2: 6px;
+  --spacing-3: 8px;
+  --spacing-4: 12px;
+  --spacing-5: 16px;
+  --spacing-6: 24px;
+  --spacing-7: 32px;
+}

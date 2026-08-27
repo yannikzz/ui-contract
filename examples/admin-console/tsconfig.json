@@ -15,5 +15,5 @@
     "verbatimModuleSyntax": true,
     "types": ["vite/client"]
   },
-  "include": ["src", "wireframe/src", "vite.config.ts"]
+  "include": ["src", ".ui-contract-local/wireframe/src", "vite.config.ts"]
 }

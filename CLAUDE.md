@@ -12,14 +12,16 @@ Read `testing/structure/invariants.sh` to see what is actually enforced. It is t
 
 ## The four gates
 
-Ordered by cost. `./testing/run.sh` runs the two free ones; the paid ones have their commands in their own READMEs.
+Ordered by cost. `./testing/run.sh` runs the two free ones; the paid ones have their commands in their own READMEs. Costs are measured, not estimated — 2026-08-27.
 
-| | What it judges | Cost | Where |
-|---|---|---|---|
-| 0 | Disk structure, and that each assertion can actually fail | $0 | `testing/structure/` |
-| 1 | The eval suite's schema, and every grader's coherence | $0 | `testing/preflight.sh` |
-| 2 | Whether a grader can tell right from wrong | ~$0.06/case | `testing/grader-check/` |
-| 3 | Whether the plugin changes behaviour | ~$18 | `testing/evals/` |
+| | What it judges | Cost | Where | In CI |
+|---|---|---|---|---|
+| 0 | Disk structure, and that each assertion can actually fail | $0 | `testing/structure/` | **yes** |
+| 1 | The eval suite's schema, and every grader's coherence | $0 | `testing/preflight.sh` | no — needs the `claude` CLI, auth, and a gated feature |
+| 2 | Whether a grader can tell right from wrong | $0.74 a round (8 fixtures) | `testing/grader-check/` | no — costs money |
+| 3 | Whether the plugin changes behaviour | $2.60/run; ~$36 for a full `--runs 3` | `testing/evals/` | no — costs money |
+
+**A green CI does not mean mergeable.** `.github/workflows/gates.yml` runs gate 0 only, because it is the only one that is both free and self-contained. Gate 1 is free too and still cannot run there. The one rule above is unchanged: run `./testing/run.sh` locally, which does run gate 1.
 
 Gate 1 is `claude plugin eval --max-cost-usd 0`: the suite is fully loaded, validated and coherence-checked, then every run is skipped. It costs nothing and takes under a second. The harness reference is vendored at `docs/reference/plugin-eval.md` — that surface has **no public documentation page**, so the copy in this repo is the documentation.
 

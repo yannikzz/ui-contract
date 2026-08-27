@@ -8,7 +8,8 @@
  * 硬规则：**概览页不放筛选条**（需要筛选说明用户要的是 P1 列表页），
  * 不放完整表格（只放短列表卡 + 「查看全部」）。
  */
-import { Btn, Card, AnnotatedRegion, StateBlock } from '../wire'
+import { Btn, Card, StateBlock } from '../wire'
+import { AnnotatedRegion } from '../inspect'
 import { OVERVIEW_CARDS } from '../fixtures'
 import { STRUCT } from '../structure'
 
@@ -17,11 +18,11 @@ export function OverviewPage({ failed }: { failed: boolean }) {
     <>
       <AnnotatedRegion
         id="main.pagehead"
-        className="flex items-start justify-between gap-4 border-b border-neutral-200 bg-white px-5 py-3"
+        className="flex items-start justify-between gap-4 border-b border-[var(--wire-line)] bg-[var(--wire-surface)] px-5 py-3"
       >
         <div className="min-w-0">
-          <h1 className="truncate text-base font-semibold text-neutral-800">概览</h1>
-          <p className="mt-0.5 truncate text-xs text-neutral-500">
+          <h1 className="truncate text-base font-semibold text-[var(--wire-fg)]">概览</h1>
+          <p className="mt-0.5 truncate text-xs text-[var(--wire-muted-fg)]">
             截至 2026-08-17 09:45 · 数据每 5 分钟更新
           </p>
         </div>
@@ -37,7 +38,7 @@ export function OverviewPage({ failed }: { failed: boolean }) {
             <div key={c.title} style={{ gridColumn: `span ${c.span}` }}>
             <Card className="h-full p-3">
               <div className="flex items-start justify-between gap-2">
-                <h2 className="truncate text-xs font-medium text-neutral-700">{c.title}</h2>
+                <h2 className="truncate text-xs font-medium text-[var(--wire-fg-2)]">{c.title}</h2>
                 {c.kind === 'list' && <Btn weight="ghost">查看全部</Btn>}
               </div>
               {/* §8.1：每张卡各自空/加载/失败，一张卡出问题不影响别的卡 */}
@@ -45,19 +46,19 @@ export function OverviewPage({ failed }: { failed: boolean }) {
                 <StateBlock kind="局部失败" text="这张卡的数据源不可用" action="重试" />
               ) : c.kind === 'metric' ? (
                 <>
-                  <p className="mt-1 text-2xl font-semibold text-neutral-800">{c.body[0]}</p>
-                  <p className="text-[11px] text-neutral-400">{c.body[1]}</p>
+                  <p className="mt-1 text-2xl font-semibold text-[var(--wire-fg)]">{c.body[0]}</p>
+                  <p className="text-[11px] text-[var(--wire-faint-fg)]">{c.body[1]}</p>
                 </>
               ) : c.kind === 'chart' ? (
                 <div className="mt-2 flex h-28 items-end gap-1">
                   {[38, 52, 30, 61, 44, 70, 55, 48, 66, 33, 58, 72, 41, 63].map((h, j) => (
-                    <span key={j} className="flex-1 bg-neutral-200" style={{ height: `${h}%` }} />
+                    <span key={j} className="flex-1 bg-[var(--wire-shell)]" style={{ height: `${h}%` }} />
                   ))}
                 </div>
               ) : (
-                <ul className="mt-1.5 divide-y divide-neutral-100">
+                <ul className="mt-1.5 divide-y divide-[var(--wire-line)]">
                   {c.body.map((b) => (
-                    <li key={b} className="truncate py-1.5 text-xs text-neutral-600">
+                    <li key={b} className="truncate py-1.5 text-xs text-[var(--wire-body-fg)]">
                       {b}
                     </li>
                   ))}
@@ -67,7 +68,7 @@ export function OverviewPage({ failed }: { failed: boolean }) {
             </div>
           ))}
         </div>
-        <p className="mt-3 text-[11px] text-neutral-400">
+        <p className="mt-3 text-[11px] text-[var(--wire-faint-fg)]">
           新指标卡放哪、占几格归 layout.md §4.4；卡片里图表长什么样归 design.md。
         </p>
       </AnnotatedRegion>

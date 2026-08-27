@@ -1,0 +1,41 @@
+schema_version: "1.1"
+name: wireframe-probe
+description: >
+  一次性探针，不属于正式套件。目的只有一个：量 ui-contract-wireframe 链条的运行时开销
+  （墙钟、token 账、读了哪些文件），因为这条链在这个 PR 里涨了 81% 而从来没被测过。
+  判据只用来确认它真的跑到了 wireframe，不用来判质量。
+
+tags: [probe, wireframe]
+plugins: ["../../.."]
+
+context:
+  scaffold_script: scaffold.sh
+
+execution:
+  prompt: |
+    我这个 React Native 记账 app 的结构规范和视觉规范都已经写好了，资产层也在 `src/ui-contract/` 里了。
+
+    现在帮我把线框做出来——我要一个能跑起来的、低保真的参考实现，好让后面写功能的人（和 AI）照着它的结构来，而不是各自猜。
+
+    我时间紧，你按推荐的来。
+  max_turns: 60
+  timeout_seconds: 3600
+  allowed_tools: [Read, Glob, Grep, Skill, Write, Edit]
+
+runs: 1
+
+graders:
+  - type: tool_used
+    name: skill-fired
+    tool: Skill
+    arm: with-only
+    weight: 1
+  - type: file_exists
+    name: wireframe-exists
+    path: .ui-contract-local/wireframe/package.json
+    exists: true
+    weight: 1
+
+expected_outcome: >
+  走到 ui-contract-wireframe，在工作台里产出可运行的低保真线框。
+  这条 case 的价值在 trace，不在分数。

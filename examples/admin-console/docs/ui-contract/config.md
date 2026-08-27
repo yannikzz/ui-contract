@@ -14,32 +14,40 @@
 
 | 种类 | 路径 | 备注 |
 |---|---|---|
-| 视觉规范 | `design.md` | 取值目前**全部是「待确认」占位**，文件顶部自述是「刻度骨架，不是从设计稿量出来的」 |
-| Token 源 | `wireframe/src/index.css` 的 `@theme` 块（Tailwind v4） | **住在一次性的线框目录里**，且只定义了 `--font-sans`，无颜色刻度。见下方「本轮未验证」第 5 条 |
+| 视觉规范 | `design.md` | 2026-08-25 走 `originate` 分支定了方向（A 审校台 · 密实 · 锐利 · 克制）与色相基准，命名声明表已建。**值不住这份文档**，住 token 文件 |
+| Token 源 | `src/tokens.css` 的 `@theme` 块（Tailwind v4） | 2026-08-25 从线框目录搬进生产代码树——它是值的权威，不能住在不提交的工作台里。同日填入完整色阶（30 个 token），从属性坐标派生 |
 | 结构规范 | `layout.md` | 权威 |
-| 前端代码 | React 19 · Vite 7 · TypeScript 5.8 · Tailwind v4 | `src/` 下**只有资产层** `src/ui/region.tsx`，没有任何生产调用点；调用点全在 `wireframe/src/` |
-| 仓库根 agent 指令 | `CLAUDE.md`、`wireframe/CLAUDE.md` | 三层结构中的两层 |
+| 前端代码 | React 19 · Vite 7 · TypeScript 5.8 · Tailwind v4 | `src/` 下**只有资产层** `src/ui/region.tsx`，没有任何生产调用点；调用点全在 `.ui-contract-local/wireframe/src/` |
+| 仓库根 agent 指令 | `CLAUDE.md`、`.ui-contract-local/wireframe/CLAUDE.md` | 三层结构中的两层 |
 | 既有决策记录 | 无 | 本仓库的 `docs/adr/` 是**开发 ui-contract 插件**的命名空间，**不合并**；界面决策独立编号 |
 
 ## 路径（权威）
 
 其它每个单元读这张表，而不是自己假设。答案就是默认值时也要填。
 
-| 产物 | 路径 | 默认值 |
-|---|---|---|
-| 结构规范 | `layout.md`（项目根） | `layout.md` at the repo root |
-| 视觉规范 | `design.md`（项目根） | `design.md` at the repo root |
-| Token 文件 | `wireframe/src/index.css` 的 `@theme` 块 | 项目已有的 token 源 |
-| 资产层 | `src/ui/region.tsx` | 生产代码树内部 |
-| 线框 | `wireframe/` | 独立目录 |
-| As-built 记录 | **不适用** | `as-built.md`（项目根） |
-| 配置 | `docs/ui-contract/config.md` | — |
-| 结构决策记录 | `docs/ui-contract/adr/layout/` | — |
-| 视觉决策记录 | `docs/ui-contract/adr/design/` | **本轮不建**，见下 |
+| Key | 产物 | 路径 | 默认值 |
+|---|---|---|---|
+| `layout` | 结构规范 | `layout.md` | `layout.md` at the repo root |
+| `design` | 视觉规范 | `design.md` | `design.md` at the repo root |
+| `tokens` | Token 文件 | `src/tokens.css` | 项目已有的 token 源 |
+| `tokens-format` | Token 文件格式 | Tailwind v4 `@theme`（CSS 自定义属性） | — |
+| `src` | 生产代码树 | `src` | 产品自己的 UI 代码住哪。**本项目这里目前只有资产层与断言文件，没有业务调用点**——见「本轮未验证」第 6 条 |
+| `asset-layer` | 资产层 | `src/ui/region.tsx` | 生产代码树内部 |
+| `asset-container` | 资产层容器（仅当独立成文件） | | React 下类型与容器同文件，**留空是对的**（ADR-0010 说 Vue 才需要拆） |
+| `workbench` | 工作台 | `.ui-contract-local` | 仓库根，**真实项目不提交**；本示例刻意提交，见 `.gitignore` |
+| `wireframe` | 线框 | `.ui-contract-local/wireframe` | 工作台内部 |
+| `as-built` | As-built 记录 | 不适用 | `as-built.md`（项目根） |
+| — | 配置 | `docs/ui-contract/config.md` | — |
+| — | 结构决策记录 | `docs/ui-contract/adr/layout/` | — |
+| — | 视觉决策记录 | `docs/ui-contract/adr/design/` | `0001` `0002` 已建 |
+
+**Key 列是给机器看的。** 每个单元都读这张表，但它们读的是散文；只有 `ui-contract-audit`
+的脚本需要在不认识「产物」列写的是哪国语言的情况下找到某一行。三个视觉决策记录那几行没有键，
+因为脚本不读它们。
 
 两份规范**并排放在同一层**（项目根），以便跨子项目生效。分居两处，Agent 只会找到其中一份。
 
-`docs/ui-contract/adr/design/` 目前不存在，这是刻意的：`design.md` 的取值全是待确认占位，**还没有做出过任何视觉决策**，就没有可记录的推理。等设计稿的实际值进来、做完第一次「设计稿现状 → 规范值」的收敛取舍，那时才建 `0001`。
+`docs/ui-contract/adr/design/0001` 记的是 2026-08-25 那次方向选择：三个互斥的属性点、选了哪个、代价是什么、色相基准是哪一条。它**没有**记「设计稿现状 → 规范值」的收敛——那还没发生，因为设计稿始终没拿到。
 
 ## 授权
 
@@ -49,12 +57,31 @@
 |---|---|
 | 已有的视觉规范可以改吗？ | 不适用——`design.md` 是本轮从零写的，没有别人的既有文档被动过 |
 | 两份规范住哪、叫什么？ | `layout.md` + `design.md`，并排放项目根 |
-| 线框住哪？ | `wireframe/` |
+| 线框住哪？ | `.ui-contract-local/wireframe/` |
 | 资产层在生产代码树的哪里？ | `src/ui/region.tsx`，**刻意在线框目录之外**，业务代码从这里 import |
 
 ## 遗留策略
 
 **不适用。** 起点是 B，没有既有前端代码，不存在既有实现与规范之间的差距，也就没有「冻结线 / 先迁移 / 混合」可选。
+
+## 体检当前报什么（2026-08-25）
+
+`audit.sh` 已落地。**它当前 exit 1，两条红都是真的**，记在这里免得下一个人以为是脚本坏了：
+
+| 检查 | 报什么 | 为什么它是对的 |
+|---|---|---|
+| 6 · 每个白名单区域名在代码里找得到 | 24 个区域全部「declared but never rendered」 | **这个项目没有生产 UI 代码。** `src/` 下只有资产层，调用点全在一次性的线框里。规范声明了 24 个区域，产品一个都还没建——这正是这条检查要说的话 |
+| 9a · 工作台必须进 `.gitignore` | `.ui-contract-local` 没进 | **刻意的偏离**，理由写在 `.gitignore` 里：本项目是 ui-contract 的示例，存在的目的是被读 |
+
+两条都不该靠改脚本消掉。第一条会在有了第一个生产页面时自己变绿；第二条永远不会，
+因为它是一个被声明的例外。
+
+体检的路径**全部从上面那张表推导**，脚本里不再有第二份拷贝——它只剩 5 个旋钮，
+且都是表装不下的事实（config 自身路径、以及三个技术栈事实）。
+
+`src` 那一行刻意指生产代码树、不指线框：线框的 `NEUTRAL` 依 ADR-0012 可以写颜色值，
+指过去会把那份豁免误报成漂移。线框自己的颜色纪律由 `check-colours.sh` 管，不由体检管。
+**这两种填法我都撞过，两次都拿到了自信的错报告**——那正是把路径收进表里的理由。
 
 ## 本轮未验证
 
@@ -63,8 +90,8 @@
 | # | 未验证的事 | 影响到什么 | 怎么消除 |
 |---|---|---|---|
 | 1 | **没有设计稿本身**，只有两张截图的口述描述 | 所有标「从图反推」的结论，实际是从描述 + 后台系统的结构约束推的 | 拿到图，逐条核对 `docs/ui-contract/adr/layout/` 里九条的背景段 |
-| 2 | ~~线框从未运行过~~ **已消除** | — | 提交 `0fecd56` 验过 `tsc --noEmit` 干净、构建产物与外移前逐字节一致。注意当前工作树里项目根的 `node_modules` 不在，复跑需先 `pnpm install`；`wireframe/` 下的 `node_modules` / `dist` 是外移前的遗留物 |
-| 3 | **渲染结果没人看过** | 密度撑不撑得住、面板挤窄后列宽够不够——这两件只能看 | 照 `wireframe/README.md` 的「开关 → 验什么」表点一遍 |
-| 4 | `design.md` 的颜色 / 字号 / 间距**不是量出来的** | 全部标为「待确认」的占位刻度 | 填 `design.md` 附录「设计稿现状 → 规范值收敛映射」 |
-| 5 | **Token 源住在一次性的线框里**，且不含色值 | 删掉 `wireframe/` 会连 token 一起删掉；`design.md` 声称「值住 token 文件」，但那个文件目前在生产代码树之外 | 把 `@theme` 块移进生产代码树（与资产层同级），线框改为消费它 |
+| 2 | ~~线框从未运行过~~ **已消除** | — | 提交 `0fecd56` 验过 `tsc --noEmit` 干净、构建产物与外移前逐字节一致。注意当前工作树里项目根的 `node_modules` 不在，复跑需先 `pnpm install`；`.ui-contract-local/wireframe/` 下的 `node_modules` / `dist` 是外移前的遗留物 |
+| 3 | ~~渲染结果没人看过~~ **部分消除 2026-08-25**：agent 驱动浏览器看过 1440 宽的 P1、680 宽的降级链、以及换肤预览开启态。**仍然没看的**：P2/P3/P4 三个页型、面板挤窄后筛选控件换不换行、1024 附近拖动抖不抖 | 同左 | 照「开关 → 验什么」表把剩下的点一遍 |
+| 4 | `design.md` 的值**不是量出来的，是派生的** | 从三条属性轴的坐标推出来（`originate`），不是从设计稿量的。每个值能回指到一条坐标，但**没有任何一个被设计稿验证过** | 拿到图，填 `design.md` 附录「设计稿现状 → 规范值收敛映射」 |
+| 5 | ~~Token 源住在一次性的线框里，且不含色值~~ **两半都已解决 2026-08-25** | — | — |
 | 6 | **`src/` 下没有生产调用点** | 资产层的编译期约束目前只约束到线框。健康检查脚本按默认路径跑，七条里六条空过、第六条 24 个假阳性 | 有真实业务代码消费资产层之后，健康检查才有对象 |

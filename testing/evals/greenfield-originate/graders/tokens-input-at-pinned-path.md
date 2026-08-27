@@ -1,15 +1,28 @@
 ---
 type: file_exists
-path: docs/ui-contract/tokens.input.json
+path: .ui-contract-local/tokens.input.json
 weight: 1
 ---
 
-`tokens.input.json` 必须落在**钉死的那个位置**：`docs/ui-contract/tokens.input.json`。
+`tokens.input.json` 必须落在**钉死的那个位置**：`.ui-contract-local/tokens.input.json`。
 
-ADR-0009 把它从 `config.md` 的可配置路径表里豁免出来——它不是规范而是工作记录，
-和 `config.md` 同一个抽屉。豁免的理由是**下游要一个答案而不是一个记录**：
-`ui-contract-assets` 要读它把值落进 token 文件，`no-framework-default-values` 那条
-regex 判据的 `target.path` 不是 glob、也必须指向一个确定路径。
+它不是规范而是工作记录——调色器具的起始状态——所以住在工作台里，跟着工作台一起不提交。
+钉死而非可配置的理由是**下游要一个答案而不是一个记录**：器具要找到它，
+`no-framework-default-values` 那条 regex 判据的 `target.path` 不是 glob、也必须指向一个确定路径。
+
+⚠ **落点 2026-08-25 从 `docs/ui-contract/tokens.input.json` 改到了这里**，同时
+`ui-contract-assets` 不再读它——`originate` 现在直接写 token 文件，那一跳被去掉了
+（旧链路实测五次里只落地两次）。
+
+**新落点已经有实跑背书（2026-08-25 网关 3，$19.63）**：`greenfield-originate` 的
+run 3/3 拿到 `.ui-contract-local/tokens.input.json exists as expected`，同一次 run 里
+`naming-declared` / `no-framework-default-values` / `no-literal-values-in-design` 也全绿——
+整条链在改落点之后端到端通了。
+
+⚠ 但那一轮三次里只有这一次干净：另外两次一次 API 掉线、一次无报错空产出（$2.02，
+design 技能调用过，产物为空，没有保留沙箱所以查不到原因）。**这个 case 历史上一直很吵**
+（0.00 / 0.33 / 0.94 / 0.48 / 0.67 / 0.71 / 0.83），本次 0.33 落在带内。
+所以这条判据的正方向**结清了**，而「产品在这条链上稳不稳」**没有**。
 
 ## 为什么单独一条，而不是把 `tokens-input-written` 改严
 

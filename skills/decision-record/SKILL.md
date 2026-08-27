@@ -18,6 +18,17 @@ It never states "what is currently correct", so it is **structurally incapable**
 
 Point at a clause. Never copy it.
 
+## One exception: judgements the rule's own editor must see
+
+A decision record is the right home for "why" only when whoever needs it will go looking for it. One class of judgement fails that test: the person most likely to re-tread an **overturned** conclusion is whoever is editing the rule itself, at the moment of editing — and they will not open a second file first.
+
+For that class a domain skill may require an **appendix inside the authoritative document** — was / became / why overturned — instead of a record. Two conditions, both required:
+
+1. **The skill declares it.** An appendix that is merely tolerated reads as an unmarked violation of "point at a clause, never copy it"; a declared one is a rule with a reason, and the next reader stops trying to fix it
+2. **It records what was ruled out, never what is currently correct.** The exception moves *where the reasoning lives*, not *what it may say*. An appendix that starts stating current rules has become a second authority — the exact failure this cut exists to prevent
+
+Overturned judgements are easier to re-tread than current ones, precisely because they looked reasonable — they looked reasonable to you too, once. That is why they are never deleted, whichever of the two homes they get.
+
 ## Which decisions qualify
 
 Not every choice earns a file. Three tests — a decision that passes all three qualifies:

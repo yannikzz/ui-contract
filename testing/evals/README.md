@@ -13,6 +13,22 @@
 > `tokens.input.json` 只有 2/5 落地。
 > 四条判据在真实产物上全部 PASS，其中三条随后用 `grader-check/` 的夹具**正负双向**验过。
 
+> **2026-08-27 又跑了一轮**（`--runs 1` 试跑 $15.62 + 单 case 诊断 $4.30）。
+> **mean Δ +0.83**：`greenfield-originate` +1.00、`existing-admin` +0.88、`greenfield-mobile` +0.60。
+>
+> **不要拿这个 0.83 去和上面的 1.00 比。** 两次用的不是同一套判据：这中间
+> `greenfield-mobile` 新增了 `no-work-beyond-layout`，另有四条判据被重写。尺子换了。
+>
+> **三个 case 全部没有超时**——1800 秒的调整生效了，这是它要解决的问题。
+>
+> 量到两件事：
+> - `greenfield-mobile` 的 `no-work-beyond-layout` **首次测量即挂**：只要结构规范的 case，
+>   产物里出现了 `design.md`。这是新量出来的产品缺口，不是变坏了。
+> - `existing-admin` 的 `allowlist-has-forbidden-column` 挂了一次，复跑即过（该 case 满分 1.00）。
+>   连同历史记录是 **3/4 通过**：约四分之一的实跑会漏掉「禁止放」那一列。
+>   判据本身没问题——它锚的两种拼法正是英文原文和 `ui-contract-glossary` 钉死的中文渲染，
+>   所以挂了就是真的漏了列或用了非规范措辞，不是指纹断言误伤。
+
 它是随 issue #11 一起写的，写完没有跑——跑一次 eval 要花钱。
 在它跑过之前，它的四条判据都是**推理出来的**，不是量出来的，而这个仓库刚因为「从假象数据推结论」
 吃过亏（见下面的十二个坑）。
@@ -45,7 +61,7 @@ eval 目录写在 `.claude-plugin/plugin.json` 的 `experimental.evals`（= `tes
 | `CLAUDE_CODE_WALNUT_SPIRE=1` | `plugin eval` 被一个默认关闭、按组织灰度的 feature gate 挡着。这个变量是官方给收不到灰度的机器留的口子；**不要设在仓库的 `.claude/settings.json` 里**，committed 的值通常不生效 |
 | `--scaffold` | `existing-admin` 靠 `scaffold_script` 造 fixture 仓库，默认**不跑**（它会以你的身份执行作者提供的 bash）。不加这个开关，治熵线用例面对的是空目录 |
 | `--allow-tools Write Edit` | `Write` / `Edit` 是 gated tool，`allowed_tools` 里列了还不够。不给，agent 写不出规范文件 |
-| `--max-cost-usd` | 单次 run 约 $0.6–3.7。**两**用例两臂共 8 次 run，实测总额 $10.4——给 $10 会被砍在半路，见第 11 条。当前三个用例：`existing-admin` 有 `runs: 1`（2 次），另两个用默认 `runs: 3`（各 6 次），共 **14 次 run**，按同一单价外推 **$18.2**——贴着 $20 上限，**这是外推值不是实测值**。要留余量就用 `--runs 1` 试跑（6 次，外推 ~$7.8），别把 `runs: 1` 写进 case：官方明说 *A single run on a non-deterministic agent is noise*，那是拿信号换省钱 |
+| `--max-cost-usd` | **单价按 $2.60/run 算**（2026-08-27 实测：三用例两臂 6 次 run，$15.62，4410 秒）。此前这里写的是 $1.30/run，据此外推 14 次 run = $18.2——**低了一倍**。按实测单价，全量 14 次 run 约 **$36**，给 $20 会被砍在半路（第 11 条就是这个）。跑全量请给 `--max-cost-usd 40`。要省钱就 `--runs 1` 试跑（6 次，实测 $15.62），别把 `runs: 1` 写进 case：官方明说 *A single run on a non-deterministic agent is noise*，那是拿信号换省钱 |
 
 `--ablation with-without` 会**真的把插件摘掉**跑一遍对照臂。这修掉了历史上一个已知的测量假象：手工造对照组时，子 agent 的可用技能清单里仍带着本插件的完整 description，等于把架构泄露给了对照组。
 
@@ -73,8 +89,16 @@ CLAUDE_CODE_WALNUT_SPIRE=1 claude plugin eval . \
   --ablation with-without --scaffold --allow-tools Write Edit --max-cost-usd 20
 ```
 
-**5. 默认 `timeout_seconds: 300` 对这条流程太短。**
-带插件的那一臂要跑 setup → 访谈 → 写规范，实测被 300 秒砍在写文件之前，`file_exists` 判据因此必挂。写成 `timeout_seconds: 900`。
+**5. 默认 `timeout_seconds: 300` 对这条流程太短，而 900 也不够。**
+带插件的那一臂要跑 setup → 访谈 → 写规范，实测被 300 秒砍在写文件之前，`file_exists` 判据因此必挂。
+
+**900 是第二次不够。** 2026-08-25 那轮实跑给了一个干净的对照：三个 case 里，唯一抬到 1800 的
+`greenfield-originate` 是唯一没超时的；仍留在 900 的另外两个**每一次都超时**（`existing-admin`
+一次、`greenfield-mobile` 三次）。这条经验当时只被应用到一个 case 上，另外两个漏了。
+
+超时不等于挂分——`existing-admin` 超时了仍拿 1.00，说明产物在被砍之前写完了。它真正的代价是
+**污染读数**：`greenfield-mobile` 那两个 0.75 分不清是产品真的写了桌面骨架，还是被砍在修正之前。
+现在三个 case 一律 1800。
 
 **6. `focus: files` 只给 judge 一份文件清单，不是文件内容。**
 判内容要写成 `focus: {source: file, path: <path>}`。用 `files` 判内容会得到三票 FAIL——judge 看到的是一串路径，它没法从路径判断白名单有没有「禁止放」那一列。更坏的是它在**没有任何文件**时也可能空集通过，产生假阳性。
@@ -744,6 +768,9 @@ run3 不构成反证：它的错误是 `API Error: Connection lost mid-response`
 - 对非技术用户的表现（急性子、不懂技术的店主那类）
 - 内容站 / 文档站形态
 - **决策树追踪的质量**——追得够不够狠、每一行有没有真的落到叶子、有没有事后补写成看起来很完美的样子
+- **`ui-contract-wireframe` / `ui-contract-assets` / `ui-contract-enforce` 的产物**——没有一条判据
+  看过它们。这在 2026-08-26 之前就已经是事实（`greenfield-mobile` 的运行确实会走到那里，
+  只是走过去写出来的东西无人观测），现在把它写下来，并且它**变贵了**：见下一节
 
 前三条补它们要新增用例，成本随场景数线性涨。第四条是**新加的，性质不同**：它不是没人写，是
 写过一条判据（`decision-tree-total`）而它**不工作**，2026-08-21 删掉了。
@@ -821,3 +848,183 @@ graders: [ { type: tool_used, tool: Read, min: 1 } ]
 
 **按技能拆用例大部分做不到**：8 个能力包都有前置门（不变量 10），单独扔进空沙箱会**正确地**
 停下来说缺上游产物——判据必挂且与质量无关，正是坑 3 的形状。能独立测的是 5 个原语包与两个入口。
+
+## 2026-08-26：一次 `--keep-temp` 的测量，和它推翻的三件事
+
+命令：`claude plugin eval . --case greenfield-mobile --runs 1 --ablation none --keep-temp
+--scaffold --allow-tools Write Edit --max-cost-usd 3`。
+实际 **1359 秒 / $5.02**（`--max-cost-usd` 是**每次 run 之前**检查，单次 run 超了拦不住——
+$3 的上限没有起作用，这一点值得下次估算时记住）。
+
+跑的目的只有一个：issue #14 断言「技能正文越长 → 读进去的越多 → 越慢」，而在此之前
+**从来没有量过一次运行的 token 构成**。
+
+### token 账
+
+| | tokens |
+|---|---|
+| `output_tokens` | **88,727**，其中 `thinking` **36,470**（41%） |
+| `cache_creation_input_tokens` | 153,976 |
+| `cache_read_input_tokens` | 2,524,485 |
+| `input_tokens` | **54** |
+
+**输入几乎全部命中缓存。**「技能正文被读进上下文」的代价落在那 154k 一次性的
+`cache_creation` 上；墙钟和钱的大头是输出。issue #14 的因果链在**被测的这条链上**不成立。
+
+### 推翻一：`Skill called Nx` 测的不是链条长度
+
+这次运行 **`ui-contract-layout` 的 Skill 工具一次都没被调用**（`layout-skill-fired` 判 0x），
+但 `layout.md` 照样写出来了，39.8 KB。trace 里看得见它怎么做到的：先试
+`ls -R .../skills/ui-contract-layout`（被权限拒），再 `Glob skills/ui-contract-{layout,design,…}/**/*`，
+然后用 `Read` 逐个读了 12 个技能文件。
+
+原因写在 harness 文档里：`--plugin-dir` 指向你**真实的 checkout**，而
+*an unscoped `Read` can read absolute host paths*。这不是沙箱漏洞、也不是 eval 的人造问题——
+真实用户机器上 `~/.claude/plugins/…` 同样可读。
+
+**后果**：`skill-fired: 7x / 9x / 5x` 这个数在 issue #14 的表格里被当成「链条走了几步」引用过，
+那个读法是错的。它测的是**这一次 agent 选择路由还是选择自己读文件**。凡是靠它推出来的结论都要重算。
+
+### 推翻二：per-message 的 token 归账拿不到
+
+想法是从 `trace.jsonl` 里按消息把 output token 分摊到「写产物 / 思考 / 对话」三档。**不成立**：
+流里每条 assistant 事件的 `usage` 是增量快照，全部加起来是 **333**，而 `result` 事件是 **88,727**。
+只有 run 总量是可信的。
+
+所以「哪一段在烧输出」只能按**字符数**估，明说是估：写产物 55,865 字符 ≈ 36% 的输出 token，
+其中 `layout.md` + `design.md` ≈ 26%。`thinking` 那 41% 是实测值，也是最大的一档，
+而它和产物大小无关。**不要为此造一个"看起来在量 token、实际在量字符"的器具**——那正是本仓库
+反复栽的形状。
+
+### 推翻三：`no-desktop-skeleton` 是指纹断言
+
+见该判据自己的正文。这次运行**没有超时**（1359s 自然结束，`stop_reason: end_turn`）仍然挂它，
+所以此前「被砍在修正之前」的解释也不成立。判据已于同日换锚。
+
+### 产物时间线（供下次估算）
+
+| 秒 | 产物 |
+|---|---|
+| 624 | `docs/ui-contract/config.md` 6.2 KB |
+| **880** | **`layout.md` 39.8 KB** ← 900 秒的墙就在它后面 20 秒 |
+| 1070–1216 | `design.md` / `tokens.ts` / `tokens.input.json` / `regions.tsx` / `assert.ts` ← 无判据观测 |
+
+到 `layout.md` 落盘为止的 71% 时间里只产出了一份 6.2 KB 的 config。
+
+### 记分口径变化
+
+`greenfield-mobile` 新增 `no-work-beyond-layout`（计分，`arm: both`），计分判据 **4 → 5 条**。
+`0.75 = 3/4` 这类历史读数从此不可直接跨版本比——与 `decision-tree-total` 被删那次同一种断裂。
+
+### 一条**没有**执行的改动，和不执行的理由
+
+曾经定过把 `greenfield-mobile` 的 `max_turns` 砍到 15，理由是「7 次 Skill 调用就是最小链，
+15 是两倍余量」。**那个前提被推翻一否定了**——7 这个数不是链条长度。实测这次
+`num_turns = 47`，`layout.md` 出现在第 22 个工具调用之后。砍到 15 会在产物落盘前杀掉运行，
+正好制造出要消灭的那种读数。`no-work-beyond-layout` 用产物存在性达成同样的目的，没有这个风险。
+
+## 2026-08-26（二）：wireframe 链第一次被量
+
+这条链**从来没有被测过**，而它在 `enforce-on-product-source-and-workbench` 这个 PR 里从
+6,370 词涨到 11,558 词（+81%），是整个 PR 增量的 38%。
+
+用 `testing/evals-probe/wireframe-probe`（**探针，不在 manifest 的 eval 目录下，
+网关 3 不会跑它**）。scaffold **取材于 `examples/admin-console/`**，不自带产物副本——
+副本是结果，探针是器具，同一条理由写在 `ui-contract-wireframe` 的实现指南里。
+（这次测量跑的是从沙盒拷出的 React Native 产物；改为取材示例之后起点变成 React，
+所以下一次的数与本节的 1510s / $9.39 **不可直接对比**。）
+`--runs 1 --ablation none --keep-temp`，**1510 秒 / $9.39**。
+
+### 与 layout 链的对照
+
+| | `greenfield-mobile`（layout） | `wireframe-probe` |
+|---|---|---|
+| 墙钟 | 1359s，自然结束 | 1510s，**撞 `max_turns=60`** |
+| 花费 | $5.02 | $9.39 |
+| `output_tokens` | 88,727（thinking 41%） | 120,086（thinking 31%） |
+| `cache_creation` | 153,976 | 215,339 |
+| `cache_read` | 2,524,485 | **8,466,191** |
+| 产出 | 55,865 字符 | 136,856 字节 |
+
+**这条链在 60 轮里跑不完。**它按 `spec-before-code` 的规定五次回改 `layout.md`（造线框
+暴露规范的洞 → 先改文档），那是正确行为，也是成本的一部分。
+
+### 器具的双份计费，量到了
+
+| 模板 | 读进 | 写出 |
+|---|---|---|
+| `inspect.tsx.template` | 24,434 B | **26,500 B** |
+| `wire.tsx.template` | 9,030 B | 21,223 B |
+| `check-colours.sh.template` | 9,263 B | 8,054 B |
+
+`inspect.tsx` **写出来的比模板还大**。器具是这个插件里唯一一类在输入和输出各计一次的内容。
+
+### 插件的开发史进了用户仓库
+
+生成出来的工程里：
+
+```
+src/inspect.tsx:267  * 写入者，所以两个开着的编辑器不会互相覆盖。见 ADR-0007。
+src/wire.tsx:157     * 就是第二个值权威。见 ADR-0007。
+```
+
+模板里有 15 处这样的引用（不变量 34 现在把它们打出来），两处活着到了用户那里，还被翻译成了
+中文——指向一份用户没有、也无从获取的文档。**这不是推断，是这次实跑的产物。**
+
+### 这次测量做不到的
+
+没有授予 `Bash`。线框的完工清单要求跑 dev server、装依赖、执行 `check-colours.sh`，
+授予它意味着在沙箱里执行任意 postinstall。所以量到的是**读 + 写**那条路径，
+「装了跑起来要多久」仍然没有数。
+
+## 2026-08-26（三）：通读 `testing/` 找出的三处失效断言
+
+前两轮改动都是先动手后读，各留下几处要回头修的东西。这一轮先把 `testing/structure/`
+读完再动，找到的三处都属于同一类：**看起来在检查，实际打不中**。
+
+### 一、`invariants.sh` 的判词打印在最后三条检查之前
+
+第 32、33、34 条被历次追加到了 `printf '结构不变量全部通过'` 那一行**之后**。
+后果：这三条里任何一条失败，输出仍然先打一行绿色的「全部通过」，红叉跟在它下面。
+退出码是对的（实测 1），`run.sh` 也照样红——**骗的只有读输出的人**。
+
+这个会话里它已经骗过一次：修第 32 条时的输出正是
+
+```
+结构不变量全部通过
+  ✗ 这些检查没有任何用例: [34]
+```
+
+三个兄弟脚本（`invariants-effectiveness.sh` / `audit-effectiveness.sh` / `preflight.sh`）
+的判词都紧贴 `exit $FAIL`，只有这一份错位。判词已移到 `exit $FAIL` 之前。
+
+### 二、「规范文档里什么算一个色值」有四个答案，四个都漏 `#fff`
+
+| 谁 | 原来的模式 |
+|---|---|
+| `audit.sh` 检查 4（判 `design.md`） | `#{6}` + oklch/oklab/hsla?/lab/lch/rgba? |
+| `no-literal-values-in-design`（三份拷贝） | `#{6}` + oklch/rgba? |
+| `no-visual-values-in-structure`（判 `layout.md`） | `#{6}` + font-size/border-radius/box-shadow |
+| `$COLOUR_NOTATION`（判源码，不变量 33 三方比对） | `#{3,8}` + 全部函数记法 + Tailwind 色阶 |
+
+前三者全部只认 6 位十六进制，所以 **`design.md` 里写 `#fff` 是绿的**。而不变量 33
+存在的理由正是防这个——它比对三份 `COLOUR_NOTATION=` 赋值，**看不见同文件里内联的第四份**。
+配套的有效性用例注入的是 `#445566`，所以它「能失败」——只对那一种写法。
+
+改法：三处规范文档检查统一放宽到 `#{3,8}` 并补齐函数记法，**刻意不带 Tailwind 色阶**——
+规范的反模式行里会**提及** `bg-blue-500`，而分不开提及与使用正是 `no-desktop-skeleton`
+栽过的那个坑。
+
+**假阳风险是实测的，不是推的**：在 11 份真实产物上，`{3,8}` 相对 `{6}` **零额外命中**，
+且这些产物里一个 markdown 锚点链接都没有（`#added`、`#face` 这类词是理论上的假阳源）。
+两个 grader-check 夹具的判定也不变：正样本仍 0 处，负样本仍 3 处。
+新增用例 `检查 4 · 三位十六进制`。
+
+### 三、不变量 5 与 7 是词表/正则，却没写「什么能漏过去」
+
+第 21、25、26、27、28 条都明写了自己抓不到什么；只有这两条没写。已补：
+
+- **第 5 条**（原语层不含 UI 词汇）：`token`/`spec`/`contract`/`skin` 一律走得过去，
+  换个说法（`the allow-list of names`）也走得过去。它挡的是照抄，不是决心。
+- **第 7 条**（包内链接不断）：正则 `\]\(([^)#:]+)\)` 把带 `#` 锚点的链接**整条跳过**，
+  所以 `[x](nonexistent.md#foo)` 是绿的。目前包内一处带锚点的链接都没有，这个洞现在是空的。

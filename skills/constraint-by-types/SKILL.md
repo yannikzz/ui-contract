@@ -25,6 +25,40 @@ Wherever the spec says "X must not hold things of kind Y", **delete Y from the c
 
 This beats any `MUST` you could write in prose, and costs less than a lint rule.
 
+### The comment marks the intent. It does not hold the line.
+
+The omission is enforced in one direction only. The compiler catches code that **uses** the forbidden member. Nothing catches somebody **adding the member back** — at that moment every existing call site still compiles, the comment above the union is now describing a rule the union no longer has, and the output is identical. That is the shape of failure this whole skill exists to prevent, reproduced one level up.
+
+So write each prohibition down as an assertion the compiler has to keep re-checking:
+
+```ts
+// ui-contract.assert.ts — imported by nothing, type-checked with everything.
+//
+// Every line below is a violation the spec forbids. The directive is what carries
+// the rule: while the omission holds, the line errors and `@ts-expect-error`
+// consumes that error. Put the forbidden member back and the error disappears,
+// the directive becomes unused, and tsc fails here with TS2578.
+//
+// So a prohibition that gets quietly deleted breaks the build instead of going silent.
+
+import type { Slot, Placement } from './contract'
+
+// spec §6.2 — a row may not host its own actions
+// @ts-expect-error 'actions' is deliberately absent from Slot
+export const _noActionSlot: Slot = 'actions'
+
+// spec §4.3 — the wizard step has no side panel
+// @ts-expect-error 'wizard' is deliberately absent from Placement
+export const _noWizardPanel: Placement = 'wizard'
+```
+
+Two mechanics decide whether this works at all, and both fail quietly:
+
+- **`export`, not a bare `const`.** Under `noUnusedLocals` an unused local is itself an error, and the file then fails for a reason that has nothing to do with the contract. Exporting takes it out of that rule's reach.
+- **The file has to be inside the project's typecheck.** It is imported by nothing, which is exactly the kind of file a narrow `include` leaves out — and a `.assert.ts` that no compiler ever reads is indistinguishable, in the output, from one that passes.
+
+This is the one place the type layer guards **itself**. Every other rule here protects the code from drifting away from the type; this protects the type from drifting away from the spec.
+
 ## 3. The sync order is fixed
 
 **Change the spec → change the type → write the code.** Never the reverse.

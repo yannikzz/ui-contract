@@ -1,0 +1,16 @@
+@import 'tailwindcss';
+
+/* Token 文件住在生产代码树里（值的权威），线框只是消费它。 */
+@import '../../../src/tokens.css';
+
+/*
+ * 线框刻意只用系统字体与中性灰阶：品牌视觉归 design.md。
+ * 骨架里没有品牌视觉可抄，就不会在 design.md 改动后变成过期的第二视觉权威源。
+ * 颜色的值只在 wire.tsx 的 NEUTRAL 与 inspect.tsx —— 不要往这里加。
+ */
+
+html,
+body,
+#root {
+  height: 100%;
+}

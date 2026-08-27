@@ -26,7 +26,7 @@ Check these **before asking anything**. All three are hard stops, not warnings.
 
 The first row's third clause matters: **once `layout.md` exists, this gate must not fire again.** Without it, every later maintenance edit on an existing project is blocked forever.
 
-The third row is the upstream boundary from ADR-0001, and it is narrow on purpose. It fires on *nothing to place*, not on *vague*: a rough list of features is workable input, and sharpening it is what the interview is for. A product that has not decided what it does yet cannot have a region tree, and inventing one produces a spec that constrains nothing — every later feature lands outside it, so the placement tree sends everything to §9 and the contract degrades into a permission queue.
+The third row is this plugin's upstream boundary, and it is narrow on purpose. It fires on *nothing to place*, not on *vague*: a rough list of features is workable input, and sharpening it is what the interview is for. A product that has not decided what it does yet cannot have a region tree, and inventing one produces a spec that constrains nothing — every later feature lands outside it, so the placement tree sends everything to §9 and the contract degrades into a permission queue.
 
 ## Three things decide whether this document is useful at all
 
@@ -55,9 +55,11 @@ Region **descriptions** say **what goes here / what must not** — never "what t
 ## Before you call this document done
 
 - [ ] No color / font-size / radius / spacing values anywhere
-- [ ] Traced the decision tree with **hostile** inputs — a one-off action belonging to no object, something that fits two regions, something arriving at a full cap, something that plainly doesn't belong — and each landed on exactly one region name or the explicit stop. **The traces are written into Appendix C**, not just performed in the conversation — a trace that leaves no trace in the artifact is indistinguishable from one that never happened
+- [ ] **Every structural number that only a type or spacing scale can validate is marked ⏳, with what would settle it** (`layout-md-outline.md` §3) — writing one plainly claims a certainty nobody has yet
+- [ ] **The ⏳ list was handed over as a copyable note, carrying the marked lines verbatim** — paraphrasing invents a requirement, and for a visual owner who is somebody else this note is the only thing that reaches them. `ui-contract-audit` check 10 reprints it later in the same shape
+- [ ] Traced the decision tree with the four **hostile** inputs (`layout-md-outline.md` §Verify), each landing on exactly one region name or the explicit stop. **The traces are written into Appendix C**, not just performed in the conversation — one that leaves no trace in the artifact is indistinguishable from one that never happened
 - [ ] The fallback is *stop → §9*, not a real region, and it doesn't route back into the tree
-- [ ] Traced three or four **ordinary** requirements and watched each land on a region name (stopping on everything passes the hostile traces too — and turns the contract into a permission queue) — **also in Appendix C**, alongside the hostile ones
+- [ ] Traced three or four **ordinary** requirements onto region names, **also in Appendix C** — stopping on everything passes the hostile traces too, and turns the contract into a permission queue
 - [ ] Every allowlist row has a "must not hold" cell, none of them empty
 - [ ] Every anti-pattern has a reason and a replacement
 - [ ] Every region description says "what goes here / what must not", not "what this is"

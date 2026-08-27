@@ -2,7 +2,7 @@
 type: regex
 target:
   source: file
-  path: docs/ui-contract/tokens.input.json
+  path: .ui-contract-local/tokens.input.json
 pattern: "#3b82f6|#2563eb|#1d4ed8|#6366f1|#4f46e5|#0ea5e9|#0284c7|#007bff|#0d6efd|#1976d2|#2196f3"
 flags: "i"
 match: not_contains
@@ -24,8 +24,15 @@ weight: 1
 `file_exists`），所以它必须指向一个确定的路径。2026-08-22 两轮实跑因此各抛错两次：
 产品当时没规定落点，run 各写各的。
 
-修法不在判据侧：ADR-0009 把落点**钉死**在 `docs/ui-contract/tokens.input.json`
-（工作记录，不是规范，所以不走可配置的路径表）。判据跟着指同一个路径。
+修法不在判据侧：ADR-0009 把落点**钉死**（工作记录，不是规范，所以不走可配置的路径表）。
+判据跟着指同一个路径。落点 2026-08-25 从 `docs/ui-contract/` 移进工作台
+`.ui-contract-local/tokens.input.json`，判据同步改了，**但新落点没有实跑样本**。
+
+⚠ **同一天起，这条判据看的不再是值的权威。** `originate` 现在直接写 token 文件，
+而这里读的是旋钮记录。两者由同一步、同一批派生值写出，所以记录里没有框架默认色
+仍然说明「坐标走到了值」——但如果哪天两者会分叉，这条判据就在看错的那个文件。
+换到 token 文件也不行：那个文件的格式是项目相关的（CSS 自定义属性 / `theme.extend` /
+主题对象），而 `regex` 判据要一个确定路径和一份确定文本。**这是记下来的取舍，不是没想到。**
 
 VERIFIED 2026-08-22，**只有正方向**：两次有效 run 都 `pattern absent as expected`。
 负方向没有样本——真跑没写出过默认色，而人为塞一个验的是正则会不会匹配，不是产品会不会写。

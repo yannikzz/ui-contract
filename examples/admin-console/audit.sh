@@ -1,0 +1,739 @@
+#!/bin/sh
+# UI contract health check. Reports drift; fixes nothing.
+#
+# Lives in the user's repo, runs without an agent, and is safe in CI.
+# Exit 0 = no drift found (warnings may still be printed — see below).
+# Exit 1 = drift found. Exit 2 = nothing to check.
+# Exit 3 = a contract is configured but this script is not looking at it — the paths
+#          below and the config's paths table disagree, in either direction. Not the
+#          same as "nothing to check": a green-looking exit 2 there would hide a broken
+#          setup, and a green-looking exit 0 would hide an audit of an abandoned file.
+#
+# ── The interface ────────────────────────────────────────────────────────────
+# Five knobs, and every one of them is a fact this script cannot look up.
+#
+# **Do not add a path knob here.** Paths come from `config.md`'s paths table; a second
+# copy in this file lets two places disagree while the script reports confidently either
+# way. Measured: an `SRC` knob pointed at the production tree reported every allowlist
+# name as "declared but never rendered"; pointed at the wireframe it reported the
+# wireframe's own NEUTRAL map as hardcoded-colour drift. Neither was a bug in a check —
+# both were a knob the caller could not get right.
+#
+# So the paths are derived from the table at run time, by the ASCII keys in its Key
+# column. What is left below is what the table cannot tell anyone: bootstrap, and stack.
+set -u
+
+CONFIG="docs/ui-contract/config.md"  # bootstrap: the one path that cannot come from the
+                                  # file it points at. Everything else is read out of it.
+SRC_EXT="tsx jsx"                 # source extensions that can hold container call sites
+                                  # Vue: "vue" · Svelte: "svelte" · React Native: "tsx"
+MARKER_EXCLUSIVE="yes"            # is $MARKER a namespace this contract owns, and nothing
+                                  # else in the codebase writes for its own reasons?
+                                  # `data-*` on the web: yes. React Native's `testID`: **no** —
+                                  # it is the standard e2e hook, so "a testID outside the
+                                  # container" is not evidence of a bypass, it is evidence of a
+                                  # test. Set this to "no" there and check 2b reports that it
+                                  # cannot answer, instead of printing a green tick it has not
+                                  # earned. Check 1 is unaffected: it reads container call
+                                  # sites, which exist on every stack.
+# ── COLOUR KNOWLEDGE ────────────────────────────────────────────────────────
+# What counts as a colour value, for this check.
+#
+# ⚠ The named list is TRIMMED, on purpose. CSS has 148 named colours; carrying all of
+# them is maintenance noise for words that never appear in real code.
+# **What gets through: the rare ones** — `papayawhip`, `mediumaquamarine` and friends.
+# A name list is never complete; what makes it honest is saying so here.
+#
+# ⚠ OUT OF SCOPE: the colour *parser* in the skin editor. Parsing a colour and
+# detecting one are different knowledge. Do not read this check as
+# "colour is now covered".
+COLOUR_NOTATION='#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(|\boklch\(|\boklab\(|\blab\(|\blch\(|\bcolor\(|\b(bg|text|border|ring|fill|stroke|outline|divide|from|via|to)-(red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|gray|grey|zinc|neutral|stone)-[0-9]{2,3}\b'
+COLOUR_NAMED='aqua|beige|black|blue|brown|chartreuse|chocolate|coral|crimson|cyan|darkblue|darkgreen|darkred|deeppink|dodgerblue|firebrick|forestgreen|fuchsia|gold|goldenrod|gray|green|grey|hotpink|indigo|ivory|khaki|lavender|lime|magenta|maroon|navy|olive|orange|orangered|orchid|pink|plum|purple|rebeccapurple|red|salmon|seagreen|sienna|silver|skyblue|steelblue|tan|teal|tomato|turquoise|violet|wheat|white|yellow'
+
+MARKER="data-region"              # the runtime marker's attribute name.
+                                  # **Not always a DOM attribute.** On platforms with no DOM
+                                  # the asset layer writes the id into that platform's
+                                  # equivalent using the identical string — React Native:
+                                  # `testID`. Set this to whatever the container actually
+                                  # stamps, or every check below that looks for a marker goes
+                                  # quietly green on a codebase full of hand-written ones.
+                                  # Measured: with this hardcoded to `data-region`, a React
+                                  # Native project with `<View testID="sidebar" />` written
+                                  # straight into a screen — off the allowlist, not through
+                                  # the container — printed three green ticks.
+
+# ── Derivation ───────────────────────────────────────────────────────────────
+# Read one Path cell out of the paths table, found by its ASCII key. The key column is
+# ASCII on purpose: the Artifact column is written in the deliverable's language, so
+# anchoring on it would work in one project and go quiet in the next. Same trick, and
+# the same stated cost, as the declaration table's three keywords: translate a key and
+# this finds nothing — it degrades to no answer, never to a wrong one.
+#
+# Returns non-zero when the key has NO ROW AT ALL, and zero — with a possibly empty
+# value — when it has one. Those are different states and `derive` acts on the
+# difference; do not collapse them back into "printed nothing".
+cfg_path(){ # cfg_path <key>
+  [ -f "$CONFIG" ] || return 1
+  awk -F'|' -v k="$1" 'NF>=5 {
+    key=$2; gsub(/[`\t ]/,"",key)
+    if (key==k) { v=$4; gsub(/^[ \t]+|[ \t]+$/,"",v); gsub(/`/,"",v); print v; found=1; exit }
+  } END { exit (found ? 0 : 1) }' "$CONFIG"
+}
+
+# A config written before the Key column existed has no keys at all. That is not an
+# unfinished setup — it is an older config, and treating it as broken would report
+# exit 3 on every project that predates this change. Detected once, up front: no keys
+# anywhere means fall back to defaults and say so, exactly like having no config.
+HAS_KEYS=no
+[ -f "$CONFIG" ] && grep -qE '^\|[[:space:]]*`(layout|design|tokens|src|asset-layer|workbench)`' "$CONFIG" && HAS_KEYS=yes
+
+DEFAULTED=""; BLANK=""; NOROW=""
+derive(){ # derive <var> <key> <fallback>
+  if [ "$HAS_KEYS" = no ]; then
+    eval "$1=\"\$3\""; DEFAULTED="$DEFAULTED $1"; return
+  fi
+  # THREE states, not two, and the third is the one that decides whether this run
+  # happens at all.
+  #
+  #   · no row for this key — an older config, written before that row was part of the
+  #     table. Same state as "no Key column at all", one row down: not a broken setup,
+  #     a config that predates a change. Falls back, and says so below.
+  #     Measured, on a config with one row deleted: read as a blank cell, this aborted
+  #     with exit 3 before a single check ran, and the message said "empty Path cells"
+  #     about a cell that is not there. Every project whose config predates a newly
+  #     added row — `workbench` is the most recent one — died at startup, with the one
+  #     symptom this script exists to prevent: a confident statement about a table
+  #     nobody had looked at.
+  #   · a row with an empty cell — a config somebody started and did not finish. NOT
+  #     "use the default": silently substituting one audits a path nobody chose while
+  #     the report reads completely normal. Collected, then reported as exit 3.
+  #   · a row with a value — use it.
+  #
+  # The first two are one keystroke apart in the table and opposite conclusions, which
+  # is the same distinction, at row scale, that exit 2 and exit 3 draw at run scale.
+  if ! v=$(cfg_path "$2"); then
+    eval "$1=\"\$3\""; NOROW="$NOROW $2"; return
+  fi
+  if [ -z "$v" ]; then BLANK="$BLANK $2"; eval "$1=\"\$3\""; return; fi
+  eval "$1=\"\$v\""
+}
+
+derive LAYOUT           layout          "layout.md"
+derive DESIGN           design          "design.md"
+derive TOKENS           tokens          "src/tokens.css"
+derive SRC              src             "src"
+derive REGION_TYPE      asset-layer     "src/ui/region.tsx"
+derive WORKBENCH        workbench       ".ui-contract-local"
+# The container is a separate file only where the stack forces it (Vue: an SFC cannot
+# export a type cleanly). Everywhere else this row is blank on purpose and
+# the container is the same file as the type, so `asset-container` gets no `derive`
+# call: a blank there must not be reported as an unfinished setup.
+REGION_COMPONENT=$(cfg_path asset-container 2>/dev/null)
+[ -n "${REGION_COMPONENT:-}" ] || REGION_COMPONENT="$REGION_TYPE"
+
+FAIL=0
+WARNS=0
+ok(){   printf '  \033[32m✓\033[0m %s\n' "$1"; }
+drift(){ printf '  \033[31m✗\033[0m %s\n' "$1"; FAIL=1; }
+skip(){ printf '  \033[33m—\033[0m %s\n' "$1"; }
+# Provisional clauses report here. A warn does NOT set FAIL and does not change
+# the exit code — a clause marked 🌡 is a hypothesis, and failing a build on one
+# would hand a third-party convention veto power over this repo's CI.
+#
+# Known cost, stated rather than hidden: "warnings present, exit 0" is green in
+# CI. The counter printed at the end is the only thing standing between that and
+# a report nobody reads. Do not silence it, and do not promote warn to drift
+# without moving the clause to 🔒 in design.md first.
+warn(){ printf '  \033[33m!\033[0m %s\n' "$1"; WARNS=$((WARNS+1)); }
+
+# A container call site carrying more than one prop is formatted across several
+# lines, so anything matching against one has to see the whole tag at once — a
+# line-wise grep silently sees only the few written on one line. Every check that
+# looks at call sites reads through here: one line per file, path then a tab.
+FIND_EXPR=""
+for e in $SRC_EXT; do
+  [ -z "$FIND_EXPR" ] && FIND_EXPR="-name *.$e" || FIND_EXPR="$FIND_EXPR -o -name *.$e"
+done
+flatten_sources(){
+  # shellcheck disable=SC2086  # FIND_EXPR is a word list on purpose
+  find "$SRC" -type f \( $FIND_EXPR \) \
+    -exec sh -c 'printf "%s\t" "$1"; tr "\n" " " < "$1"; echo' _ {} \; 2>/dev/null
+}
+
+# ── Exit 3: the setup is broken ──────────────────────────────────────────────
+# Exit 3 means: "this project has a contract, and this run is not looking at it."
+# It is one of two things, and both mean somebody's setup is half-finished:
+#
+#   · a Path cell is blank — a config started and not completed
+#   · a Path cell names something that is not on disk
+#
+# Keeping this apart from exit 2 is the whole point, and the argument is the same one
+# as before: exit 2 says "this project has no contract", exit 3 says "it has one and
+# this run is pointed at nothing". They read almost identically in a terminal and are
+# opposite conclusions. Merged, a broken setup looks like a clean project.
+# A key with no row is the other half of that pair, and it is not exit 3 — it is an
+# older config, and the run proceeds on fallbacks. Say which paths those are, for the
+# same reason the no-Key-column banner exists: a run against defaults can be perfectly
+# correct, but it must not read identically to a run against a real config.
+#
+# Printed BEFORE the two aborts below, deliberately. A run that does stop still has to
+# say where its paths came from — "$CONFIG names paths that are not on disk:
+# LAYOUT=layout.md" is unreadable on its own when $CONFIG does not, in fact, name
+# layout.md anywhere.
+if [ -n "$NOROW" ]; then
+  printf '\033[33m%s has no row for:%s\033[0m\n' "$CONFIG" "$NOROW"
+  printf '\033[33mThose paths below are this template'"'"'s defaults, not this project'"'"'s. Re-run\033[0m\n'
+  printf '\033[33mui-contract-setup to add the row(s), or this run is auditing guesses for them.\033[0m\n'
+fi
+
+if [ -n "$BLANK" ]; then
+  echo "$CONFIG has empty Path cells for:$BLANK"
+  echo "A blank cell is not 'use the default' — it means setup did not finish."
+  echo "Fill them in; do not delete this check."
+  exit 3
+fi
+
+# Every derived path this run reads, not a subset of them. The list used to be three,
+# and the two it left out are the two that fail worst — measured, both of them:
+#
+#   · `design` pointing at a file that moved: check 4 ("design.md holds rules, not
+#     values") degrades to one yellow skip line and the run can still exit 0. The one
+#     check that guards the visual spec turns itself off and the report looks normal.
+#   · `tokens` pointing at a file that moved: check 3 reports the token file's own
+#     20 colour declarations as hardcoded-colour drift, because the exclusion is
+#     `grep -v "^$TOKENS:"` and $TOKENS names something else. **A confident wrong
+#     answer** — and the same symptom this script's header cites as the reason the
+#     six path knobs were removed in the first place. Removing the knobs moved where
+#     the wrong path comes from; it did not stop a wrong path producing that report.
+#
+# WORKBENCH is deliberately NOT in this list. A project that has never built a
+# wireframe has no workbench on disk, and that is a normal state, not a broken setup —
+# check 9 gates on the directory existing for exactly that reason.
+#
+# `none yet` is the escape hatch, and it stays **ASCII**, same decision and same stated
+# cost as the Key column: the paths table is written in the deliverable's language, so
+# a matched-on word has to be one the writer was told to spell one way.
+# **What gets through: a translated placeholder** — write 暂无 instead of `none yet` and
+# it is read as a path, does not exist, and this exits 3 naming the cell. That is loud
+# and one edit away from correct, which is the direction this whole block prefers.
+MISSING=""
+[ "$HAS_KEYS" = yes ] && for pair in "LAYOUT:$LAYOUT" "DESIGN:$DESIGN" "TOKENS:$TOKENS" "SRC:$SRC" "REGION_TYPE:$REGION_TYPE"; do
+  n=${pair%%:*}; v=${pair#*:}
+  case "$v" in ""|"none yet"|"n/a"|"N/A") continue ;; esac
+  [ -e "$v" ] || MISSING="$MISSING $n=$v"
+done
+if [ -n "$MISSING" ]; then
+  echo "$CONFIG names paths that are not on disk:$MISSING"
+  echo "Either the artifacts moved and the table did not, or the table was filled in from"
+  echo "intent rather than from disk. Auditing past this would audit nothing and say so"
+  echo "in green."
+  exit 3
+fi
+
+if [ ! -f "$LAYOUT" ]; then
+  # Reached only when there is no config at all — with one, a missing $LAYOUT was
+  # already caught above as a broken setup rather than as an absent contract.
+  echo "No $LAYOUT — there is no contract to check."
+  exit 2
+fi
+
+# Say it when the paths were guessed. A run against defaults can be perfectly correct;
+# what must not happen is that it reads identically to a run against a real config.
+if [ -n "$DEFAULTED" ]; then
+  if [ -f "$CONFIG" ]; then
+    printf '\033[33m%s has no Key column — paths below are defaults, not this project'"'"'s.\033[0m\n' "$CONFIG"
+    printf '\033[33mRe-run ui-contract-setup to add it, or this run is auditing guesses.\033[0m\n'
+  else
+    printf '\033[33mNo %s — paths below are this template'"'"'s defaults, not this project'"'"'s.\033[0m\n' "$CONFIG"
+  fi
+fi
+
+echo "1. Region names in code are inside the allowlist"
+if [ -f "$REGION_TYPE" ]; then
+  # allowlist as declared in the type
+  ALLOWED=$(sed -n "/export type RegionId/,/^$/p" "$REGION_TYPE" | grep -o "'[^']*'" | tr -d "'" | sort -u)
+  # Read the ids off the container's call sites, not off the marker attribute.
+  # In this architecture the runtime marker is written once inside the container,
+  # as an expression — so the only literal marker attribute in the tree is the
+  # annotation tooltip's own display text. Grepping for that finds the label, not a region.
+  USED=$(flatten_sources \
+         | grep -oE '<[A-Za-z]*Region([[:space:]]+[^>]*)?[[:space:]]id="[^"]*"' \
+         | sed 's/.*[[:space:]]id="//;s/".*//' | sort -u)
+  # No process substitution: this has to run under any POSIX sh, including dash in CI.
+  BAD=""
+  for u in $USED; do
+    echo "$ALLOWED" | grep -qx "$u" || BAD="$BAD $u"
+  done
+  [ -z "$BAD" ] && ok "every region id at a container call site is declared" \
+                || drift "region names not in RegionId:$BAD"
+else
+  skip "no asset layer at $REGION_TYPE — document layer only"
+fi
+
+echo "2. RegionId is not bypassed"
+# Two shapes, and they need different treatment. `as RegionId` names the type, so
+# it is a bypass wherever it appears. `as any` only counts inside a container call
+# site — but filtering for that with a line-wise `grep -i region` drops the very
+# case that matters: in a multi-line call site the tag name sits a line above the
+# `id={x as any}`, so the bypass line contains no "region" at all and passes.
+B=$(grep -rn 'as RegionId' "$SRC" 2>/dev/null)
+B2=$(flatten_sources | grep -E '<[A-Za-z]*Region[[:space:]][^>]*[[:space:]]as any' \
+     | cut -f1 | sort -u | sed 's/^/as any inside a region container: /')
+B=$(printf '%s\n%s\n' "$B" "$B2" | grep -v '^$')
+[ -z "$B" ] && ok "no casts around region ids" || drift "$B"
+
+echo "2b. No hand-written region markers bypassing the container"
+# A marker attribute on a raw element means somebody wrote the element instead of
+# going through the container, which skips the type check entirely.
+#
+# This reads call sites, so it goes through flatten_sources like checks 1 and 2 —
+# it was line-wise, and a hand-written marker is precisely the tag prettier wraps:
+# `<div` on one line, `data-region="…"` on the next. The realistic shape of the
+# bypass was the one shape this check could not see.
+#
+# Three things here are stack-shaped:
+#
+#   · **the attribute name** comes from $MARKER, not the literal `data-region`.
+#     React Native has no DOM; its container stamps `testID`. Hardcoded, this
+#     check returned "every marker goes through the container" on an RN project
+#     whose screen contained `<View testID="sidebar" />`. Measured, not reasoned.
+#   · **the value syntax** is `="` or `={`. React writes `data-region={id}` and
+#     Vue writes `:data-region="id"`; matching only `="` meant this check happened
+#     to work in React because JSX uses braces — not because it was right.
+#   · **the container file is excluded**, because it is the one place the marker
+#     is *supposed* to be written by hand. React got away without this for the
+#     same accidental reason; on Vue the container's own `:data-region="id"`
+#     was reported as a violation of the rule it implements.
+#
+# And a fourth thing, which is why $MARKER_EXCLUSIVE exists: on some platforms the
+# marker attribute is **not ours**. React Native's `testID` is the standard e2e
+# hook, so a `testID` outside the container is evidence of a test, not of a
+# bypass. There is no grep that separates the two, so this check does not guess —
+# it says it cannot answer. A skip is the honest output; the green tick it used to
+# print there was earned by looking for `data-region` on a platform that has none.
+if [ "$MARKER_EXCLUSIVE" != "yes" ]; then
+  skip "\$MARKER ($MARKER) is shared with the platform's own uses — a bypass cannot be told from a legitimate one by grep. Container discipline is review-only here; check 1 still reads call sites"
+else
+  # Tag names are matched case-insensitively on purpose. The original `<[a-z]`
+  # encoded "a raw element is lowercase", which is a DOM fact — React Native has
+  # no lowercase elements at all, so that pattern matched nothing there. The
+  # container file is excluded by path, so there is no need to guess from case.
+  B=$(flatten_sources | grep -v "^$REGION_COMPONENT	" \
+      | grep -E "<[A-Za-z][^>]*[[:space:]]:?$MARKER=[\"{]" \
+      | cut -f1 | sort -u | sed "s/^/hand-written $MARKER marker: /")
+  [ -z "$B" ] && ok "every marker goes through the container" || drift "$B"
+fi
+
+echo "3. No hardcoded color values in feature code (they belong to the token file)"
+# Exclude the token file by path and nothing else. This once excluded every *.css
+# file, which turned the check off exactly where hardcoded colours accumulate:
+# a #123456 dropped into a feature stylesheet was reported as no drift.
+# oklch()/hsl()/lab() are here because a project that adopts a modern token
+# convention writes its colours that way. Matching only hex and rgb() turned
+# this check off for exactly those projects, silently: nothing in the output
+# distinguishes "no hardcoded colours" from "cannot see the notation in use".
+B=$(grep -rnE "$COLOUR_NOTATION" "$SRC" 2>/dev/null | grep -v "^$TOKENS:")
+# Named colours too, matched on context rather than word shape — `whitespace` contains
+# `white`. Before the union, this check had no named-colour pass at all, so a
+# `color: 'crimson'` in feature code was green while check-colours.sh reported it.
+N=$(grep -rnE '([A-Za-z]*[Cc]olor|background|fill|stroke|outline)[[:space:]]*:[[:space:]]*.?('"$COLOUR_NAMED"')\b' "$SRC" 2>/dev/null | grep -v "^$TOKENS:")
+[ -n "$N" ] && B=$(printf '%s\n%s' "$B" "$N" | grep -v '^$')
+[ -z "$B" ] && ok "no raw color literals" || drift "$(echo "$B" | head -20)"
+
+echo "4. design.md holds rules, not values"
+if [ -f "$DESIGN" ]; then
+  # Only hex colours are checked automatically. Sizes are NOT: a visual spec
+  # legitimately discusses numbers in prose and in anti-pattern rows ("six months
+  # in you'll have 13px / 13.5px / 15px at once"), and no regex separates
+  # "defining a value" from "stating a rule about values". Measured on a real
+  # spec, a px regex produced four hits and all four were false positives.
+  # Whether sizes have moved to the token file is an agent-judgement check.
+  # Same notation set as the eval grader that judges this file, deliberately: one
+  # question, one answer. It is $COLOUR_NOTATION minus the Tailwind scale — a spec
+  # legitimately *mentions* `bg-blue-500` in an anti-pattern row, and a check that
+  # cannot tell mention from use is the trap this repo has already sprung once.
+  # The 3-to-8 digit range matters: at {6}, a spec writing `#fff` was green.
+  # Measured on 11 real artifacts — widening produced zero additional hits.
+  B=$(grep -nE '#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(|\boklch\(|\boklab\(|\blab\(|\blch\(|\bcolor\(' "$DESIGN")
+  [ -z "$B" ] && ok "no literal colour values (sizes: agent judgement, not checked here)" \
+              || drift "$(echo "$B" | head -20)"
+else
+  skip "no $DESIGN"
+fi
+
+echo "5. Every allowlist row states what it must not hold"
+B=$(awk '/^\| *`?[a-z]/ && /\|/ {n=split($0,a,"|"); if (a[n-1] ~ /^ *$/) print NR": "$0}' "$LAYOUT")
+[ -z "$B" ] && ok "no empty forbidden cells" || drift "$(echo "$B" | head -10)"
+
+echo "6. Every allowlist name is findable in code"
+if [ -f "$REGION_TYPE" ]; then
+  # $REGION_TYPE itself sits under $SRC, so a plain search finds every name in its
+  # own union declaration and the check can never fail. Judge on the call sites
+  # collected in check 1, and fall back to a text search that excludes the
+  # declaring file — an id can legitimately reach the container through a variable.
+  #
+  # Three outcomes, not two. $SRC is the production tree; the wireframe lives in
+  # the workbench and is deliberately outside it. So a project that has just
+  # written its contract — spec done, asset layer generated, no feature code yet —
+  # has every call site in the wireframe and none here. That is the intended state
+  # at that point, not drift, and reporting the whole allowlist red on the first
+  # run teaches the reader that red means nothing. Check 9a already skips for this
+  # same reason.
+  #
+  # Anchored on a count, not on a path or a project phase: **none found** is
+  # "not started", **some found** is a real omission. Nothing has to be told which
+  # phase the project is in, and the check starts judging by itself the moment the
+  # first region is rendered in production.
+  #
+  # What gets through: a project that renders exactly one region in production and
+  # abandons the rest still reports drift (correct), but a project that renders
+  # none and abandons all of them is silent. That state is indistinguishable from
+  # "has not started" without asking, and this check does not invent drift.
+  MISSING=""
+  FOUND=""
+  for r in $ALLOWED; do
+    if echo "$USED" | grep -qx "$r"; then FOUND="$FOUND $r"; continue; fi
+    HITS=$(grep -rl "\"$r\"\|'$r'" "$SRC" 2>/dev/null | grep -vF "$REGION_TYPE")
+    if [ -n "$HITS" ]; then FOUND="$FOUND $r"; else MISSING="$MISSING $r"; fi
+  done
+  if [ -z "$MISSING" ]; then
+    ok "all declared regions exist in code"
+  elif [ -z "$FOUND" ]; then
+    skip "no allowlist name is rendered in $SRC yet — feature code has not started; the wireframe is not searched, it is rehearsal"
+  else
+    drift "declared but never rendered:$MISSING"
+  fi
+else
+  skip "no asset layer"
+fi
+
+# Rows of design.md's naming declaration table, as "name<TAB>status".
+#
+# Anchored on the three status keywords, not on the table's header row: the
+# deliverable is written in the user's language, so a header match would find
+# nothing the moment somebody writes the spec in their own language. The
+# keywords are fixed ASCII for exactly this reason (ui-contract-design).
+# Limit worth knowing, same shape as config_layout_paths: rewrite the keywords
+# and this finds nothing and stays quiet. It degrades to no check, never a wrong one.
+decl_rows(){
+  [ -f "$DESIGN" ] || return 0
+  awk -F'|' 'NF>=4 && match($2, /`[^`]+`/) {
+    n=substr($2, RSTART+1, RLENGTH-2)
+    o=$3; gsub(/^[ \t]+|[ \t]+$/, "", o)
+    if      (o ~ /^borrowed/)     print n "\t" "declared"
+    else if (o ~ /^this project/) print n "\t" "declared"
+    else if (o ~ /^not used/)     print n "\t" "unused"
+  }' "$DESIGN"
+}
+
+# "name hex" for every token the file states a hex colour for, and "name -" for
+# the rest. Quotes are stripped first so one expression covers CSS custom
+# properties, a JS/TS theme object and JSON without three separate patterns.
+#
+# **Leaf keys only.** A key whose value opens a block — `theme: {`, `extend: {`,
+# `colors: {` — is structure, not a token. `ui-contract-assets` supports exactly
+# those shapes (`theme.extend`, a theme object), so a normal Tailwind config was
+# reporting `theme`, `extend` and `colors` as three tokens the declaration table
+# forgot. Measured on a fixture. The comment above `decl_rows` promises this
+# family of checks "degrades to no check, never a wrong one" — three false
+# warnings on a supported shape is a wrong one, and a warn channel that cries
+# wolf on the common case is the same as no warn channel.
+#
+# Kept deliberately narrow: only a value that is empty or opens a brace/bracket
+# is dropped. Anything else is still a candidate, because guessing harder here
+# would start dropping real tokens and this check's whole value is that it does
+# not invent drift.
+token_pairs(){
+  [ -f "$TOKENS" ] || return 0
+  # A declaration whose value sits on the NEXT line — how a long font stack is
+  # normally written — reaches the parser below with an empty value, which is
+  # indistinguishable from a container key (`theme: {`) and gets skipped. So the
+  # token is silently absent, and check 7 then reports it as "declared but not in
+  # the token file": a wrong answer, pointing at the document rather than at this.
+  #
+  # Measured on a real Tailwind v4 token file: `--font-sans` and `--font-mono` both
+  # vanished. Same shape as the multi-line JSX call site this script already had to
+  # learn twice — **a line-wise reader cannot see a declaration written across lines.**
+  # Joins one continuation line, which is what a wrapped value uses.
+  tr -d "\"'" < "$TOKENS" | awk '
+    { if (buf != "") { $0 = buf " " $0; buf = "" }
+      if (match($0, /[A-Za-z][A-Za-z0-9_-]*[ \t]*:[ \t]*$/)) { buf = $0; next } }
+    match($0, /[A-Za-z][A-Za-z0-9_-]*[ \t]*:/) {
+      k=substr($0, RSTART, RLENGTH); gsub(/[^A-Za-z0-9_-]/, "", k)
+      if (k == "") next
+      rest=substr($0, RSTART+RLENGTH)
+      sub(/^[ \t]+/, "", rest); sub(/[ \t]+$/, "", rest)
+      if (rest == "" || rest ~ /^[{[]/) next      # container key, not a token
+      if (match($0, /#[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]/))
+        print k "\t" substr($0, RSTART, RLENGTH)
+      else print k "\t-"
+    }'
+}
+
+echo "7. design.md's declaration table and the token file name the same tokens"
+# Provisional (design.md marks the naming convention 🌡), so this warns and does
+# not fail the build. What it catches is the drift that makes every other
+# name-based check meaningless: a spec naming tokens the code does not have.
+if [ ! -f "$DESIGN" ]; then
+  skip "no $DESIGN"
+elif [ ! -f "$TOKENS" ]; then
+  skip "no token file at $TOKENS — nothing to compare the declaration against"
+else
+  DECL=$(decl_rows)
+  if [ -z "$DECL" ]; then
+    skip "no declaration table found in $DESIGN (see ui-contract-design)"
+  else
+    HAVE=$(token_pairs | cut -f1 | sort -u)
+    MISSING=""; EXTRA=""
+    # Two nested loops comparing normalised names, both directions. Three things in
+    # that are load-bearing, and the first two were found by running this against a
+    # real CSS-custom-property project rather than by reading it:
+    #
+    #  1. `norm()`, applied to BOTH sides before comparing. A token file on Tailwind v4
+    #     declares `--color-brand` for what the declaration table calls `brand`: the
+    #     leading `--` and the namespace prefix belong to the FORMAT, not to the name
+    #     (`ui-contract-assets` §the names do not change here). Comparing literally
+    #     reported the entire table missing and the entire token file undeclared — 10
+    #     and 27 names, all of them false.
+    #     Anchored on a **closed list of eight prefixes**, not on "a prefix". What gets
+    #     through: any namespace outside that list — Tailwind v4 also ships `--ease-`,
+    #     `--breakpoint-`, `--animate-`, and a project can invent `--elevation-`. Those
+    #     keep their prefix through norm(), so one token lands in BOTH warn lists at
+    #     once: declared-but-missing and present-but-undeclared, same name, two lines.
+    #     Loud and one prefix away from correct, which is the direction to fail in.
+    #  2. There is deliberately no `grep` in the comparison. Token names start with
+    #     `--`, so the obvious spelling — `grep -qx "$n"` — reads the name as its own
+    #     options: a usage block on stderr and every one of them reported as missing.
+    #     **A wrong answer plus noise**, on any project whose declaration table writes
+    #     names the way CSS does. `[ "$(norm "$h")" = "$nn" ]` has no options to parse.
+    #     Do not fold these loops back into a grep; if you must, it needs `--`.
+    #     Whole-string equality is the other half: a containment test would let a token
+    #     file's `brand-hover` satisfy a table row that says `brand`.
+    #  3. The two loops read DIFFERENT halves of $DECL, and that asymmetry is not a
+    #     slip. MISSING considers only rows marked `declared`; EXTRA compares against
+    #     every row, `not used` included. A token the table lists as `not used` was
+    #     named by the writer, so it must not be reported as undeclared — and must not
+    #     be demanded of the token file either. Make both loops read the same list and
+    #     one of those two goes wrong.
+    norm(){ printf '%s' "${1#--}" | sed -E 's/^(color|radius|spacing|font|shadow|text|leading|tracking)-//'; }
+    for n in $(printf '%s\n' "$DECL" | awk -F'\t' '$2=="declared"{print $1}'); do
+      nn=$(norm "$n"); hit=""
+      for h in $HAVE; do [ "$(norm "$h")" = "$nn" ] && hit=1 && break; done
+      [ -n "$hit" ] || MISSING="$MISSING $n"
+    done
+    for h in $HAVE; do
+      hh=$(norm "$h"); hit=""
+      for n in $(printf '%s\n' "$DECL" | cut -f1); do [ "$(norm "$n")" = "$hh" ] && hit=1 && break; done
+      [ -n "$hit" ] || EXTRA="$EXTRA $h"
+    done
+    [ -n "$MISSING" ] && warn "declared but not in the token file:$MISSING"
+    [ -n "$EXTRA" ]   && warn "in the token file but not declared:$EXTRA"
+    [ -z "$MISSING$EXTRA" ] && ok "declaration table and token file agree"
+  fi
+fi
+
+echo "8. Surface / -foreground pairs meet design.md's contrast threshold"
+# The threshold is stated once, in design.md; the tuning instrument reads the
+# same one. Neither hardcodes a number. Found by its shape (`4.5:1`), which is
+# language-independent — the surrounding prose is not.
+if [ ! -f "$DESIGN" ] || [ ! -f "$TOKENS" ]; then
+  skip "needs both $DESIGN and $TOKENS"
+else
+  MIN=$(grep -oE '[0-9]+(\.[0-9]+)?:1' "$DESIGN" | head -1 | cut -d: -f1)
+  if [ -z "$MIN" ]; then
+    skip "no contrast threshold stated in $DESIGN — nothing to check against"
+  else
+    PAIRS=$(token_pairs | awk -F'\t' '$2!="-"')
+    # Which names form a surface / foreground pair. TWO rules, and the second is
+    # not an extra:
+    #
+    #   a) `X` with `X-foreground`
+    #   b) the base pair — `background` (or `page` / `surface`) with `foreground`
+    #      (or `text`)
+    #
+    # Rule (b) is the one design.md's threshold is actually *about*: the outline
+    # says "the minimum ratio for **body text on its background**". And it is
+    # exactly the pair rule (a) cannot see, because the base foreground is named
+    # `foreground`, not `background-foreground`.
+    #
+    # Without it, a token file with `background: #ffffff` and `foreground:
+    # #ffffff` — the worst contrast that exists — printed "no hex pairs", then
+    # "No drift found.", then exit 0. Measured on a fixture, not reasoned.
+    #
+    # The tuning instrument has carried this special case since it was written
+    # (`theme-studio.html.template`, `pairs()`). This script did not, so the two
+    # consumers of one threshold disagreed about what a pair *is* — the same
+    # token file cleared here and failed there, with nothing reporting an error.
+    # If you change one, change the other.
+    PAIRNAMES=$(printf '%s\n' "$PAIRS" | awk -F'\t' '
+      {v[$1]=$2}
+      END{
+        for (k in v){
+          if (k ~ /-foreground$/) continue
+          if ((k "-foreground") in v) print k "\t" k "-foreground" "\t" v[k] "\t" v[k "-foreground"]
+        }
+        base=""; basefg=""
+        for (k in v){
+          if (base   == "" && k ~ /^(background|page|surface)$/) base = k
+          if (basefg == "" && k ~ /^(foreground|text)$/)         basefg = k
+        }
+        # Only when rule (a) has not already claimed the base surface, so a
+        # project that really does declare `background-foreground` is not
+        # checked twice against two different foregrounds.
+        if (base != "" && basefg != "" && !((base "-foreground") in v))
+          print base "\t" basefg "\t" v[base] "\t" v[basefg]
+      }')
+    if [ -z "$PAIRNAMES" ]; then
+      # Deliberately a skip, not a pass. Two things land here and the message
+      # must not name only one of them: the token file may state its colours in
+      # oklch() (this check reads hex only), or it may genuinely declare no
+      # surface / foreground pair. Printing a green tick either way would be the
+      # exact failure this script exists to catch — the instrument is where
+      # non-hex notations get checked.
+      skip "no hex surface/foreground pair found in $TOKENS — either the colours are not hex (oklch and friends are not read here), or no such pair is declared"
+    else
+      B=$(printf '%s\n' "$PAIRNAMES" | awk -F'\t' -v min="$MIN" '
+        function h2d(s,   i,c,v,n){ n=0
+          for(i=1;i<=length(s);i++){ c=tolower(substr(s,i,1))
+            v=index("0123456789abcdef",c)-1; n=n*16+v } return n }
+        function lin(c,   x){ x=c/255
+          return (x<=0.03928) ? x/12.92 : exp(2.4*log((x+0.055)/1.055)) }
+        function lum(h){ return 0.2126*lin(h2d(substr(h,2,2))) \
+                              + 0.7152*lin(h2d(substr(h,4,2))) \
+                              + 0.0722*lin(h2d(substr(h,6,2))) }
+        {
+          a=lum($3); b=lum($4)
+          hi=(a>b)?a:b; lo=(a>b)?b:a
+          r=(hi+0.05)/(lo+0.05)
+          if (r < min) printf "%s on %s = %.2f:1, below %s:1\n", $2, $1, r, min
+        }')
+      [ -z "$B" ] && ok "every hex pair clears ${MIN}:1" || drift "$B"
+    fi
+  fi
+fi
+
+echo "9. The workbench holds no authority, and is actually ignored"
+# The workbench is the one directory in this contract that is NOT committed. Two
+# things follow, and both fail silently if nobody checks them.
+#
+# 9a — an ignore rule that was never written. The paths table can name the
+# workbench while .gitignore says nothing about it, and then the throwaway tree
+# gets committed. Nothing complains: the project works, the files are just there.
+#
+# 9b — an authority that moved in. This is the one worth the trip. `design.md`
+# points at the token file for every value, so the token file IS the value
+# authority; put it inside a directory that is never committed and the authority
+# does not merely become deletable, it never reaches the repository at all.
+# Everyone else clones a spec whose values point nowhere.
+#
+# Not hypothetical: the admin-console example declares its token source as
+# `wireframe/src/index.css`, and its own config.md already records the hazard —
+# "deleting wireframe/ deletes the tokens with it". That was written while the
+# wireframe was still committed. Once it is not, that line describes the default.
+#
+# What this check cannot do: judge whether something ELSE in the workbench is
+# quietly acting as an authority. It knows about the token file because the
+# paths table names it. A project that starts reading fixtures out of the
+# workbench from production code gets no warning from here.
+#
+# $WORKBENCH cannot be empty by itself: `derive` assigns either the table's cell or the
+# `.ui-contract-local` fallback, and a row that is present-but-blank exited 3 far above.
+# So a bare emptiness test here is unreachable, and a message telling the reader to set
+# a path in this file would be pointing at an interface the header rules out.
+#
+# What the cell CAN hold is the paths table's own placeholder. The workbench is the one
+# derived path the exit-3 disk check deliberately skips, so unlike the other five it
+# reaches here unvalidated, placeholder and all. Same closed set of placeholders that
+# check exempts: they are values in the table, not paths. Normalised to empty so the
+# branch below reads as one state — "this project has no workbench to talk about".
+# Anchored on that word list. **What gets through: a translated placeholder** — 暂无
+# instead of `none yet` is read as a directory name, and lands one line down as
+# "not on disk — nothing built yet". Different sentence, same conclusion, so this one
+# degrades quietly rather than wrongly.
+case "$WORKBENCH" in "none yet"|"n/a"|"N/A") WORKBENCH="" ;; esac
+if [ -z "$WORKBENCH" ]; then
+  skip "$CONFIG's paths table names no workbench — nothing to ignore, and nowhere for an authority to hide"
+else
+  # Gate 9a on the directory being on disk. A project that has never built a
+  # wireframe has nothing to ignore, and telling it to ignore a directory it
+  # does not have is noise landing on correct repositories — which is how a
+  # report stops being read. The gate does not weaken the check: a workbench
+  # that was wrongly committed is present in every clone, so the case this
+  # exists to catch still lands here.
+  if [ ! -d "$WORKBENCH" ]; then
+    skip "$WORKBENCH is not on disk — nothing built yet, nothing to ignore"
+  elif [ ! -f .gitignore ]; then
+    drift "$WORKBENCH exists and there is no .gitignore, so it is committed. It is rehearsal, not a deliverable"
+  elif ! grep -qE "(^|/)${WORKBENCH#./}/?[[:space:]]*$" .gitignore; then
+    drift "$WORKBENCH is not in .gitignore — the workbench is being committed"
+  else
+    ok "$WORKBENCH is ignored"
+  fi
+  # `none yet` is a legitimate value in the paths table, and it is not a path.
+  case "$TOKENS" in
+    "none yet"|"") skip "no token file yet — nothing to place" ;;
+    "$WORKBENCH"/*|./"$WORKBENCH"/*)
+      drift "the token file ($TOKENS) is inside $WORKBENCH, which is never committed. It is the value authority; move it into the production tree and point the paths table at the new location" ;;
+    *) ok "the token file is outside the workbench" ;;
+  esac
+fi
+
+echo "10. No structural number is still waiting on the visual scale"
+# A few numbers in $LAYOUT are only correct relative to a type or spacing scale — a
+# fixed panel width, a minimum usable width, a page size. `ui-contract-layout` marks
+# those ⏳; `ui-contract-design` is supposed to clear them once the scales are settled.
+#
+# This is a WARN, deliberately, and the reason is the same one that keeps 🌡 a warn:
+# an unsettled number is honest. Failing a build on it would push people to delete the
+# marker rather than to answer it, and a deleted marker is indistinguishable from a
+# number somebody actually checked. What must not happen is that it goes unnoticed.
+#
+# What this cannot do: find a coupling nobody marked. ⏳ only counts the ones somebody
+# saw. The wireframe is still where the unnoticed ones surface, and a clean run here is
+# not evidence that structure and visuals agree.
+if [ ! -f "$LAYOUT" ]; then
+  skip "no $LAYOUT"
+else
+  # Anchored on "a table row that carries ⏳", not on the character. Measured: the
+  # first version grepped the character and reported 6 pending numbers in a document
+  # that had 3 — the prose *explaining* the marker contains it too, so the handover
+  # note went out carrying three paragraphs about itself. A count nobody can trust is
+  # worse than no count, and this note is the only thing that reaches the visual owner.
+  #
+  # What gets through: a ⏳ written outside a table row — in a bullet, or in prose next
+  # to the number — is not counted. `ui-contract-layout` puts the marker in the number's
+  # own table cell for exactly this reason, and says so; this is the other half of that
+  # agreement, not an accident.
+  PENDING=$(grep -n '⏳' "$LAYOUT" 2>/dev/null | grep '^[0-9]*:[[:space:]]*|')
+  if [ -z "$PENDING" ]; then
+    ok "no structural number left waiting"
+  else
+    N=$(printf '%s\n' "$PENDING" | wc -l | tr -d ' ')
+    warn "$N structural number(s) in $LAYOUT still marked ⏳ — waiting on the visual scale."
+    # Print a handover note that can be pasted somewhere, rather than a list the
+    # reader has to turn into one. Same shape as the wireframe's skin editor: the
+    # output of noticing something is a thing you can act on.
+    #
+    # It carries the ⏳ lines VERBATIM — line number, number, and what settles it —
+    # because a paraphrase here would be this script inventing a requirement, and
+    # the note is the only thing that reaches whoever owns the visual scale.
+    printf '\n      ┌─ copy from here ────────────────────────────────────────────\n'
+    printf '      │ These numbers in %s are waiting on the visual scale.\n' "$LAYOUT"
+    printf '      │ Each line is marked ⏳ with what would settle it.\n      │\n'
+    printf '%s\n' "$PENDING" | sed "s|^|      │   $LAYOUT:|"
+    printf '      │\n'
+    printf '      │ Settle each against design.md'"'"'s type and spacing scales, then\n'
+    printf '      │ edit %s: the ⏳ becomes a plain number, or a different one.\n' "$LAYOUT"
+    printf '      │\n'
+    printf '      │ Do NOT write a visual value into %s to justify a number,\n' "$LAYOUT"
+    printf '      │ and do NOT copy a structural number into design.md. Both are\n'
+    printf '      │ the bleed the two documents exist to prevent.\n'
+    printf '      └─ to here ───────────────────────────────────────────────────\n\n'
+  fi
+fi
+
+printf '\n'
+[ $WARNS -gt 0 ] && printf '\033[33m%s warning(s) — provisional clauses; they do not change the exit code.\033[0m\n' "$WARNS"
+[ $FAIL -eq 0 ] && printf '\033[32mNo drift found.\033[0m\n' \
+                || printf '\033[31mDrift found. This script does not fix anything — read the spec, decide, then change the document first.\033[0m\n'
+exit $FAIL

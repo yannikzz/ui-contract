@@ -12,6 +12,15 @@ For the deliverable's language and terminology, call the Skill tool with "delive
 ## Preconditions
 **Artifact paths come from `docs/ui-contract/config.md`'s paths table.** If that file doesn't exist, the specs are at the repo root. Never assume a path the config contradicts.
 
+**The script reads that table itself, at run time.** It does not carry a second copy of the paths, and adapting it does not mean filling paths in. Five knobs remain, and each is a fact the table cannot hold:
+
+| Knob | Why it cannot be derived |
+|---|---|
+| `CONFIG` | Bootstrap — it is the path *to* the table |
+| `MARKER` · `MARKER_EXCLUSIVE` · `SRC_EXT` | Stack facts. What happens when they are guessed was measured: a React Native project printed three green ticks over a real bypass |
+
+It used to be eleven, six of them paths. **Measured, twice in one afternoon:** `SRC` set to the production tree reported all 24 allowlist names as "declared but never rendered"; set to the wireframe, it reported the wireframe's own `NEUTRAL` map as hardcoded-colour drift. Neither was a bug in a check — both were a caller getting a wide interface wrong, and both produced a confident wrong report.
+
 
 | Condition | Action |
 |---|---|
@@ -27,13 +36,23 @@ The script encodes that first split as two different exit codes, and **they must
 | 0 | no drift found |
 | 1 | drift found |
 | 2 | nothing to check — no `layout.md`, and no config claiming there is one |
-| 3 | a contract *is* configured, but the paths in the script and the paths table disagree — in either direction |
+| 3 | a contract *is* configured, but this run is not looking at it — a blank Path cell (setup unfinished), or a path the table names that is not on disk. Every path the run reads is covered, not a subset: a stale `design` turns check 4 into one skip line, and a stale `tokens` makes check 3 report the real token file as drift. `workbench` is excluded on purpose — never having built a wireframe is a normal state |
 
 A fourth tier sits **beside** the exit code rather than inside it. Clauses marked 🌡 in `design.md` are hypotheses, so they print a **warning** and leave the exit code alone: failing a build on a provisional clause hands whatever the clause borrowed a veto over the project's CI.
 
 The cost of that is real and is not hidden: **"warnings present, exit 0" is green in CI.** The count printed at the end is the only thing that keeps such a report from being read as clean. Never silence it, and never promote a warning to drift without first moving the clause to 🔒 in `design.md` — the marker is what decides the tier, not the script.
 
-`2` and `3` read almost the same in a terminal and are opposite conclusions: `2` says this project has no contract, `3` says it has one and this script is pointed at the wrong place. Sharing an exit code makes a broken setup look like a clean project, which is the one failure this whole unit exists to prevent. Keep them apart when you adapt the template, and report exit 3 as a finding, never as "nothing to check".
+`2` and `3` read almost the same in a terminal and are opposite conclusions: `2` says this project has no contract, `3` says it has one and this run is pointed at nothing. Sharing an exit code makes a broken setup look like a clean project, which is the one failure this whole unit exists to prevent. Report exit 3 as a finding, never as "nothing to check".
+
+**Exit 3's meaning did not change when the paths moved into the table; only its detection did.** It used to compare a path written into the script against the table's — a comparison that no longer exists, because there is no second copy to disagree. The failure it caught changed shape rather than going away.
+
+Two more states are deliberately **not** exit 3, and telling them apart is the whole point:
+
+| State | Behaviour |
+|---|---|
+| No `config.md` at all | Defaults, **and it says so**. A legitimate state — the preconditions table above already treats it as one |
+| A `config.md` with no Key column | Defaults, and it says the config predates the Key column. Treating an older config as broken would fail every project from before this change |
+| A Key column with a **blank** Path cell | **Exit 3.** Somebody started setup and did not finish; substituting a default there audits a path nobody chose, and the report reads completely normal |
 
 ## It reports; it does not fix
 
@@ -56,11 +75,14 @@ The value of a health check is inversely proportional to what it costs to run. I
 | Surface / `-foreground` pairs clear the contrast threshold | compute the ratio | full, hex only |
 | Every allowlist row has a "must not hold" cell | parse the table | full |
 | Every declared name is findable in code | grep each name | full |
+| The workbench is actually in `.gitignore` | grep | full |
+| The token file is **outside** the workbench | path comparison | full |
+| No structural number is still marked ⏳ | grep | full (**warn**) |
 | Have **sizes** moved to the token file? | semantic judgement | agent |
 | Is the decision tree still total for the last N features? | walk real commits through the tree | agent |
 | Do region descriptions say "what goes here" rather than "what this is"? | semantic judgement | agent |
 
-Nine of twelve run automatically and fit in CI. **If that ratio drops much below eight tenths, this unit has degenerated into subjective re-reading and its value claim fails** — that is its stated revisit condition, not a slogan. It currently sits at three quarters, and the two reasons are recorded rather than rounded away:
+Twelve of fifteen run automatically and fit in CI. **If that ratio drops much below eight tenths, this unit has degenerated into subjective re-reading and its value claim fails** — that is its stated revisit condition, not a slogan. It currently sits at twelve fifteenths — four fifths, and the three agent-judgement rows are recorded rather than rounded away:
 
 **Sizes cannot be checked by regex.** A visual spec legitimately discusses numbers — in prose ("no writing off-table px sizes in feature code"), and in anti-pattern rows ("six months in you'll have 13px / 13.5px / 15px at once"). Measured against a real spec, a px regex produced four hits and **all four were false positives**. A check that cries wolf on correct documents is worse than no check, because people stop reading the output. Colours stay automated: a hex code in a visual spec is unambiguous.
 

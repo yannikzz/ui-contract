@@ -51,6 +51,13 @@ H=$(grep -rl 'disable-model-invocation' skills/ 2>/dev/null)
 [ -z "$H" ] && ok "无 disable-model-invocation" || no "以下技能不可被组合调用: $H"
 
 echo "5. 原语层不含 UI 词汇（否则无法被别的项目复用，且会和能力层抢触发）"
+# 锚是**一张词表**，所以按 CLAUDE.md 的规矩要说清它放过什么。
+# 名单：layout.md / design.md / wireframe / region / allowlist / 界面 / UI contract / 区域。
+# **走得过去的**：`token`、`spec`、`contract`（不带 UI）、`skin`、`纪律`、`产物`——
+# 它们在原语层是通用词，加进名单会当场误报（`decision-record` 通篇讲 authoritative
+# document，`deliverable-language` 讲 deliverable）。
+# 也走得过去的是**换个说法**：「区域名白名单」写成 "the allow-list of names" 就漏了。
+# 这条挡的是**照抄**，不是挡决心——真要往原语层塞 UI 概念的人，改个词就过。
 for s in decision-interview spec-before-code constraint-by-types decision-record deliverable-language; do
   [ -f "skills/$s/SKILL.md" ] || { no "$s 缺失"; continue; }
   h=$(grep -oiE 'layout\.md|design\.md|wireframe|region|allowlist|界面|UI contract|区域' "skills/$s/SKILL.md" | sort -u | tr '\n' ' ')
@@ -62,6 +69,11 @@ X=$(grep -rn '](\.\./' skills/ 2>/dev/null)
 [ -z "$X" ] && ok "无 ../ 跨包引用" || no "$X"
 
 echo "7. 包内 markdown 链接不断"
+# **走得过去的**：正则是 `\]\(([^)#:]+)\)`，所以带 `#` 锚点的链接
+# （`[x](implementation.md#section)`）和带 `:` 的（外部 URL）**整条被跳过**，不是只跳锚点。
+# 也就是说 `[x](nonexistent.md#foo)` 是绿的。这是刻意的：跳过 URL 必须的，而为了
+# 跳 URL 用的字符类顺带把锚点也吃了。修它要拆成两步匹配，收益是抓到带锚点的死链——
+# 目前包内一处带锚点的链接都没有，所以这个洞现在是空的，写在这里是防它以后不空。
 python3 - <<'PY' || FAIL=1
 import re,os,sys
 bad=0
@@ -256,90 +268,118 @@ echo "21. 器具模板里不出现 IA 载体（放了它就是向每个装了插
 X=$(grep -niE '<nav|<aside|sidebar|crumb|<header|<footer|drawer|topbar|tabbar|masthead|navigation|appbar' skills/ui-contract-design/assets/theme-studio.html.template 2>/dev/null)
 [ -z "$X" ] && ok "样张只有通用控件" || no "模板里有 IA 载体: $X"
 
-echo "22. 线框模板里颜色的**值**只在 NEUTRAL 一处（ADR-0006 把判据从「没有颜色」换成「没有颜色的值」）"
-# 一条被推翻的决定需要机械守卫，不是一句叮嘱。ADR-0001 当初禁掉换肤预览，
-# 靠的是「线框里没有颜色」——那条好守但也挡住了用户真正要看的东西。
-# 换成「没有颜色的值」之后，线框可以换肤而依然不可能成为第二个视觉真相源，
-# 但**只有这条断言在时才成立**：值一旦漏到 NEUTRAL 之外，两句话就同时失效。
-# 例外只有 inspect 装置那一块（标注层 + 换肤横幅）：它们不是产品表面，刻意不跟皮肤
-# 走，且由模板里的哨兵注释声明，不靠这里猜颜色名。横幅尤其不能跟——量到过：
-# 用 --wire-strong 画它，会被它正在警告的那套皮换肤，浅色主题下白底白字直接消失。
+echo "22. 线框模板里颜色的**值**只在 NEUTRAL 与装置文件（ADR-0006 换判据，ADR-0012 换锚）"
+# 一条被推翻的决定需要机械守卫，不是一句叮嘱。ADR-0001 当初禁掉换肤预览，靠的是
+# 「线框里没有颜色」——那条好守，也挡住了用户真正要看的东西。换成「没有颜色的值」
+# 之后线框可以换肤而依然不可能成为第二个视觉真相源，但**只有这条断言在时才成立**。
 #
-# **这条抓不到的**：往 NEUTRAL 里直接加一个品牌色。NEUTRAL 内是允许写值的——
-# 那是线框自己的灰——所以「加进去的是不是灰」这件事只能靠人评审。量过：注入
-# `'--wire-brand': '#2563eb'` 仍然 exit 0。不写下来的话，下一个读这条断言的人
-# 会以为它守住了整件事。
+# **锚变了。** 到 ADR-0012 为止，例外由 `wire.tsx.template` 里一对 `INSPECT CHROME`
+# 注释哨兵声明，而注释可以挪：把 END 推到文件尾就是全文豁免，把产品组件整段搬进块内
+# 就能在里面写死颜色。两条都是实测穿透，两次都靠往断言里补一层来堵。现在例外是**一个
+# 文件**：`inspect.tsx.template`。搬进豁免区因此是一次文件移动，在 diff 里看得见，
+# 而挪两行注释在 review 里长得像格式调整。
+#
+# **这条抓不到的**：往 NEUTRAL 里直接加一个品牌色。NEUTRAL 内允许写值——那是线框
+# 自己的灰——所以「加进去的是不是灰」只能靠人评审。量过：注入 `'--wire-brand':
+# '#2563eb'` 仍然 exit 0。不写下来的话，下一个读这条断言的人会以为它守住了整件事。
 python3 - <<'P22' || FAIL=1
 import re,sys
-p='skills/ui-contract-wireframe/assets/wire.tsx.template'
-try: s=open(p,encoding='utf-8').read()
-except OSError: print('  \033[31m✗\033[0m 找不到 '+p); sys.exit(1)
+PARTS='skills/ui-contract-wireframe/assets/wire.tsx.template'
+APP='skills/ui-contract-wireframe/assets/inspect.tsx.template'
+try:
+    parts=open(PARTS,encoding='utf-8').read()
+    app=open(APP,encoding='utf-8').read()
+except OSError as e:
+    print(f'  \033[31m✗\033[0m 读不到 {e.filename}——例外是一个文件，那个文件必须存在'); sys.exit(1)
 bad=0
-m=re.search(r'export const NEUTRAL[^{]*\{(.*?)\n\}', s, re.S)
+m=re.search(r'export const NEUTRAL[^{]*\{(.*?)\n\}', parts, re.S)
 if not m:
     print('  \033[31m✗\033[0m 模板里找不到 NEUTRAL——它是「值只在一处」的载体'); sys.exit(1)
-rest = s[:m.start()] + s[m.end():]
-# 标注层是**声明出来的**例外，按模板里的哨兵剔除整块——不是靠猜哪些颜色名该放过。
-# 猜颜色名的版本第一次跑就漏判了 sky-*（区域徽标与虚线框），而那正是合法的那批。
-# 声明出来的例外，其边界本身也得守住：哨兵只是两行注释，挪一下不需要任何理由，
-# 在 review 里长得像格式调整。量过：把 END 那行搬到文件末尾，整份文件就都进了
-# 豁免区，块外注入 bg-blue-600 照样 exit 0——这条断言是 ADR-0006 推翻「线框里
-# 没有颜色」之后唯一的机械守卫，它一失效，那条 ADR 的两句承诺同时落空。
-# 所以两件事一起判：哨兵各恰好一次（多一对就能圈住任意代码），且块外必须还有
-# 产品组件（块内是 inspect 装置，块外是产品表面；产品表面没了就是被整个吞掉）。
-nb, ne = len(re.findall(r'INSPECT CHROME BEGIN', s)), len(re.findall(r'INSPECT CHROME END', s))
-if nb != 1 or ne != 1:
-    print(f'  \033[31m✗\033[0m 哨兵必须各恰好一次（BEGIN {nb} / END {ne}）——多一对就能把任意代码圈进豁免区'); sys.exit(1)
-a = re.search(r'INSPECT CHROME BEGIN(.*?)INSPECT CHROME END', rest, re.S)
-if not a:
-    print('  \033[31m✗\033[0m 模板里没有 INSPECT CHROME 哨兵——例外必须是声明的，不是猜的'); sys.exit(1)
-rest = rest[:a.start()] + rest[a.end():]
-if not re.search(r'^export function', rest, re.M):
-    print('  \033[31m✗\033[0m 哨兵块外没有产品组件了——把 END 推到文件尾等于全文豁免'); sys.exit(1)
-# 上面那条只判「块外还剩东西吗」，于是**一次搬一个**就穿过去了：把某个产品组件
-# 整段挪进哨兵块内、在里面写死品牌色，块外还有别的 export，照样 exit 0（量过）。
-# 存在性代替了完整性——规矩说的是「产品表面**全部**在豁免区外」。
-# 所以边界两侧都要判：块内允许的导出是**声明出来的**，多一个就得改这张名单，
-# 而改名单会出现在 diff 里。这条不替作者判断什么该进来，只强制这个决定被写下来。
-INSPECT_EXPORTS = {'LabelsProvider','useLabels','AnnotatedRegion','SkinBanner','SkinEditor','toHex'}
-inside = set(re.findall(r'^export (?:const|function|type)\s+([A-Za-z_][A-Za-z0-9_]*)', a.group(1), re.M))
-extra = sorted(inside - INSPECT_EXPORTS)
+rest = parts[:m.start()] + parts[m.end():]
+# 豁免文件的导出是**声明出来的**封闭名单。产品组件搬进去就买到了写死颜色的权利，
+# 所以多一个名字必须改这张名单，而改名单会出现在 diff 里。这一条不替作者判断什么
+# 该进来，只强制这个决定被写下来。名单同时被随线框交付的 check-colours.sh 使用。
+# 名单**读自装置文件自己的 `APPARATUS:` 行**，这里不留拷贝。
+# 决定住在做决定的地方：往豁免文件里加一个名字，diff 里就挨着那个名字本身。
+# 以前是一个决定三份拷贝，加一次要改三处，而检查是唯一会发现漏改的东西。
+m_decl = re.search(r'APPARATUS:\s*(.+)', app)
+if not m_decl:
+    print('  \033[31m✗\033[0m 装置模板里没有 APPARATUS: 行——封闭名单声明在那里、也从那里读；'
+          '注释被翻译时这个标记必须保持 ASCII'); sys.exit(1)
+APPARATUS_EXPORTS = set(m_decl.group(1).split())
+# ── 这一段锚在什么上 ──────────────────────────────────────────────────────
+# 锚是**句法位置**：行首的 `export`。不是它后面那串关键字。
+# 旧写法枚举了 const|function|type 三种拼法——对一条「名字是封闭名单」的检查来说，
+# 这是正好搞反了的锚：名单封的是名字，而它把**拼法**当成了封闭集。量过：把
+# `export async function Sneaky() { return "#2563eb" }` 追加进装置文件，检查照样绿。
+# `export default` / `export interface` / `export enum` / `export let` / `export var` /
+# `export { X }` 同样从中间走过去，于是 ADR-0012 那份封闭名单换个拼法就等于不存在。
+#
+# 现在的规则：跳过所有修饰词，取后面第一个标识符；`export { A, B as C }` 读成它对外
+# 发布的名字（A、C）；`export default …` 报成名字 `default`，`export * …` 报成 `*`——
+# 两者都永远不在声明名单里，所以都会被判成未声明，而那正是「名单点不到名的导出」
+# 应得的判决。
+#
+# **仍然穿得过去的，写下来而不是暗示**：
+#   · 跨行写的导出（`export {` 名字在下几行；名字与 `export` 不在同一行）。这里逐行读，
+#     和 check-colours.sh 一致。
+#   · `export * from './x'` 会红，但它说不出**进来了哪些名字**。
+#   · `export const [a] = …` 这种数组解构，取不到名字。
+#   · TypeScript 的 `export =`，它没有名字可判。
+MODIFIERS = ('async','declare','abstract','const','let','var','function','class','type','interface','enum')
+def exported_names(src):
+    names = set()
+    for line in re.findall(r'^export[ \t][^\n]*', src, re.M):
+        if re.match(r'^export[ \t]+\*', line):
+            names.add('*'); continue
+        if re.match(r'^export[ \t]+(?:type[ \t]+)?\{', line):
+            m_br = re.search(r'\{([^}]*)\}', line)
+            if m_br:
+                for part in m_br.group(1).split(','):
+                    w = part.split()
+                    if w: names.add(w[-1])          # `A as C` 对外是 C
+            continue
+        for tok in line.split()[1:]:
+            tok = re.sub(r'[^A-Za-z0-9_$].*$', '', tok)   # `Foo({` → `Foo`；`function*` → `function`
+            if not tok: continue
+            if tok == 'default': names.add('default'); break
+            if tok in MODIFIERS: continue
+            names.add(tok); break
+    return names
+inside = exported_names(app)
+extra = sorted(inside - APPARATUS_EXPORTS)
 if extra:
-    print(f'  \033[31m✗\033[0m 哨兵块内出现了未声明的导出: {extra}——产品组件搬进豁免区就能随便写颜色值；'
-          f'确实属于 inspect 装置的话，把名字加进 INSPECT_EXPORTS'); sys.exit(1)
-leaks = re.findall(r'#[0-9a-fA-F]{3,8}\b|\brgba?\(|\boklch\(|\bhsla?\(|\b(?:bg|text|border|ring|fill|stroke)-(?:red|blue|green|yellow|amber|orange|purple|pink|indigo|teal|cyan|violet|rose|lime|emerald|sky|fuchsia|slate|zinc|stone|gray|grey|neutral)-\d{2,3}', rest)
-# 上面那条只认记法（hex / 函数 / tailwind 色阶），于是 `color: 'crimson'` 从中间
-# 穿过去——同样是一个写死在线框里的颜色值，只是用词写的。量过：注入 crimson 仍
-# exit 0。具名颜色不能光靠词形抓（`whitespace` 里有 white，变量名里什么都有），
-# 所以判的是**语境**：出现在颜色属性的值位置上，且那个词确实是 CSS 具名颜色。
-NAMED = set('''aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue
-blueviolet brown burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan
-darkblue darkcyan darkgoldenrod darkgray darkgreen darkgrey darkkhaki darkmagenta darkolivegreen
-darkorange darkorchid darkred darksalmon darkseagreen darkslateblue darkslategray darkslategrey
-darkturquoise darkviolet deeppink deepskyblue dimgray dimgrey dodgerblue firebrick floralwhite
-forestgreen fuchsia gainsboro ghostwhite gold goldenrod gray green greenyellow grey honeydew hotpink
-indianred indigo ivory khaki lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral
-lightcyan lightgoldenrodyellow lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen
-lightskyblue lightslategray lightslategrey lightsteelblue lightyellow lime limegreen linen magenta
-maroon mediumaquamarine mediumblue mediumorchid mediumpurple mediumseagreen mediumslateblue
-mediumspringgreen mediumturquoise mediumvioletred midnightblue mintcream mistyrose moccasin
-navajowhite navy oldlace olive olivedrab orange orangered orchid palegoldenrod palegreen
-paleturquoise palevioletred papayawhip peachpuff peru pink plum powderblue purple rebeccapurple red
-rosybrown royalblue saddlebrown salmon sandybrown seagreen seashell sienna silver skyblue slateblue
-slategray slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat white
-whitesmoke yellow yellowgreen'''.split())
+    print(f'  \033[31m✗\033[0m 装置文件里出现了未声明的导出: {extra}——产品组件搬进豁免文件就能随便写颜色；'
+          f'确实属于装置的话，把名字加进装置文件自己的 APPARATUS: 行——名单只有那一份，这里和 check-colours.sh 都读它'); sys.exit(1)
+# 反向也要判：豁免文件被掏空、产品组件全搬去别处，等于豁免了个寂寞——但真正的风险
+# 是**产品零件搬进了装置文件**（上面那条），以及**装置搬出去写死颜色**（下面这条会抓）。
+if not re.search(r'^export function', rest, re.M):
+    print('  \033[31m✗\033[0m 零件文件里已经没有产品组件了——产品表面若整体搬进豁免文件，上面那条名单是唯一防线'); sys.exit(1)
+COLOUR_NOTATION=r'#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(|\boklch\(|\boklab\(|\blab\(|\blch\(|\bcolor\(|\b(bg|text|border|ring|fill|stroke|outline|divide|from|via|to)-(red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|gray|grey|zinc|neutral|stone)-[0-9]{2,3}\b'
+COLOUR_NAMED=r'aqua|beige|black|blue|brown|chartreuse|chocolate|coral|crimson|cyan|darkblue|darkgreen|darkred|deeppink|dodgerblue|firebrick|forestgreen|fuchsia|gold|goldenrod|gray|green|grey|hotpink|indigo|ivory|khaki|lavender|lime|magenta|maroon|navy|olive|orange|orangered|orchid|pink|plum|purple|rebeccapurple|red|salmon|seagreen|sienna|silver|skyblue|steelblue|tan|teal|tomato|turquoise|violet|wheat|white|yellow'
+# `finditer` + `group(0)`，不是 `findall`：这个模式带两个捕获组（Tailwind 前缀与色名），
+# 于是 findall 返回的是元组，`m[0]` 对每个 hex / 函数写法都是 `''`、对 Tailwind 是 `'bg'`。
+# 判定一直是对的（该红时红），坏掉的是诊断——它印出来的是 `['']`，而不是漏出来的那个值。
+# 模式本身一个字都不能动：第 33 条要求这串 ERE 在三个文件里逐字相同，把组改成非捕获
+# 就是把「同一份知识三处相同」换成「三处不同但语义相同」，那正是第 33 条要治的病。
+leaks = [m.group(0) for m in re.finditer(COLOUR_NOTATION, rest)]
+# 上面那条只认记法（hex / 函数 / tailwind 色阶），于是 `color: 'crimson'` 从中间穿
+# 过去——同样是一个写死在线框里的颜色值，只是用词写的。量过：注入 crimson 仍 exit 0。
+# 具名颜色不能光靠词形抓（`whitespace` 里有 white，变量名里什么都有），所以判的是
+# **语境**：出现在颜色属性的值位置上，且那个词确实是 CSS 具名颜色。
+NAMED = set(COLOUR_NAMED.split('|'))
 for w in re.findall(r'(?:^|[^A-Za-z-])(?:[A-Za-z]*[Cc]olor|background|fill|stroke|outline|boxShadow|textShadow)\s*:\s*[\'"]?([A-Za-z]{3,20})\b', rest, re.M):
     if w.lower() in NAMED: leaks.append(w)
 if leaks:
-    print(f'  \033[31m✗\033[0m NEUTRAL 之外出现颜色值: {sorted(set(leaks))[:8]}'); bad=1
-skin=re.search(r'export const SKIN[^{]*\{(.*?)\n\}', s, re.S)
+    print(f'  \033[31m✗\033[0m NEUTRAL 与装置文件之外出现颜色值: {sorted(set(leaks))[:8]}'); bad=1
+skin=re.search(r'export const SKIN[^{]*\{(.*?)\n\}', parts, re.S)
 if not skin:
     print('  \033[31m✗\033[0m 模板里找不到 SKIN 映射表'); bad=1
 else:
     filled=[v for v in re.findall(r":\s*'([^']*)'", skin.group(1)) if v.strip()]
     if filled:
         print(f'  \033[31m✗\033[0m SKIN 里填了 token 名: {filled}——design.md 才是名字权威'); bad=1
-if not bad: print('  \033[32m✓\033[0m 颜色值只在 NEUTRAL，SKIN 出厂全空')
+if not bad: print('  \033[32m✓\033[0m 颜色值只在 NEUTRAL 与装置文件，SKIN 出厂全空')
 sys.exit(bad)
 P22
 
@@ -351,16 +391,43 @@ echo "23. 示例要么跟上技能，要么在 README 里写明落后了（examp
 # **不强制同步。** 示例是实跑产出，手改它就把「真实产出」变成「手写插图」，
 # 毁掉它唯一的价值主张。强制的只是「落后必须是显式的」。
 # 方向是单向的：示例自己加的东西（Field / PageKind / TableColumn…）是项目适配，不判。
+#
+# **模板从一个文件变成两个之后，这里必须读两个。** ADR-0012 把装置拆进
+# `inspect.tsx.template`，而这条断言当时只读 `wire.tsx.template`——落后数当场从 7 掉到
+# 4，看起来像示例追上了一截，其实是**搬走的那批符号不再被比对**。断言的覆盖面缩小
+# 时它不会变红，只会安静地少判，这正是本文件抓的那类失效发生在断言自己身上。
 python3 - <<'P23' || FAIL=1
 import re,sys
-T='skills/ui-contract-wireframe/assets/wire.tsx.template'
-E='examples/admin-console/wireframe/src/wire.tsx'
+T=['skills/ui-contract-wireframe/assets/wire.tsx.template',
+   'skills/ui-contract-wireframe/assets/inspect.tsx.template']
+# 示例这一侧也是两个文件了（2026-08-25 重建）。只读 wire.tsx 的话，示例里明明有的
+# AnnotatedRegion / DemoBar 等会被算成「落后」，README 得为已经存在的东西写声明——
+# 一张记着假落后的表，和一张漏记真落后的表一样没用。
+E=['examples/admin-console/.ui-contract-local/wireframe/src/wire.tsx',
+   'examples/admin-console/.ui-contract-local/wireframe/src/inspect.tsx']
 R='examples/README.md'
+# ── 这一段锚在什么上 ──────────────────────────────────────────────────────
+# 锚是**行首的 `export` 加一个声明关键字**，不是 const|function|type 这三种拼法。
+# 旧写法枚举三种拼法，和 check 22 犯的是同一个错：模板改用 `export interface` /
+# `export enum` / `export async function` 写一个新符号，示例没跟，这条**不会变红，
+# 只会安静地少判**——落后数从 7 掉到 4 那次就是覆盖面缩小而没人发现。
+# 量过：加宽前后模板 23 个、示例 26 个、落后 0 个，一个数都没动，
+# 所以这是纯粹的覆盖面加宽，不是判定口径的改动。
+#
+# **仍然穿得过去的，写下来而不是暗示**：
+#   · `export { A, B as C }` 名单式再导出（示例的 wire.tsx 就有一行，只影响 e 这一侧，
+#     而这条只判 t - e，漏读 e 只会让落后数偏大、不会漏判）。
+#   · `export default`（没有名字可比）、`export * from`（说不出进来了哪些名字）。
+#   · 跨行写的声明。这里和 check 22、check-colours.sh 一样逐行读。
 def exports(p):
-    return set(re.findall(r'^export (?:const|function|type)\s+([A-Za-z_][A-Za-z0-9_]*)',
+    return set(re.findall(r'^export[ \t]+(?:async[ \t]+|declare[ \t]+|abstract[ \t]+)*'
+                          r'(?:const|let|var|function\*?|class|type|interface|enum)[ \t]+'
+                          r'([A-Za-z_$][A-Za-z0-9_$]*)',
                           open(p,encoding='utf-8').read(), re.M))
 try:
-    t, e, rd = exports(T), exports(E), open(R,encoding='utf-8').read()
+    t = set().union(*(exports(x) for x in T))
+    e = set().union(*(exports(x) for x in E))
+    rd = open(R,encoding='utf-8').read()
 except OSError as err:
     print(f'  \033[31m✗\033[0m 读不到 {err.filename}'); sys.exit(1)
 missing = sorted(n for n in t - e if f'`{n}`' not in rd)
@@ -648,6 +715,129 @@ for d in skills/*/; do
 done
 ok "已检查"
 
+echo "32. 每条检查都有有效性用例，且那句覆盖承诺与实际条数相符"
+# 这一条守的是另一份测试的**承诺**，不是产品。理由写在 invariants-effectiveness.sh
+# 第 4 行它自己身上：「这一行是承诺，别让它变成散文」——然后它变成了散文。
+# 加这条的时候，那句话写着 1–30，而这里有 31 条检查。
+#
+# 「一条检查」和「它的用例」之间没有缝：两边靠字符串里的一个编号配对。加一条检查时
+# 没有任何东西提醒你它缺用例，删一条时也没有东西告诉你它的用例现在是死的。
+# CLAUDE.md 说「新断言没有用例就不算完成」——在此之前，那条规则靠人读注释执行。
+#
+# **这条抓不到的**：一个存在但打不中的用例（注入锚点失效那种）。那由 0c 自己的
+# 「注入本身失败」分支报。这里只数「有没有」，不数「打不打得中」。
+python3 - <<'P32' || FAIL=1
+import re,sys
+CHK='testing/structure/invariants.sh'
+EFF='testing/structure/invariants-effectiveness.sh'
+try:
+    chk=open(CHK,encoding='utf-8').read(); eff=open(EFF,encoding='utf-8').read()
+except OSError as e:
+    print(f'  \033[31m✗\033[0m 读不到 {e.filename}'); sys.exit(1)
+nums=sorted({int(n) for n in re.findall(r'^echo "(\d+)\.', chk, re.M)})
+covered={int(n) for n in re.findall(r'^run_(?:case|out) [^"]*"(\d+)[a-z]? ·', eff, re.M)}
+bad=0
+missing=[n for n in nums if n not in covered]
+if missing:
+    print(f'  \033[31m✗\033[0m 这些检查没有任何用例: {missing}——CLAUDE.md 说没有用例就不算完成'); bad=1
+# 锚在**行首的注释**上，不是在那串字里。量过：用例的参数里也含着同一串字，
+# 于是注入把承诺那一行换掉之后，正则在用例自己身上又匹配到一次，检查绿着放过。
+m=re.search(r'^# 覆盖范围[^\n]*\*\*(\d+)[–-](\d+) 全部有用例\*\*', eff, re.M)
+if not m:
+    print('  \033[31m✗\033[0m 找不到那句覆盖承诺——它是这份测试唯一的全称声明，不许消失'); bad=1
+elif int(m.group(2)) != max(nums):
+    print(f'  \033[31m✗\033[0m 覆盖承诺写着 {m.group(1)}–{m.group(2)}，实际有 {max(nums)} 条检查'
+          f'——那一行自己说过「别让它变成散文」'); bad=1
+if not bad:
+    print(f'  \033[32m✓\033[0m {len(nums)} 条检查全部有用例，承诺与条数相符')
+sys.exit(bad)
+P32
+
+echo "33. 颜色知识的三份拷贝仍然逐字相同（不生成，比对——同检查 17）"
+# 「一个颜色值长什么样」是一份知识，住在三个地方：本文件的检查 22、线框的
+# check-colours.sh、体检的 audit.sh。它们跑在三个引擎里（Python re / grep -E /
+# grep -rnE），所以**赋值写法**必然不同，但**模式本身**逐字相同——验过，同一串
+# POSIX ERE 在三处行为一致。
+#
+# 为什么比对而不是生成：这个仓库对「一个事实三个地方」已经有形态了（检查 17 对
+# eval 判据做的就是这件事）。比对不需要新概念、不需要构建步骤，也不需要回答
+# 「一个要发到别人仓库里的模板，生成步骤跑在哪」。
+#
+# 这条存在之前它们已经三向漂了，每一份都缺着另外两份有的东西：audit.sh 只认
+# 6 位 hex、一个 Tailwind 前缀都没有，于是业务代码里的 `#fff` 和 `bg-blue-500`
+# 是绿的；另外两份缺 lab()/lch()/color()。现在的值是并集。
+#
+# **抓不到的**：三份一起被改错。比对只保证一致，不保证正确——正确性靠
+# audit-effectiveness 与 0c 里那些注入用例。
+python3 - <<'P33' || FAIL=1
+import re,sys
+F=['testing/structure/invariants.sh',
+   'skills/ui-contract-wireframe/assets/check-colours.sh.template',
+   'skills/ui-contract-audit/assets/audit.sh.template']
+vals={}
+for f in F:
+    try: t=open(f,encoding='utf-8').read()
+    except OSError: print(f'  \033[31m✗\033[0m 读不到 {f}'); sys.exit(1)
+    got={}
+    for key in ('COLOUR_NOTATION','COLOUR_NAMED'):
+        # 只剥赋值语法（r 前缀与引号），不碰模式本身——规范化模式等于再造一个
+        # 「什么算相同」的实现，而那正是这条检查要治的病。
+        m=re.search(r"^%s\s*=\s*r?'(.*)'\s*$" % key, t, re.M)
+        if not m:
+            print(f'  \033[31m✗\033[0m {f} 里找不到 {key}——三份拷贝必须都带哨兵'); sys.exit(1)
+        got[key]=m.group(1)
+    vals[f]=got
+bad=0
+for key in ('COLOUR_NOTATION','COLOUR_NAMED'):
+    seen={vals[f][key] for f in F}
+    if len(seen)!=1:
+        print(f'  \033[31m✗\033[0m {key} 三份不一致：')
+        for f in F: print(f'      {f}: {vals[f][key][:70]}…')
+        bad=1
+if not bad: print('  \033[32m✓\033[0m 颜色记法与具名名单三份逐字相同')
+sys.exit(bad)
+P33
+
+echo "34. skills/ 里不出现插件自身开发树的引用（install.sh 只装 skills/，其余任何读者都拿不到）"
+# 模板是 **copy and adapt**：读进来一份、改写出去一份，最后落进**用户的仓库**。
+# 所以模板注释有两个读者——改模板的维护者，和拿到拷贝的人。现在有一批只对前者
+# 有意义：`ADR-0007`、`testing/structure/invariants.sh`。用户打开自己项目里的
+# inspect.tsx 读到「See ADR-0007」，那份文档他没有，也无从跟进。
+#
+# 而维护者那一半也未必该留在这里：凡是已经有机械检查守着的事（颜色记法三份一致
+# 由第 33 条守着），注释就是那个事实的第二份拷贝——同检查 17 的理由。
+#
+# **锚是一个封闭集**：这个插件自己开发树里的标识符。说清楚它放过什么——
+# 不带标识符的过去时叙述（「it used to be eleven」「all three were once hardcoded
+# to React」「it was line-wise」）**一条都抓不到**，那一类只能靠人读。
+#
+# 2026-08-26 落地时是 warn（当时有 15 处），同日把那 15 处清干净之后**转为失败**。
+# 清掉的是指针，不是结论：`see ADR-0012` 前面那句「豁免是一个文件，不是文件里的标记」
+# 本身留着——用户读得懂它，读不懂那个编号。
+# 范围是整个 skills/，不只是 assets/：`install.sh` 只拷 skills/，所以 docs/adr/ 与
+# testing/ 对**运行时的 agent 也不存在**，不只是对用户。`docs/adr/` 本身不在名单里——
+# 那三个字在技能里指的是**用户仓库自己的** ADR 目录，是合法用法。
+#
+# 目录名后面是 `[A-Za-z]` 不是 `[a-z]`：写成小写时，路径里紧跟斜杠的那一段
+# 只要首字母大写就**匹配不到**。真实存在的那个是 `examples/README.md`——
+# 这个目录里唯一的顶层文件，也是最可能被技能引用的那个。
+# （`testing/evals/README.md` 不在此列，它被 `testing/e` 接住。）
+# 2026-08-26 量到时 skills/ 里恰好没有大写拼法，所以这个洞一直绿着。
+# 「能挡住想到的那种写法」和「能挡住同一个违规换个拼法」是两件事，见 CLAUDE.md。
+HITS=$(grep -rnE 'ADR-[0-9]{4}|issue #[0-9]+|testing/[A-Za-z]|examples/[A-Za-z]|grader-check' skills/ 2>/dev/null)
+if [ -n "$HITS" ]; then
+  n=$(printf '%s\n' "$HITS" | wc -l | tr -d ' ')
+  no "$n 处引用了插件自身的开发树（install.sh 只装 skills/，运行时拿不到）"
+  printf '%s\n' "$HITS" | sed 's|^skills/|      |' | cut -c1-110
+else
+  ok "skills/ 里没有指向开发树的引用"
+fi
+
+# 总结行必须是最后一行输出。它曾打印在 32/33/34 之前：那几条判红时，终端上先出现
+# 绿色的「结构不变量全部通过」，红叉跟在后面。退出码一直是对的，run.sh 也照样报失败，
+# 但那一行本身是假的——而它正是扫一眼输出的人唯一会读的那一行。
+# 这个仓库反复吃亏的形状是「从输出看起来对，推出机制有效」，这次发生在守卫自己身上。
 printf '\n'
 [ $FAIL -eq 0 ] && printf '\033[32m结构不变量全部通过\033[0m\n' || printf '\033[31m结构不变量有失败\033[0m\n'
+
 exit $FAIL

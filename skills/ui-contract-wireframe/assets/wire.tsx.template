@@ -1,13 +1,11 @@
 /**
  * Wireframe display layer. Starting point for <wireframe>/src/wire.tsx.
  *
- * This file is **throwaway**: when the structure changes, regenerate it.
- * It consumes the asset layer and adds two things the asset layer must never carry —
- * the annotation overlay, and neutral low-fidelity parts.
+ * Throwaway: when the structure changes, regenerate it. This file holds the neutral
+ * parts and the one place colour values are allowed to exist.
  *
- * The visuals are neutral by default, and there is a skin preview that is OFF by
- * default. The rule that keeps this file from becoming a second source of visual
- * truth is not "no colour here" any more — it is **no colour VALUES here**:
+ * The rule that keeps it from becoming a second source of visual truth is not "no
+ * colour here" — it is **no colour VALUES here**:
  *
  *   - every colour goes through a --wire-* custom property
  *   - the only values are in NEUTRAL below, and they are this wireframe's own greys
@@ -15,341 +13,26 @@
  *     runtime; it copies nothing, so it cannot go stale
  *   - it does not persist, so every reload is grey again
  *
- * See ADR-0006 for why this replaced "grey, full stop", and what has to be true
- * for it to stay safe.
+ * **That rule covers the whole wireframe directory, not just this file.** The single
+ * exemption is `inspect.tsx`, which holds the apparatus — annotation layer, skin
+ * banner, skin editor, demo toggle bar — and carries fixed colours because none of it
+ * may follow the skin. The exemption is a file, so moving something into it shows up
+ * as a file move in review. `check-colours.sh` enforces both halves in the generated
+ * project; nothing else does.
  */
-import { createContext, useContext, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
-import type { CSSProperties, ReactNode, RefObject } from 'react'
-
-// TODO point this at the project's asset layer (the file produced by ui-contract-assets).
-// The wireframe imports from the asset layer; never the reverse.
-import { Region, REGION_META, type RegionId } from '../../src/ui/region'
-
-// ── INSPECT CHROME BEGIN ────────────────────────────────────
-// Everything in this block is inspect apparatus, NOT a product surface: the
-// region badges, the region outline, the tooltip, and the skin-preview banner.
-// This is the one block allowed to carry colour values of its own, and it
-// carries them on purpose — all of it has to stay readable no matter what the
-// skin does, so none of it may follow the skin. A tooltip tinted by the theme
-// it is describing stops being able to describe it; a warning banner tinted by
-// the values it is warning about can disappear entirely.
-// The exception is declared by these markers so testing/structure/invariants.sh can honour it
-// exactly. Colour outside this block is drift; colour inside it is the design.
-const LabelsCtx = createContext(false)
-export const LabelsProvider = LabelsCtx.Provider
-export const useLabels = () => useContext(LabelsCtx)
-
-const TIP_W = 300
-
-/**
- * Region badge. The tooltip is portalled to document.body with fixed positioning:
- * ancestors' overflow-hidden can't clip it, and it doesn't compete in the
- * prototype's stacking contexts — z-index alone can't fix this, because
- * clipping ignores z-index.
- *
- * Flip direction and horizontal clamping are computed from real viewport space,
- * so there's no hand-maintained list of "regions that open upward".
- */
-function RegionLabel({ id, text, desc }: { id: RegionId; text: string; desc: string }) {
-  const ref = useRef<HTMLSpanElement>(null)
-  const [tip, setTip] = useState<{ left: number; top: number; up: boolean } | null>(null)
-
-  const show = () => {
-    const el = ref.current
-    if (!el) return
-    const r = el.getBoundingClientRect()
-    const up = r.bottom + 8 + 120 > window.innerHeight
-    setTip({
-      left: Math.min(Math.max(8, r.left), Math.max(8, window.innerWidth - TIP_W - 8)),
-      top: up ? r.top - 4 : r.bottom + 4,
-      up,
-    })
-  }
-
-  return (
-    <span
-      ref={ref}
-      onMouseEnter={show}
-      onMouseLeave={() => setTip(null)}
-      className="absolute -top-px left-0 z-10 cursor-help rounded-br bg-sky-600/85 px-1 text-[10px] leading-[15px] font-medium whitespace-nowrap text-white hover:bg-sky-700"
-    >
-      {text}
-      {tip &&
-        createPortal(
-          <div
-            style={{
-              position: 'fixed',
-              left: tip.left,
-              top: tip.top,
-              width: TIP_W,
-              transform: tip.up ? 'translateY(-100%)' : undefined,
-              zIndex: 9999,
-            }}
-            /* The annotation overlay stays hard-coded dark on purpose: it is inspect
-               chrome, not a product surface, so it must NOT follow the skin. Skinning
-               it would put the tooltip inside the thing the tooltip is describing. */
-            className="pointer-events-none rounded-lg border border-neutral-700 bg-neutral-900 p-2.5 shadow-xl"
-          >
-            <p className="font-mono text-[10px] break-all text-sky-300">data-region="{id}"</p>
-            {/* whitespace-normal is required: nowrap on the badge would inherit and overflow */}
-            <p className="mt-1 text-[11px] leading-relaxed font-normal break-words whitespace-normal text-neutral-200">
-              {desc}
-            </p>
-          </div>,
-          document.body,
-        )}
-    </span>
-  )
-}
-
-/**
- * Annotated wrapper around the asset layer's `Region`.
- *
- * The wireframe renders every structural container through this; production code
- * renders through the bare `Region`. Same id space, same runtime marker — the only
- * difference is the inspect overlay, which is why it lives here and not there.
- */
-export function AnnotatedRegion({
-  id,
-  children,
-  className = '',
-  style,
-  label,
-  elRef,
-}: {
-  id: RegionId
-  children?: ReactNode
-  className?: string
-  /** Computed structural values — a degradation rule has to be visibly live, not a fixed class */
-  style?: CSSProperties
-  /** Overrides the badge label (e.g. a region's collapsed form) */
-  label?: string
-  elRef?: RefObject<HTMLDivElement | null>
-}) {
-  const on = useLabels()
-  const meta = REGION_META[id]
-  return (
-    <Region
-      id={id}
-      elRef={elRef}
-      style={style}
-      className={`${className} ${on ? 'relative outline-1 outline-dashed outline-sky-500/50' : ''}`}
-    >
-      {on && <RegionLabel id={id} text={label ?? meta.label} desc={meta.desc} />}
-      {children}
-    </Region>
-  )
-}
-
-/**
- * The marker that travels with a screenshot.
- *
- * ADR-0001 named the failure this way: "six months on nobody remembers it
- * defaults to off, an agent opens it, screenshots it, and copies from there".
- * Default-off does not reach that agent — a picture does. Render this whenever
- * the preview is on, and do not make it dismissible.
- *
- * Its colours are FIXED, and that is the whole point. The first version painted
- * it with --wire-strong / --wire-strong-fg and it came out tinted by the very
- * skin it was warning about: map --wire-strong to a pale brand colour and the
- * banner goes white-on-white, i.e. the guard disappears exactly when the theme
- * makes it hardest to notice. A warning may not depend on what it warns about.
- */
-export function SkinBanner({ tokenFile }: { tokenFile: string }) {
-  return (
-    <div className="bg-amber-400 px-3 py-1 text-center font-mono text-[11px] font-medium text-neutral-950">
-      SKIN PREVIEW ON · values are read live from {tokenFile} · do not copy them from here
-    </div>
-  )
-}
-
-/**
- * Skin editor. Turns the preview from "look" into "look and adjust" — the reason
- * being that only the wireframe shows this product's real IA, so it is the only
- * place where "that spacing is wrong at this density" can be noticed AND acted on.
- *
- * It writes nothing. Values live in memory; the output is a prompt you hand to an
- * agent, which edits tokens.input.json. The instrument stays the JSON's only
- * writer, so two open editors cannot overwrite each other. See ADR-0007.
- *
- * KNOWN COST, accepted deliberately: the hop from "turned a knob here" to "the
- * JSON changed" goes through an agent and is not recorded. Do not paper over it.
- */
-/**
- * Two values are the same value if they resolve to the same colour, even when
- * they are written differently.
- *
- * Without this, opening the native colour picker and closing it again rewrites
- * `oklch(0.47 0.15 258)` as `#1a57ad` — identical colour, different notation —
- * and the prompt reports it as a change. **A prompt that invents changes is
- * worse than no prompt**: an agent applying it would quietly convert the
- * project's colour space to hex, and the user never asked for that.
- *
- * Non-colours (a radius, a length) fall back to string comparison.
- */
-function sameValue(a: string, b: string): boolean {
-  if (a === b) return true
-  const ha = toHex(a)
-  const hb = toHex(b)
-  return ha !== null && hb !== null && ha === hb
-}
-
-export function SkinEditor({
-  base,
-  draft,
-  onChange,
-  onReset,
-  tokenFile,
-}: {
-  /** what the token file currently says, per --wire-* role */
-  base: Record<string, string>
-  /** edited values, per role; absent means unchanged */
-  draft: Record<string, string>
-  onChange: (role: string, value: string) => void
-  onReset: () => void
-  tokenFile: string
-}) {
-  const [copied, setCopied] = useState(false)
-  const rows = Object.entries(SKIN).filter(([, token]) => token)
-  const changed = rows
-    .map(([role, token]) => ({ role, token, from: base[role] ?? '', to: draft[role] }))
-    .filter((r) => r.to !== undefined && !sameValue(r.from, r.to))
-
-  // TODO write this in the deliverable's language, like every other user-facing
-  // string here. The shape is what matters: exact old → new, and token names
-  // rather than --wire-* roles, because the agent edits tokens.input.json and
-  // design.md is the name authority.
-  const prompt =
-    changed.length === 0
-      ? ''
-      : [
-          `Update tokens.input.json. These were tuned in the wireframe against ${tokenFile};`,
-          `the wireframe stores nothing, so nothing has been written yet.`,
-          ``,
-          ...changed.map((c) => `  ${c.token}  ${c.from}  ->  ${c.to}`),
-          ``,
-          `Keep the names exactly as written — design.md is the name authority.`,
-          `Edit tokens.input.json only; ui-contract-assets lands the token file from it.`,
-        ].join('\n')
-
-  return (
-    <div className="border-t border-neutral-700 bg-neutral-900 p-2 text-[11px] text-neutral-200">
-      <div className="mb-1.5 flex items-center gap-2">
-        <span className="font-mono text-neutral-400">skin editor</span>
-        <span className="text-neutral-500">
-          {changed.length ? `${changed.length} changed` : 'no changes'}
-        </span>
-        <button
-          className="ml-auto rounded border border-neutral-600 px-1.5 py-0.5 hover:bg-neutral-800"
-          onClick={onReset}
-        >
-          reset
-        </button>
-        <button
-          className="rounded border border-amber-400 bg-amber-400 px-1.5 py-0.5 font-medium text-neutral-950 disabled:opacity-40"
-          disabled={!prompt}
-          onClick={() => {
-            navigator.clipboard?.writeText(prompt)
-            setCopied(true)
-            setTimeout(() => setCopied(false), 1500)
-          }}
-        >
-          {copied ? 'copied' : 'copy prompt'}
-        </button>
-      </div>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-x-3 gap-y-1">
-        {rows.map(([role, token]) => {
-          const cur = draft[role] ?? base[role] ?? ''
-          const dirty = draft[role] !== undefined && !sameValue(base[role] ?? '', draft[role])
-          const hex = toHex(cur)
-          return (
-            <label key={role} className="flex items-center gap-1.5">
-              <span
-                className={`w-28 shrink-0 truncate font-mono ${dirty ? 'text-amber-300' : 'text-neutral-400'}`}
-                title={`${token}  (${role})`}
-              >
-                {token}
-              </span>
-              {hex && (
-                <input
-                  type="color"
-                  // `<input type="color">` only accepts `#rrggbb`. Slicing the
-                  // alpha off is display-only: `cur` keeps the full value, and
-                  // sameValue still compares all eight digits. Picking a colour
-                  // here does drop the alpha — that is a real edit the user
-                  // made, and it now shows up as one instead of vanishing.
-                  value={hex.slice(0, 7)}
-                  onChange={(e) => onChange(role, e.target.value)}
-                  className="h-5 w-6 shrink-0 rounded border border-neutral-600 bg-transparent p-0"
-                />
-              )}
-              <input
-                type="text"
-                value={cur}
-                onChange={(e) => onChange(role, e.target.value)}
-                className="min-w-0 flex-1 rounded border border-neutral-600 bg-neutral-950 px-1 py-0.5 font-mono text-neutral-200"
-              />
-            </label>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-/**
- * Resolve any CSS colour to #rrggbb by PAINTING it, so oklch()/lab()/color()
- * work. Reading digits out of getComputedStyle does not: modern browsers keep
- * `oklch(...)` as `oklch(...)`, and scraping it reads lightness/chroma/hue as
- * if they were r/g/b — no error, plausible numbers, all wrong.
- *
- * There is a second copy of this in the tuning instrument's template. They
- * cannot share code: one is an HTML template, the other a tsx template, in two
- * packages, and cross-package references are forbidden. If the two ever
- * disagree, the symptom is the same value shown differently in the two tools,
- * with nothing reporting an error. See ADR-0007.
- */
-let cx: CanvasRenderingContext2D | null = null
-export function toHex(v: string): string | null {
-  if (typeof window === 'undefined' || !v?.trim()) return null
-  if (!cx) {
-    const c = document.createElement('canvas')
-    c.width = c.height = 1
-    cx = c.getContext('2d', { willReadFrequently: true })
-  }
-  if (!cx) return null
-  // An invalid value leaves the previous fillStyle standing, so two different
-  // sentinels tell "rejected" apart from "happens to equal the sentinel".
-  cx.fillStyle = '#010203'
-  cx.fillStyle = v
-  const a = cx.fillStyle
-  cx.fillStyle = '#040506'
-  cx.fillStyle = v
-  if (a !== cx.fillStyle) return null
-  cx.clearRect(0, 0, 1, 1)
-  cx.fillRect(0, 0, 1, 1)
-  const d = cx.getImageData(0, 0, 1, 1).data
-  // Alpha is part of the value, so it is part of the identity: `#rrggbbaa` when
-  // the colour is translucent, `#rrggbb` when it is not. Returning six digits
-  // always is what made `sameValue` blind — rgba(0,0,0,.4) and rgba(0,0,0,.8)
-  // both resolved to `#000000`, so an opacity edit was reported as no edit:
-  // no dirty marker, and nothing in the prompt. ADR-0007 makes the prompt the
-  // only carrier of the user's intent, and a change that never reaches it is
-  // a change that never happened.
-  const n = (x: number) => x.toString(16).padStart(2, '0')
-  const rgb = '#' + n(d[0]) + n(d[1]) + n(d[2])
-  return d[3] === 255 ? rgb : rgb + n(d[3])
-}
-
-// ── INSPECT CHROME END ──────────────────────────────────────
+import { useMemo, useState } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 
 // ── Colour: one place, and it is greys ──────────────────────
 /**
- * The wireframe's own neutral palette — **the only colour values in this project**.
- * Every part below reads these through var(). Add a colour anywhere else and the
- * assertion in testing/structure/invariants.sh fails, which is the point: an overturned
- * decision needs a mechanical guard, not a note.
+ * The wireframe's own neutral palette — **the only colour values outside inspect.tsx**.
+ * Every part below reads these through var(). Add a colour value anywhere else in the
+ * wireframe and `check-colours.sh` fails, which is the point: an overturned decision
+ * needs a mechanical guard, not a note.
+ *
+ * ⚠ What that guard does NOT catch: adding a brand colour **to this map**. Values are
+ * legal in here — they are the wireframe's own greys — so "is the thing you added
+ * actually grey" is a review question, and always will be.
  */
 export const NEUTRAL: Record<string, string> = {
   '--wire-surface': '#ffffff',
@@ -382,18 +65,6 @@ export const SKIN: Record<string, string> = {
   '--wire-radius': '',
 }
 
-/**
- * Skin preview. **Off by default and never persisted** — every reload is grey.
- *
- * Values are read out of the token file at runtime, so nothing is copied and
- * nothing can drift. This assumes the token file is CSS custom properties on
- * :root and that the wireframe imports it (`import '<path>/tokens.css'`) —
- * import it, do not copy it. If the project's token file is a theme object
- * instead, import that module and read the fields; the rule is the same.
- */
-export function useSkinVars(on: boolean): CSSProperties {
-  return useSkin(on).vars
-}
 
 /**
  * `base` is what the token file says right now — read live, never copied.
@@ -402,17 +73,25 @@ export function useSkinVars(on: boolean): CSSProperties {
  */
 export function useSkin(on: boolean) {
   const [draft, setDraft] = useState<Record<string, string>>({})
+  // TODO ids come from `originate` Step 1's candidate directions; the chosen one first.
+  const [theme, setTheme] = useState<string>('A')
   const base = useMemo(() => {
     const b: Record<string, string> = { ...NEUTRAL }
     if (!on || typeof window === 'undefined') return b
+    // The chosen direction reads the token file live. The declined ones read the
+    // candidate sets out of the knobs record — this project's own derivations, never
+    // values this file carries.
     const root = getComputedStyle(document.documentElement)
     for (const [role, token] of Object.entries(SKIN)) {
       if (!token) continue
-      const v = root.getPropertyValue(token.startsWith('--') ? token : `--${token}`).trim()
+      const v =
+        theme === 'A'
+          ? root.getPropertyValue(token.startsWith('--') ? token : `--${token}`).trim()
+          : candidateValue(theme, token)
       if (v) b[role] = v
     }
     return b
-  }, [on])
+  }, [on, theme])
   const vars = useMemo(
     () => ({ ...base, ...(on ? draft : {}) }) as CSSProperties,
     [base, draft, on],
@@ -421,9 +100,20 @@ export function useSkin(on: boolean) {
     vars,
     base,
     draft,
+    theme,
+    setTheme,
     set: (role: string, value: string) => setDraft((d) => ({ ...d, [role]: value })),
     reset: () => setDraft({}),
   }
+}
+
+/**
+ * TODO read the declined directions out of the knobs record and return what this token
+ * holds under `theme`. **Do not inline the values here** — a wireframe carrying a second
+ * brand's numbers is the second value authority this whole split exists to prevent.
+ */
+function candidateValue(_theme: string, _token: string): string {
+  return ''
 }
 
 // ── Neutral wireframe parts ─────────────────────────────────

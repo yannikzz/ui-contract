@@ -3,7 +3,7 @@ type: regex
 target:
   source: file
   path: layout.md
-pattern: "#[0-9a-fA-F]{6}\\b|\\b(font-size|border-radius|box-shadow)\\b"
+pattern: "#[0-9a-fA-F]{3,8}\\b|\\b(font-size|border-radius|box-shadow)\\b"
 flags: "i"
 match: not_contains
 weight: 1
