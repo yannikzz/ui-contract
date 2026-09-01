@@ -4,7 +4,7 @@
  * Throwaway: when the structure changes, regenerate it. This file holds the neutral
  * parts and the one place colour values are allowed to exist.
  *
- * The rule that keeps it from becoming a second source of visual truth is not "no
+ * The rule that keeps it from becoming a second value authority is not "no
  * colour here" — it is **no colour VALUES here**:
  *
  *   - every colour goes through a --wire-* custom property

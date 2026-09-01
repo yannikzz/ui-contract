@@ -12,7 +12,7 @@ The problem it solves: teams have a design system (colors, type, spacing) but no
 | `design.md` | **Visual** — type, color, shadow, radius, spacing scale, interaction states, **as rules** | Things that **do** change when you swap the brand skin |
 | Token file | The **values** those rules name. The single value authority in code | — |
 | Asset layer | The allowlist as a type, plus the structural container — in your production tree, long-lived | — |
-| A wireframe | The runnable low-fidelity reference, deliberately overriding the brand to neutral greys | Agents copy structure instead of guessing it |
+| A wireframe | The **projection layer** over the two specs and their decision records — runnable, low fidelity, brand deliberately overridden to neutral greys. Rebuildable at any time, and thrown away as freely | Agents copy structure instead of guessing it |
 | Health check | A script that reports drift months later, and fixes nothing | — |
 
 There is exactly one cut: **does it change when the brand skin changes?** Everything else follows from that.
@@ -78,6 +78,13 @@ They interview you with a recommendation and, more importantly, **what that choi
 **You can enter anywhere.** Already have a `layout.md` and only want the enforcement? Run that unit. Each one reads its inputs from disk, so it won't re-ask what an earlier session already answered.
 
 ## Three ideas that make it work
+
+**0. The two halves are two chains, and nothing links them.** `layout.md` is handed back and
+signed off on its own; the visual spec is a separate engagement, entered again rather than
+arrived at. Running straight through is how a team that asked "where does a new feature go?" gets
+handed a brand they never chose — measured on this plugin, 492 lines of it. The visual half is drawn
+with no incoming edge rather than guarded by a prohibition, because a prohibition can be read and
+walked past, and that has been measured here too.
 
 **1. The wireframe carries no brand visuals — on purpose.** A skeleton with real colors becomes a *second source of visual truth*. Agents copy it, the token file later changes, and now the skeleton is a stale spec that agents trust more than your documentation. A grey skeleton has nothing to copy — and the one place an agent can go for brand values is the token file.
 

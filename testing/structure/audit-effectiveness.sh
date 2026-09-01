@@ -315,6 +315,34 @@ run_case 0 "9a · 正确 ignore 时不误报（这条检查不许喊狼来了）
 # 只是长在测试自己身上。**分开红与红的唯一办法是看那句话**，所以只留 run_out。
 TO_WORKBENCH="mkdir -p .ui-contract-local/wireframe/src && mv src/tokens.css .ui-contract-local/wireframe/src/index.css && sub docs/ui-contract/config.md '| \`tokens\` | Token 文件 | \`src/tokens.css\` |' '| \`tokens\` | Token 文件 | \`.ui-contract-local/wireframe/src/index.css\` |'"
 run_out 1 "value authority" "9b · 路径表把 token 文件填进了工作台，报错必须说清它是值权威" "$TO_WORKBENCH"
+
+# ── 9c · 资产层同时存在于两处 ────────────────────────────────────────────────
+# 2026-08-28 新增。这条守的失败**只在本地发生**：资产层迁进生产树之后没人清
+# `asset-staged`，工作台里留下一份拷贝——而工作台永不提交，所以它不进 diff、不进
+# review，只在本地跟生产树那份分叉，而重建投影时可能消费它。
+#
+# 夹具的基线正好是「已迁入、旧配置没有这一行」，所以三条用例合起来钉住三种状态：
+# 没有这一行 → skip；有行但没目录 → 不许红（陈旧的格子不是漂移）；两处都在 → 红。
+# 中间那条是这里最值钱的：少了它，下一个人会把判断从「两份都在盘上」改成「格子填了」，
+# 那样每一个迁完忘了清格子的正确仓库都会被判红，而那正是本仓库栽过的那种门。
+# `$STAGE_ROW` 以 heredoc 的结束符收尾，所以**任何要和它并列的命令都得排在它前面**——
+# 接在后面会让那一行不再是合法结束符，heredoc 会把后续整段吞掉。第一次写就是这么挂的。
+STAGE_ROW='python3 - <<PY
+import io
+p="docs/ui-contract/config.md"
+s=io.open(p,encoding="utf-8").read()
+s=s.replace("| \`asset-container\`", "| \`asset-staged\` | 资产层（暂驻） | .ui-contract-local/assets | 工作台内 |\n| \`asset-container\`",1)
+io.open(p,"w",encoding="utf-8").write(s)
+PY'
+run_out 1 "exists twice" \
+  "9c · 迁入之后工作台里还留着一份资产层 → 判红（本地分叉，永不进 diff）" \
+  "mkdir -p .ui-contract-local/assets && cp src/ui/region.tsx .ui-contract-local/assets/ && $STAGE_ROW"
+run_out 0 '!exists twice' \
+  "9c · 格子还填着但那个目录已经没了 → 不许红（陈旧的格子不是第二份拷贝）" \
+  "$STAGE_ROW"
+run_out 0 "nothing staged" \
+  "9c · 配置里根本没有这一行（今天之前写的每一份都是）→ skip，且不许报成猜测路径" \
+  "true"
 # `none yet` 是路径表里的合法值，不是路径。当成路径去比会得到一句莫名其妙的绿勾。
 # 注入要连夹具的 token 文件一起删掉：只改路径表的话，那个文件不再被检查 3 排除，
 # 于是退出码被一条无关的检查决定，这条用例就不再测它自称在测的东西。

@@ -27,10 +27,26 @@ The reason is that the two have different jobs. **A user's project exists to be 
 |---|---|
 | The naming declaration table in `design.md`, and borrowed token names | [ADR-0005](../docs/adr/0005-originate-instrument-and-borrowed-token-names.md) |
 | The pointer cut — 16 references into this plugin's own development tree still stand in the produced artifacts | `invariants.sh` check 34, landed 2026-08-26 against `skills/` only |
+| **The two halves, and everything that follows from the split** — this example was produced by one uninterrupted pass, so its asset layer sits in the production tree with no sign of anyone having authorised the move, its `config.md` has neither the scope authorisation nor the staged-asset row, and nothing in it distinguishes the structural half from the visual one | [ADR-0013](../docs/adr/0013-projection-layer-and-two-halves.md) |
+
+**About that third row.** It is the largest gap in this table, and it will not be closed by an
+edit: the example is the **output** of a run, and the thing that changed is what a run does.
+Closing it means producing the example again. Until then, read this example as a picture of a
+finished contract, not as a picture of how one is now arrived at — the artifacts are still what
+the units produce, but the *order and the staging* are not.
+
+One part of it is worth naming separately, because it reads as correct and is not: the example's
+wireframe is the **projection layer**, and the example does not say so anywhere. It calls it a
+reference implementation, which describes its fidelity. Nothing in the example tells the reader
+it can be thrown away and rebuilt.
 
 **About that second row, because a check does not cover it.** Check 34 scans `skills/` and stops, because inside a skill `ADR-NNNN` can only mean this repo's development tree — a skill has no ADRs of its own. The example does: `docs/ui-contract/adr/` is the *project's* namespace and it uses the same strings. `adr/design/0002` carries both readings in one file — `ADR-0006（插件侧）` on line 14 and a bare `ADR-0006` on line 54 both mean the plugin's, while `[ADR-0001](0001-direction-and-hue-basis.md)` on line 7 is a correct relative link into the project's own. No pattern separates those three, and a warn that misfires on the correct one teaches only that the warning can be ignored — `invariants.sh` check 27 states that same reason for its own exclusion. So this is named here instead of checked.
 
-The 16 sit in `design.md`, `docs/ui-contract/config.md`, `audit.sh`, `check-colours.sh`, `adr/design/0002`, and the four wireframe files. Two shapes the pattern names: `ADR-00xx` on fourteen of the lines, `testing/structure/invariants.sh` on the other two. A third slips past the pattern entirely: `.ui-contract-local/wireframe/CLAUDE.md:48` cites this file, and `examples/[a-z]` cannot match a capital `R` — check 34 was widened to `[A-Za-z]` on 2026-08-26 because of that line. It is also stale on top of being unreachable. It says the missing skin preview "is named in `examples/README.md`'s lag table"; the paragraph below says nothing is behind on the wireframe's features any more. The row it points at is gone.
+The 16 sit in `design.md`, `docs/ui-contract/config.md`, `adr/design/0001`, `adr/design/0002`, and the four wireframe files, and **all 16 are the `ADR-00xx` shape**. 
+
+> ⚠ **This sentence was wrong from the day it was written, and the correction is instructive.** It listed `audit.sh`, which has never held a single one; it claimed `testing/structure/invariants.sh` accounted for two of the lines, when only one file ever cited it; it omitted `adr/design/0001`; and the count itself was 17, not 16. Nothing disagreed, because nothing was comparing the prose to the tree — `CLAUDE.md`'s third recorded failure, in the same shape, about a table of statistics. It reads as correct today only because the one `invariants.sh` citation was removed on 2026-08-28 for an unrelated reason (`check-colours.sh` was re-synced from its template, and the template cannot carry such a reference — check 34 forbids it inside `skills/`), which happened to bring 17 down to 16. **A number that becomes true by coincidence was still never checked.** The figures above are measured.
+
+A shape that slips past the pattern entirely: `.ui-contract-local/wireframe/CLAUDE.md:48` cites this file, and `examples/[a-z]` cannot match a capital `R` — check 34 was widened to `[A-Za-z]` on 2026-08-26 because of that line. It is also stale on top of being unreachable. It says the missing skin preview "is named in `examples/README.md`'s lag table"; the paragraph below says nothing is behind on the wireframe's features any more. The row it points at is gone.
 
 **The worst of them is not a dead link.** `design.md:88` cites "ADR-0001 原则 3". `ADR-0001` *does* resolve inside this example — to `adr/design/0001`, 方向选 A 审校台, which has no 原则 3. The document with six principles is this repo's own [ADR-0001](../docs/adr/0001-plugin-positioning-and-architecture.md), which a user's checkout does not contain. Following that pointer returns a different document, not a 404, and nothing about the result says so.
 

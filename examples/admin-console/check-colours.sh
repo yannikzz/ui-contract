@@ -8,9 +8,8 @@
 # at all. Its reader is the agent that is editing the wireframe right now — which is
 # also the only moment the rule can still be applied cheaply.
 #
-# TODO adjust the three paths below to this project.
 set -u
-WIRE_SRC=".ui-contract-local/wireframe/src"
+WIRE_SRC=".ui-contract-local/wireframe/src"   # everything the rule covers
 APPARATUS="$WIRE_SRC/inspect.tsx"             # the ONE file allowed to hold colour values
 PARTS="$WIRE_SRC/wire.tsx"                    # NEUTRAL lives here, and nowhere else
 
@@ -29,30 +28,17 @@ if [ ! -d "$WIRE_SRC" ]; then
   exit 2
 fi
 
-# ── COLOUR KNOWLEDGE · keep these two values byte-identical with ────────────
-#   testing/structure/invariants.sh
-#   skills/ui-contract-wireframe/assets/check-colours.sh.template
-#   skills/ui-contract-audit/assets/audit.sh.template
+# ── COLOUR KNOWLEDGE ────────────────────────────────────────────────────────
+# What counts as a colour value, for this check.
 #
-# invariants.sh check 33 compares the three. It does NOT generate them: this repo's
-# existing shape for one-fact-in-three-places is comparison (check 17 does it for eval
-# graders), and comparison needs no new concept, no build step, and no answer to
-# "where does generation run for a template that ships into someone else's repo".
-#
-# They had drifted three ways before the check existed, each missing what the others
-# had: audit.sh matched only 6-digit hex and no Tailwind scale at all, so `#fff` and
-# `bg-blue-500` in feature code were green; the other two missed lab()/lch()/color().
-# The value below is the union.
-#
-# ⚠ The named list is TRIMMED, on purpose. CSS has 148 named colours and carrying all
-# of them in three files is maintenance noise for words that never appear in real code.
+# ⚠ The named list is TRIMMED, on purpose. CSS has 148 named colours; carrying all of
+# them is maintenance noise for words that never appear in real code.
 # **What gets through: the rare ones** — `papayawhip`, `mediumaquamarine` and friends.
 # A name list is never complete; what makes it honest is saying so here.
 #
-# ⚠ OUT OF SCOPE: `toHex` in theme-studio.html.template and inspect.tsx.template. That
-# is a colour *parser*, not a colour *detector* — different knowledge — and the two
-# copies are in two languages in two packages, which implementation.md already records
-# as unshareable. Do not read this check as "colour knowledge is now covered".
+# ⚠ OUT OF SCOPE: the colour *parser* in the skin editor. Parsing a colour and
+# detecting one are different knowledge. Do not read this check as
+# "colour is now covered".
 COLOUR_NOTATION='#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(|\boklch\(|\boklab\(|\blab\(|\blch\(|\bcolor\(|\b(bg|text|border|ring|fill|stroke|outline|divide|from|via|to)-(red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|gray|grey|zinc|neutral|stone)-[0-9]{2,3}\b'
 COLOUR_NAMED='aqua|beige|black|blue|brown|chartreuse|chocolate|coral|crimson|cyan|darkblue|darkgreen|darkred|deeppink|dodgerblue|firebrick|forestgreen|fuchsia|gold|goldenrod|gray|green|grey|hotpink|indigo|ivory|khaki|lavender|lime|magenta|maroon|navy|olive|orange|orangered|orchid|pink|plum|purple|rebeccapurple|red|salmon|seagreen|sienna|silver|skyblue|steelblue|tan|teal|tomato|turquoise|violet|wheat|white|yellow'
 
@@ -78,11 +64,16 @@ else
   # line range rather than by pattern: the map is the declared home for values, and a
   # pattern that tried to skip "lines that look like the map" would also skip a line
   # somebody wrote to look like it.
+  #
+  # Excised by BLANKING the lines, not by deleting them. Deleting them shortened the
+  # buffer, so every `grep -n` line number below was off by the length of the block —
+  # a leak on real line 350 was reported as line 315, and the reader was sent to the
+  # wrong place by a check whose only job is to point at the right one.
   HITS=""
   for f in $(find "$WIRE_SRC" -type f \( -name '*.tsx' -o -name '*.ts' -o -name '*.css' \) 2>/dev/null); do
     [ "$f" = "$APPARATUS" ] && continue
     if [ "$f" = "$PARTS" ]; then
-      BODY=$(awk '/^export const NEUTRAL/{skip=1} skip&&/^}/{skip=0;next} !skip' "$f")
+      BODY=$(awk '/^export const NEUTRAL/{skip=1} skip&&/^}/{skip=0;print "";next} {if(skip)print "";else print}' "$f")
     else
       BODY=$(cat "$f")
     fi
@@ -114,8 +105,54 @@ else
     bad "no APPARATUS: line in $APPARATUS — the closed list is declared there and read from there. If the header was translated, the marker itself must stay ASCII"
     DECLARED="__none__"
   fi
+  # ── WHAT THIS IS ANCHORED ON ───────────────────────────────────────────────
+  # The syntactic position: `export` at the start of a line. NOT the keyword that
+  # follows it. The previous form was a closed list of three spellings
+  # (`const|function|type`), and a closed list of spellings is exactly the wrong
+  # anchor for a check whose whole point is a closed list of NAMES: measured,
+  # appending `export async function Sneaky() { return "#2563eb" }` to the apparatus
+  # file printed "apparatus exports match the declared list". `export default`,
+  # `export interface`, `export enum`, `export let`, `export var` and `export { X }`
+  # walked past it the same way.
+  #
+  # So: skip every modifier keyword, take the first identifier after them; read an
+  # `export { A, B as C }` list as the names it publishes (`A`, `C`); report
+  # `export default …` as the name `default` and `export * …` as the name `*` —
+  # neither is ever on the declared list, so both come out as undeclared, which is
+  # the right verdict for an export the list cannot name.
+  #
+  # WHAT STILL GETS THROUGH, said plainly rather than implied:
+  #   · anything split across lines — `export {` with the names on following lines,
+  #     or a name that is not on the same line as its `export`. This reads one line
+  #     at a time, like the rest of this script.
+  #   · `export * from './x'` fails, but it cannot tell you WHICH names arrived.
+  #   · a destructuring export (`export const { a, b } = …`) yields `a` and `b`
+  #     only via the brace branch below; `export const [a] = …` yields nothing.
+  #   · TypeScript's `export =`. It has no name to check.
   EXTRA=""
-  for n in $(grep -oE '^export (const|function|type) [A-Za-z_][A-Za-z0-9_]*' "$APPARATUS" | awk '{print $3}'); do
+  for n in $(awk '
+    /^export[ \t]/ {
+      if ($0 ~ /^export[ \t]+\*/) { print "*"; next }
+      if ($0 ~ /^export[ \t]+(type[ \t]+)?\{/) {
+        if (match($0, /\{[^}]*\}/)) {
+          n = split(substr($0, RSTART + 1, RLENGTH - 2), parts, ",")
+          for (i = 1; i <= n; i++) {
+            m = split(parts[i], w, /[ \t]+/)           # `A as C` publishes C
+            for (j = m; j >= 1; j--) if (w[j] != "") { print w[j]; break }
+          }
+        }
+        next
+      }
+      for (i = 2; i <= NF; i++) {
+        t = $i
+        sub(/[^A-Za-z0-9_$].*$/, "", t)                # `Foo({` → `Foo`, `function*` → `function`
+        if (t == "") continue
+        if (t == "default") { print "default"; next }
+        if (t ~ /^(async|declare|abstract|const|let|var|function|class|type|interface|enum)$/) continue
+        print t; next
+      }
+    }
+  ' "$APPARATUS"); do
     case " $DECLARED " in
       *" $n "*) ;;
       *) EXTRA="$EXTRA $n" ;;

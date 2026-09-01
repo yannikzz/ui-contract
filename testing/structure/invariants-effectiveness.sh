@@ -1,7 +1,7 @@
 #!/bin/sh
 # invariants.sh 的每条断言**真的能失败**。
 #
-# 覆盖范围（这一行是承诺，别让它变成散文）：**1–34 全部有用例**。
+# 覆盖范围（这一行是承诺，别让它变成散文）：**1–35 全部有用例**。
 #
 # 2026-08-25：这一行**真的变成过散文**——它写着 1–30 而检查已经有 31 条，没有任何东西
 # 在比对。现在由 invariants.sh 第 32 条机检：每条检查都有用例，且这一行的上界等于实际条数。
@@ -315,9 +315,9 @@ run_case 1 "32 · 加一条检查但不加用例（CLAUDE.md 说这不算完成�
 # ——参数里含着同一串字——于是注入「成功」了却没碰承诺行，副本干净、退出 0。
 # 第 32 条的检查早就为此把锚钉在行首注释上；用例这一侧漏了，2026-08-26 补上。
 run_case 1 "32 · 覆盖承诺的上界与实际条数对不上（那一行变回散文）" \
-  "sub testing/structure/invariants-effectiveness.sh '# 覆盖范围（这一行是承诺，别让它变成散文）：**1–34 全部有用例**' '# 覆盖范围（这一行是承诺，别让它变成散文）：**1–99 全部有用例**'"
+  "sub testing/structure/invariants-effectiveness.sh '# 覆盖范围（这一行是承诺，别让它变成散文）：**1–35 全部有用例**' '# 覆盖范围（这一行是承诺，别让它变成散文）：**1–99 全部有用例**'"
 run_case 1 "32 · 覆盖承诺整句被删掉（唯一的全称声明不许消失）" \
-  "sub testing/structure/invariants-effectiveness.sh '# 覆盖范围（这一行是承诺，别让它变成散文）：**1–34 全部有用例**' '覆盖了一些检查'"
+  "sub testing/structure/invariants-effectiveness.sh '# 覆盖范围（这一行是承诺，别让它变成散文）：**1–35 全部有用例**' '覆盖了一些检查'"
 
 echo "E. 33 · 颜色知识三份一致"
 # 漂移的三种走法各一条：改一份、把哨兵删掉、把名单裁短。
@@ -328,6 +328,20 @@ run_case 1 "33 · 只改了线框那一份的具名名单" \
 # 哨兵没了就无从比对——那必须红，不能因为「找不到就当通过」而静默。
 run_case 1 "33 · 某一份的 COLOUR_NOTATION 哨兵被删掉" \
   "sub skills/ui-contract-audit/assets/audit.sh.template 'COLOUR_NOTATION=' 'COLOUR_NOTATION_OLD='"
+
+# 35 · 示例的 check-colours.sh 与模板同源。这条检查是买来的：示例那份当时停在
+# 被证伪的旧实现上（检查 2 枚举三种拼法），对 `export async function` 打印通过。
+# 两个方向都要钉——只钉红的一半，一条恒红的检查也能拿满分。
+run_case 1 "35 · 只改了示例那一份的实现（分家的起点，真实发生过）" \
+  "python3 -c \"import io;p='examples/admin-console/check-colours.sh';s=io.open(p,encoding='utf-8').read();io.open(p,'w',encoding='utf-8').write(s.replace('every NEUTRAL role has a SKIN decision','all roles mapped',1))\""
+# 换个方向：动模板而不动示例。上一条改的是示例，这一条改的是模板——比对是对称的，
+# 但「谁被改了」在真实场景里不对称：模板改了而示例没跟，正是这次实际发生的那个方向。
+run_case 1 "35 · 只改了模板那一份（模板前进、示例留在原地，就是这次的方向）" \
+  "python3 -c \"import io;p='skills/ui-contract-wireframe/assets/check-colours.sh.template';s=io.open(p,encoding='utf-8').read();io.open(p,'w',encoding='utf-8').write(s.replace('every NEUTRAL role has a SKIN decision','all roles mapped',1))\""
+# 路径赋值行是**声明过的**豁免：模板的 TODO 就是让人改它们的。改了不许判红，
+# 否则这条检查会拦住每一个把工作台配到别处的项目——CLAUDE.md 记的第二类事故。
+run_case 0 "35 · 示例调整了路径赋值行 → 不判红（那三行是声明过的豁免）" \
+  "python3 -c \"import io;p='examples/admin-console/check-colours.sh';s=io.open(p,encoding='utf-8').read();io.open(p,'w',encoding='utf-8').write(s.replace('WIRE_SRC=\\\".ui-contract-local/wireframe/src\\\"','WIRE_SRC=\\\".workbench/wire/src\\\"',1))\""
 
 printf '\n'
 # 已知抓不到、且刻意不写成用例的两处——写成用例就得给它们一个期望退出码，

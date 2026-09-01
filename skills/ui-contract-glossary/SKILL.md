@@ -7,14 +7,53 @@ description: The vocabulary of a UI contract - what the structural spec, the vis
 
 This skill decides **which document a thing belongs in**. It produces no artifacts of its own.
 
+**Any unit that would explain one of the terms below explains it by calling this one instead.** A definition restated in a consuming unit reads perfectly well and costs nothing until the two drift — and then nothing is comparing them. Terms may be *used* freely; what belongs here is what a term *means*, and which artifact owns the thing it names.
+
+Nothing mechanical enforces that. Six of the ten `ui-contract` units currently wire to this one; the four that do not (`setup`, `baseline`, `enforce`, `audit`) have not been checked against the rule, so a blanket assertion would be guarding violations nobody has measured.
+
 ## What the artifacts own
 
-| Artifact | Owns | Test |
-|---|---|---|
-| `layout.md` | **Structure**: region tree, column widths, page archetypes, extension-slot enumerations, content routing, switching rules | Things that **do not** change when you swap the brand skin |
-| `design.md` | **Visual**: type, color, shadow, radius, spacing scale, interaction-state styling, component variants — **as rules, not as values** | Things that **do** change when you swap the brand skin |
-| Token file | The **values** those rules refer to. The single value authority in code | — |
-| Wireframe | The runnable, low-fidelity reference implementation, **deliberately carrying no brand visuals** | Agents copy structure instead of guessing it |
+Two dimensions, not one. **Owns** says what content belongs there; **Kind** says whether the
+thing can be thrown away and rebuilt. Getting the second one wrong is how a rehearsal gets
+treated as an authority, and how an asset gets written into somebody's product without asking.
+
+| Artifact | Owns | Kind | Test |
+|---|---|---|---|
+| `layout.md` | **Structure**: region tree, column widths, page archetypes, extension-slot enumerations, content routing, switching rules | **Source — the single source of truth.** Not regenerable | Things that **do not** change when you swap the brand skin |
+| `design.md` | **Visual**: type, color, shadow, radius, spacing scale, interaction-state styling, component variants — **as rules, not as values** | Source. Not regenerable | Things that **do** change when you swap the brand skin |
+| `adr/layout/` · `adr/design/` | **Why** a rule was chosen, what was excluded, when to revisit — **never the rules themselves** | Decision source. Not regenerable | The same cut decides which of the two directories |
+| Token file | The **values** those rules refer to. The single value authority in code | Source of values. Not regenerable | — |
+| Asset layer | The allowlist as a type, the structural container, every other closed set the spec declares | **Asset** — production code, maintained for as long as the product lives. Not regenerable, and **writing it into somebody's tree needs their say-so** | — |
+| Wireframe | **Nothing of its own.** It is the projection layer over the sources above | **Projection — rebuildable at any time**, and rebuilt whenever a source changes | — |
+
+For what a decision record may and may not contain, call the Skill tool with "decision-record".
+
+## The wireframe is a projection layer
+
+Saying "low-fidelity reference implementation" describes its **fidelity**. That is not the
+thing you need in order to know when it should be rebuilt, and without it the wireframe gets
+treated as a station on a chain — something you arrive at, deliver, and leave behind.
+
+> The wireframe is the **projection layer** over `layout.md`, `design.md` and their decision
+> records. It can be rebuilt at any time, and is rebuilt whenever any connected source changes.
+
+**The only required input is `layout.md`.** `design.md` and the decision records are *optional*
+inputs: connected, they get projected too; absent, the projection still stands.
+
+**So the grey projection is complete, not half-finished.** Grey is not a style choice and not a
+placeholder — it is what a projection of a complete source looks like when an optional source
+is not connected yet. This matters at exactly one moment: when the user is asked to sign off on
+the structural spec, what they are looking at is a finished thing, not a preview.
+
+**The asset layer is a conduit, not a source.** The wireframe reads the allowlist through it so
+that no second allowlist comes into existence — that is the whole reason for the dependency, and
+it does not make the asset layer an input to the projection. This holds only under one constraint,
+and the constraint is the load-bearing one:
+
+> **The asset layer must contain nothing that has no clause behind it in `layout.md`.**
+
+If that ever stops being true, "the projection projects `layout.md`" stops being true with it,
+and rebuildability goes with that.
 
 ## The one cut
 
@@ -72,7 +111,11 @@ When producing deliverables in a language **not** listed here, pick one renderin
 | structural spec (`layout.md`) | 结构规范 | Never 布局文档 — it is a contract, not a description |
 | visual spec (`design.md`) | 视觉规范 | |
 | token file | token 文件 | The single value authority in code |
+| single authority | 唯一权威 | Exactly one artifact owns a kind of claim. **Which artifact depends on the kind**: values → the token file; names → `design.md`'s declaration table and `layout.md` §2; rules → the spec clauses themselves. One shape, three owners — not three concepts |
+| a second authority | 第二权威 | What the row above forbids. **Never 第二数据源 / 双重来源** — the failure is about *who decides*, not about data sitting in more than one place, and the mistranslation loses exactly that. The primitive layer (`decision-interview`, `decision-record`) states this rule in its own words and is **deliberately not bound by this table**: a primitive has to stand on its own outside UI work, so wiring one to this unit would break that — do not "fix" the difference |
 | the swappability line | 切线 | The one cut: does it change when the brand skin changes? |
+| pending number (⏳) | 待定数 | A number `layout.md` cannot settle alone, waiting on the visual scale |
+| refuted number (⛔) | 已证伪 | Never 待定 — the direction is dead, not waiting. Defined in `ui-contract-layout`'s outline §3 |
 | placement decision tree | 落位决策树 | Never 归属判定树 / 放置流程 |
 | to place something (a new need) | 落位 | Verb. 「走一遍决策树落位」 |
 | region | 区域 | A structural container with a name |
@@ -89,6 +132,9 @@ When producing deliverables in a language **not** listed here, pick one renderin
 | signal rail | 信号条 | What a collapsed column must leave behind |
 | overlay | 覆盖层 | The orthogonal full-screen layer |
 | low-fidelity wireframe | 低保真线框 | Never 原型图 alone — fidelity is the point |
+| projection layer | 投影层 | What the wireframe **is**. Never 参考实现 alone — that names its fidelity, not what it derives from |
+| source (of a projection) | 源 | `layout.md` is required; `design.md` and the decision records are optional |
+| the handover | 交接 | Where the structural half ends. The visual half is a separate engagement with no arrow into it — never call this a 停点 or draw it as a step |
 | annotation layer | 区域标注层 | The inspect mode over the wireframe |
 | asset layer | 资产层 | Token file + structural components, in the project's production tree |
 | deliberate tradeoffs | 刻意的取舍 | The list that stops the next agent from "fixing" them |

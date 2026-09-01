@@ -676,6 +676,35 @@ else
       drift "the token file ($TOKENS) is inside $WORKBENCH, which is never committed. It is the value authority; move it into the production tree and point the paths table at the new location" ;;
     *) ok "the token file is outside the workbench" ;;
   esac
+
+  # 9c — the asset layer must not exist in two places at once. `asset-staged` is where it
+  # waits before the user authorises the move into the production tree; once it has moved,
+  # `ui-contract-assets` clears that cell. Nothing enforced that, so what this catches is a
+  # **stale copy left behind after the move**: it lives in a directory that is never
+  # committed, so it appears in no diff and no review while it diverges from the production
+  # copy, and a rebuilt projection can consume it instead.
+  #
+  # Read with `cfg_path`, **not `derive`**, for the reason `asset-container` states above: a
+  # config written before this row existed, or a project that never staged anything,
+  # legitimately has no row. Registering it in NOROW would print "these paths are guesses"
+  # over every correct repository that predates the row — the shape this repo has been bitten
+  # by, where a gate without a qualifier lands on projects that did nothing wrong.
+  #
+  # **Anchored on both copies being on disk**, not on the cell being tidy. What gets through:
+  # a cell still naming a directory that has since been deleted (untidy, and harmless — there
+  # is no second copy), and a staged copy sitting somewhere the cell does not name, which is
+  # not findable from here at all.
+  STAGED=$(cfg_path asset-staged 2>/dev/null)
+  case "${STAGED:-}" in "none yet"|"n/a"|"N/A"|"") STAGED="" ;; esac
+  if [ -z "$STAGED" ]; then
+    skip "nothing staged — the asset layer has one home"
+  elif [ ! -e "$REGION_TYPE" ]; then
+    ok "the asset layer is staged at $STAGED and has not moved into the production tree yet"
+  elif [ ! -d "$STAGED" ]; then
+    ok "the asset layer moved into the production tree and left nothing behind"
+  else
+    drift "the asset layer exists twice: $REGION_TYPE and $STAGED. The staged copy was left behind after the move, and $WORKBENCH is never committed — it diverges without ever appearing in a diff. Delete it and set asset-staged to none yet"
+  fi
 fi
 
 echo "10. No structural number is still waiting on the visual scale"

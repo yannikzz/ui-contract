@@ -833,6 +833,51 @@ else
   ok "skills/ 里没有指向开发树的引用"
 fi
 
+echo "35. 示例里的 check-colours.sh 与模板同源（实现可以分家，而且分过一次）"
+# 这条是买来的。示例里那份当时停在**被证伪的旧实现**上：检查 2 枚举
+# `const|function|type` 三种拼法，对 `export async function Sneaky()` 打印
+# 「apparatus exports match the declared list」——模板注释里明写过这个穿透，
+# 示例却还留着它。两份各自演进了，而在此之前没有任何东西在比。
+#
+# 不变量 33 比的是三份里的 `COLOUR_NOTATION` / `COLOUR_NAMED` 两个**值**，
+# 比不到实现；示例也根本不在那三份之列。所以那条全绿，这个分家照样发生。
+#
+# 锚：**逐行比对，除去两类刻意允许不同的行**——模板顶部那句 TODO（它的作用就是被删掉），
+# 以及三行路径赋值（模板让你调它们；示例今天没调，将来调了也不该判红）。
+# 什么能过：把实现改动伪装成路径赋值行的一部分。那需要在一行赋值里塞进逻辑，
+# 在 diff 里比它想躲的那次改动更显眼。
+python3 - <<'P35' || FAIL=1
+import re,sys
+TPL='skills/ui-contract-wireframe/assets/check-colours.sh.template'
+EX='examples/admin-console/check-colours.sh'
+try:
+    tpl=open(TPL,encoding='utf-8').read().split('\n')
+    ex=open(EX,encoding='utf-8').read().split('\n')
+except OSError as e:
+    print(f'  \033[31m✗\033[0m 读不到 {e.filename}'); sys.exit(1)
+def strip(lines):
+    out=[]
+    for l in lines:
+        if 'TODO adjust' in l: continue
+        if re.match(r'^(WIRE_SRC|APPARATUS|PARTS)=', l): continue
+        out.append(l)
+    return out
+a,b=strip(tpl),strip(ex)
+if a==b:
+    print('  \033[32m✓\033[0m 示例的 check-colours.sh 与模板同源'); sys.exit(0)
+print('  \033[31m✗\033[0m 示例的 check-colours.sh 与模板已经分家——用户拿到的是模板，'
+      '示例教的是另一份')
+for i,(x,y) in enumerate(zip(a,b)):
+    if x!=y:
+        print(f'      第一处差异（去掉路径行后的第 {i+1} 行）：')
+        print(f'        模板: {x[:90]}')
+        print(f'        示例: {y[:90]}')
+        break
+else:
+    print(f'      行数不同：模板 {len(a)} 行，示例 {len(b)} 行')
+sys.exit(1)
+P35
+
 # 总结行必须是最后一行输出。它曾打印在 32/33/34 之前：那几条判红时，终端上先出现
 # 绿色的「结构不变量全部通过」，红叉跟在后面。退出码一直是对的，run.sh 也照样报失败，
 # 但那一行本身是假的——而它正是扫一眼输出的人唯一会读的那一行。

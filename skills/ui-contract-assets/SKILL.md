@@ -5,15 +5,16 @@ description: Build the asset layer that lives in a project's production tree - t
 
 # Asset layer
 
-Produces **production code**, not a demo. It goes into the project's own source tree, follows the project's own stack, and is maintained for as long as the product lives. Starting point: [assets/region.tsx.template](assets/region.tsx.template).
+Produces **production code**, not a demo. It ends up in the project's own source tree, follows the project's own stack, and is maintained for as long as the product lives — **and because of that, it does not arrive there unasked**: see §Where it lands, and when. Starting point: [assets/region.tsx.template](assets/region.tsx.template).
 
 For pushing rules into the type system, call the Skill tool with "constraint-by-types".
+For what each artifact owns — and why this layer is an asset while the wireframe is a projection — call the Skill tool with "ui-contract-glossary".
 For the deliverable's language and terminology, call the Skill tool with "deliverable-language".
 
 ## Preconditions
 **Artifact paths come from `docs/ui-contract/config.md`'s paths table.** If that file doesn't exist, the specs are at the repo root. Never assume a path the config contradicts.
 
-**This unit does not read `tokens.input.json`.** That file is a local, uncommitted knobs record for the tuning instrument; the values live in the **token file**, which the paths table names and which `ui-contract-design`'s `originate` branch writes. Reading the record and re-deriving the authority from it was a real hop in an earlier version and it is gone — it landed 2 of 5 measured runs, and on a project that keeps its workbench out of the repository the record does not survive a clone at all. Consume the token file, exactly as production code does.
+**This unit does not read `tokens.input.json`.** That file is a local, uncommitted knobs record for the tuning instrument; the values live in the **token file**, which the paths table names and which `ui-contract-design`'s `originate` branch writes. Reading the record and re-deriving the authority from it was a real hop in an earlier version and it is gone — the read-the-record hop landed 2 of 5 measured runs (2026-08-25), and on a project that keeps its workbench out of the repository the record does not survive a clone at all. Consume the token file, exactly as production code does.
 
 
 | Condition | Action |
@@ -23,7 +24,42 @@ For the deliverable's language and terminology, call the Skill tool with "delive
 | Code already contains region markers or a `RegionId`-like type, but `layout.md` does not exist | **Stop and say so.** Deriving the type from the code inverts the sync order permanently |
 | `layout.md` and a token file both exist | Normal path. **Consume the token file; do not rewrite it.** Values are not this unit's to author |
 | `layout.md` exists, there is no token file, but a `tokens.input.json` turns up anywhere | **Legacy handover from before `originate` wrote the token file itself.** Land the token file from it *once*, say where the record was found, and say in the report that the record is no longer the source. Do not move or delete the record silently — throwing away the only trace of the user's knobs is worse than an untidy tree |
-| `layout.md` exists but there is no `design.md`, no token file and no knobs record anywhere | **Produce the structural components only, and say explicitly that the token layer is missing.** Do not invent a default token set to fill the gap |
+| `layout.md` exists but there is no `design.md`, no token file and no knobs record anywhere | **Produce the structural components only, and say explicitly that the token layer is missing.** Do not invent a default token set to fill the gap. This is the **normal** state before the visual half runs, not a broken one — and it is why a second pass exists, below |
+
+## Where it lands, and when
+
+This is production code, so **it does not go into somebody's production tree before they say so.**
+Until then it is staged in the workbench, at the `asset-staged` path in `config.md`; the
+`asset-layer` row holds `none yet` until the move, then holds the real path.
+
+Staging costs nothing that exists yet. The compile-time layer only constrains **feature code**,
+and before the structural half is signed off there is none — so a type sitting in the workbench
+for a few days guards exactly as much as one sitting in `src/` would: nothing. What it buys is
+that nobody wakes up to long-lived code in their tree that they never approved.
+
+**Say which of the two states it is in**, every time, and never write the production path into
+`asset-layer` before the files are actually there. A path in that column that is not on disk is
+what `ui-contract-audit` reports as a broken setup.
+
+## The second pass is normal, not a repair
+
+On a greenfield project this unit runs **twice**, and both runs are correct:
+
+| Pass | State | What it does |
+|---|---|---|
+| 1 | No `design.md`, no token file | Structural components only, staged in the workbench, token layer declared missing |
+| 2 | `ui-contract-design` has since written the token file | Consume it. **Do not rewrite it** — values are not this unit's to author |
+
+**Whichever pass moves the layer into the production tree closes the staged cell.** Write the real
+path into `asset-layer` and set `asset-staged` back to `none yet`, in the same edit that moves the
+files. Leaving both filled leaves a copy behind in the workbench — and the workbench is never
+committed, so that copy diverges from the production one without ever appearing in a diff or a
+review. `ui-contract-audit` check 9c reports exactly that state; do not make it the thing that
+finds out.
+
+Pass 2 is reached by being called again, not by anything remembering to come back. That pointer
+lives in `ui-contract-design`'s completion list, because that is the unit that knows the token
+file just landed.
 
 ## What this version contains
 
@@ -49,57 +85,27 @@ The starting template is React + TypeScript. **That is a starting point, not the
 
 `Shell` and `Slot` are named in the architecture but **do not exist yet**. Say so rather than improvising them: a structural component invented here, without a spec clause behind it, is the drift this layer exists to prevent.
 
-One thing is waiting on them: implementing the spec's size-degradation rules was ruled to belong to this layer, and is parked in `ui-contract-wireframe` only because there is no `Shell` to hold it. Whoever builds `Shell` takes that with it; `ui-contract-wireframe` says the same from the other side.
+One thing is waiting on them: implementing the spec's size-degradation rules was ruled to belong to this layer, and is parked in `ui-contract-wireframe` only because there is no `Shell` to hold it. That parking is a **named exemption with an expiry**: whoever builds `Shell` takes the degradation rules with it, and `ui-contract-wireframe` records the same expiry from the other side. An exemption without an expiry becomes a permanent one, and this repository has watched that happen.
+
+**Whoever builds `Shell` inherits one constraint with it.** Nothing in this layer may exist without a clause in `layout.md` behind it. That is not a style preference: it is what makes the wireframe a projection of `layout.md` rather than of the asset layer, and rebuildability rests on it. `Shell` is the first thing likely to break it, because a degradation rule has a *shape* in code that the spec does not state. Write the clause first.
 
 ## Following the project's stack
 
-This layer goes into the **user's production tree**, so it follows the stack that is
-already there. The template is React + TypeScript because one of them had to be
-written down first, not because the mechanism is React's.
+This layer goes into the **user's production tree**, so it follows the stack that is already
+there. The template is React + TypeScript because one of them had to be written down first,
+**not because the mechanism is React's** — two non-React ports were built and type-checked for
+real, and both caught an off-allowlist name at the call site.
 
-Three things have to survive the port, and only the third is stack-shaped:
+Three things have to survive the port and only one of them is stack-shaped: `RegionId` and
+`REGION_META` port to any stack with TypeScript; **the container's runtime marker is where
+stacks differ.** Whatever the stack, the marker uses the **identical string** the allowlist
+uses — a more readable name breaks grep reconciliation silently — and the health check has to
+be told what to look for.
 
-| | What it is | How it ports |
-|---|---|---|
-| `RegionId` | the allowlist as a union type | any stack with TypeScript — measured below |
-| `REGION_META` | `Record<RegionId, …>`, exhaustiveness-checked | same |
-| `Region` | the container, and the **runtime marker it stamps** | this is where stacks differ |
-
-### Measured, not assumed (2026-08-25)
-
-Two non-React ports were built and type-checked for real. Both caught an
-off-allowlist region name at the call site, which is the whole mechanism:
-
-| | Checker | Off-allowlist name |
-|---|---|---|
-| **Vue 3 SFC** | `vue-tsc` | `error TS2322: Type '"sidebar"' is not assignable to type 'RegionId'` |
-| **React Native** | `tsc` | `error TS2322: Type '"sidebar"' is not assignable to type '"app-shell" \| …'` |
-
-Vue splits the file in two — `regions.ts` for the type and metadata,
-`Region.vue` for the container — because an SFC cannot export a type cleanly.
-That split is the only structural change either port needed.
-
-### The runtime marker is the part that changes
-
-```
-React / Vue / Svelte     data-region={id}   /   :data-region="id"
-React Native             testID={id}  (and accessibilityLabel={id})
-```
-
-Use the **identical string**, never a more readable name — the marker is what lets
-grep reconcile the code against the spec, and a prettier name breaks that silently.
-
-⚠ **On React Native, `testID` is not ours.** It is the platform's standard e2e hook,
-so "a `testID` outside the container" is evidence of a test, not of a bypass. Tell
-`ui-contract-audit` by setting `MARKER_EXCLUSIVE="no"`; its check 2b then reports
-that it cannot answer instead of printing a green tick. Measured: with that check
-still looking for `data-region`, an RN screen containing
-`<View testID="sidebar" />` — off the allowlist, never through the container —
-produced three green ticks.
-
-Whichever stack, tell the health check what to look for. Its four stack-shaped
-knobs are at the top of `audit.sh`: `SRC_EXT`, `REGION_TYPE`, `REGION_COMPONENT`,
-`MARKER` / `MARKER_EXCLUSIVE`.
+**On a non-React stack, read [porting.md](porting.md) before writing anything.** It carries the
+measured ports (Vue 3, React Native), the marker mapping, the file split Vue needs, and the
+health-check knobs — including one case where a wrong knob printed three green ticks over a
+real bypass.
 
 ### No type system: say the compile-time layer is gone
 
@@ -157,3 +163,4 @@ The allowlist becomes enforceable **only** when type-checking actually runs. Ins
 - [ ] Type-checking actually ran, with output pasted
 - [ ] If a token file was landed: its keys match the declaration table's names exactly, and any name the JSON had no value for is named as missing rather than filled in
 - [ ] No color values invented anywhere; no annotation code
+- [ ] **If this pass moved the layer into the production tree: the files are gone from the staged location, `asset-layer` names the real path, and `asset-staged` is back to `none yet`** — all three, or the workbench keeps a second copy that nothing reviews

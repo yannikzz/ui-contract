@@ -35,14 +35,23 @@ Tell the user which start you identified and what you found, then proceed.
 
 ## Ask only what cannot be derived
 
-Four things, and nothing else:
+Five things, and nothing else:
 
+0. **How far is this session authorised to go — the structural half, or both halves?** The structural half ends by handing `layout.md` over; the visual half is entered again, as a separate engagement with no arrow leading into it. **Do not ask what the user already said.** "先把界面结构的规范定下来" *is* the answer — record it and move on; `decision-interview`'s discipline is that a question already answered is not a question. Ask only when nothing in the request settles it, and when you do, say what each answer costs: the structural half alone means a second sitting later; both halves in one sitting means answering brand questions before anybody has seen the structure standing up.
 1. **May the existing visual spec be edited?** Aligning the boundary means slimming that document — structural content moves out. That is somebody's document; ask before touching it.
 2. **Where do the files go and what are they called?** **Default: both specs at the repo root**, side by side, so they apply across sub-projects. `docs/ui-contract/` holds the config and the decision records — **not the specs**. The wireframe lives inside the workbench, `.ui-contract-local/wireframe/`.
 
    Only move the specs elsewhere if the user says so, and **record the chosen paths in the config file's paths table**. Every later unit reads that table instead of guessing: the root `CLAUDE.md` entry clause points at the structural spec by path, the capability units gate on its existence, and the health-check script greps it. A spec that quietly lands somewhere else silently breaks all three at once.
 3. **Where does the asset layer live** in the production tree?
-4. **Is the same person answering for both dimensions — structure and visuals?** Not who *owns* them on an org chart; who will actually answer the questions. `ui-contract-design` runs differently on the two answers: same person means the structural numbers waiting on a type scale get folded into one interview; different people means that list becomes a handover note instead. Getting this wrong costs a round trip in one direction and an interview somebody could not answer in the other.
+4. **Who answers for the visual half once the structural half hands over?** Not who *owns* it on an org chart; who will actually answer the questions. This decides the shape of the handover, not the shape of an interview:
+
+   | Answer | The handover |
+   |---|---|
+   | The same person who answered the structural questions | **Soft.** Hand `layout.md` over, then ask in one sentence whether to carry on into the visual half now |
+   | Somebody else | **Hard.** Hand `layout.md` over with the ⏳ note for that person, and this session ends. Do not carry on |
+   | Nobody yet | **Hard**, and say so plainly: the visual half has no owner, so it waits |
+
+   This is not question 0 asked twice. Question 0 says how far the session may go; this one says who is on the other end when it hands over. A session authorised for both halves with nobody to answer for the visual one is the exact position in which an agent writes a visual spec out of its own head.
 
 Everything else waits. In particular, **do not ask about legacy strategy here** — freeze line, migrate first, hybrid. That question cannot be answered before the gap has been measured, and asking it early only produces a guess. It belongs to `ui-contract-baseline`, which writes its answer into the same config file.
 

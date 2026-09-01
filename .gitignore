@@ -7,3 +7,8 @@ testing/grader-check/results/
 testing/evals-probe/results/
 testing/stack-probes/*/node_modules/
 testing/stack-probes/*/package-lock.json
+
+# 浏览器工具的落地产物：验线框/皮肤预览时截的图与 MCP 的抓取结果。
+# 仓库从未跟踪过任何图片（`git ls-files` 里一张都没有），说明要留的图不走这条路。
+.playwright-mcp/
+/*.png

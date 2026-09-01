@@ -11,7 +11,7 @@
  * There are **no brand visuals and no annotation affordances here** — brand values live in
  * the token file, and the annotation layer belongs to the wireframe, which is a
  * throwaway consumer of this file. Keeping them out is what stops this file from
- * becoming a second source of visual truth.
+ * becoming a second value authority.
  */
 import type { ReactNode, RefObject } from 'react'
 

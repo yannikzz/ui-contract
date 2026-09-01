@@ -22,7 +22,9 @@ Read the disk before asking anything. Each unit's output is the next one's input
 | Nothing | `ui-contract-setup` |
 | `docs/ui-contract/config.md`, and the repo has frontend code | `ui-contract-baseline` |
 | `config.md`, greenfield | `ui-contract-layout` |
-| `layout.md` | `ui-contract-design`, or straight to `ui-contract-assets` / `ui-contract-enforce` |
+| `layout.md`, and a visual spec / token source already exists | `ui-contract-design`, **align** branch — a boundary cleanup, not the visual half. It needs the "may the existing spec be edited" authorisation, not the scope one |
+| `layout.md`, no visual conventions anywhere, visual half **not** authorised | `ui-contract-assets` → `ui-contract-enforce` (entry layer) → `ui-contract-wireframe`. The structural half ends there |
+| `layout.md`, no visual conventions anywhere, visual half **is** authorised | `ui-contract-design`, **originate** branch — entered from here, never as a next step |
 | `layout.md` + `design.md` | `ui-contract-assets` |
 | Asset layer exists | `ui-contract-wireframe` / `ui-contract-enforce` |
 | Everything exists, and the question is whether it still holds | `ui-contract-audit` |
@@ -32,17 +34,66 @@ Read the disk before asking anything. Each unit's output is the next one's input
 ## The order
 
 ```
-setup ─┬─ (existing project) baseline ─┐
-       └─ (greenfield) ────────────────┴─→ layout ─→ design ─→ assets ─→ wireframe
-                                                        └────────────────→ enforce
-                                                                          audit
+   structural half
+   setup ─┬─ (existing project) baseline ─┐
+          └─ (greenfield) ────────────────┴─→ layout ─→ assets ─→ enforce (entry) ─→ wireframe
+
+   ─────────── entered again, separately. No edge crosses this line. ───────────
+
+   visual half
+                      design ─→ assets (2nd pass) ─→ enforce (type layer) ─→ wireframe
+
+   audit — maintenance time, months later. On neither line.
 ```
 
 Both starting points run the same units; the only difference is whether `baseline` runs.
 
-**Do not reverse the order.** Wireframe first, spec second, and the spec degrades into a description of existing code rather than a constraint on future code.
+**Each half ends at the wireframe, and for the same reason both times: a source just changed, so
+the projection is rebuilt.** The first pass projects `layout.md` alone and comes out grey. The
+second has `design.md` connected, so the skin has something to read. It is the same layer both
+times, rebuilt — not two artifacts, and not a step that produces something new to keep.
 
-That rule can no longer be enforced from here, because any unit can be entered directly. Each capability unit therefore carries its own precondition gate — that is where "don't reverse the order" actually lives now. Those gates catch a **missing** upstream artifact; they cannot catch an upstream artifact that was written afterwards by reading the code. If you can see that has happened, say so.
+**What separates the two halves is the absence of an edge, not a step that says "halt".** There is
+nothing on the line to walk past: `design` has no incoming arrow, so reaching it means entering
+from the routing table above, with the authorisation that table asks for. Drawing a halt would be
+weaker *and* wrong — weaker because a prohibition can be read and walked past (measured here, on
+this plugin, with the full text of the gate in front of the reader), and wrong because it would
+put the visual half's absence on the line as if it were work the structural half performs.
+
+### Two orders that read alike and are opposite
+
+| | Verdict | The mechanism behind the verdict |
+|---|---|---|
+| wireframe **before `layout.md`** | **Forbidden** | The spec would then be written by reading the wireframe, which makes it a description of what exists rather than a constraint on what comes next |
+| wireframe **before `design.md`** | **Normal, and usually what happens** | The projection carries no brand values at all — and that is mechanically checked by the colour check shipped with it — so a visual spec has nothing there to describe |
+
+The second is **not an exception to the first.** They differ in what is being read off what: in the
+first, structure is read off a drawing; in the second, there is nothing to read, by construction.
+
+Any unit can still be entered directly, so each capability unit carries its own precondition gate.
+Those gates catch a **missing** upstream artifact; they cannot catch an upstream artifact that was
+written afterwards by reading the code. If you can see that has happened, say so.
+
+## Where the structural half ends
+
+It ends after the projection has been rebuilt, and what it hands back is **`layout.md`** — the
+artifact that gets committed, reviewed and signed off. The projection is rebuilt so the user has
+something to look *at* while judging it; it is a viewing device, not a deliverable, and it does
+not survive a fresh clone. Never describe the wireframe as the thing being delivered, and never
+ask the user to sign off on it: it is regenerated from `layout.md`, so signing off on it signs
+off on nothing that lasts.
+
+On a greenfield project exactly one file is committed at that point: `layout.md`. The asset layer
+and the projection are both in the workbench — the asset layer because it is production code and
+writing it into somebody's tree is theirs to authorise, the projection because it is thrown away.
+`ui-contract-assets` says when the asset layer moves.
+
+**"The visual half" means originating one.** Slimming a visual spec the project already has — moving structural content out and leaving a pointer — is a boundary cleanup the structural half needs anyway, and it is authorised separately. `ui-contract-design` draws that line inside itself.
+
+Whether the visual half follows immediately or later is **not this unit's guess**. Two answers in
+`docs/ui-contract/config.md` settle it, and `ui-contract-setup` asks them separately on purpose:
+**how far this session is authorised to go**, and **who answers for the visual half**. Merging them produces a session authorised to write a visual spec with nobody to
+answer for it — which is exactly how a spec nobody asked for gets written.
 
 ## The units
 
@@ -76,4 +127,12 @@ A repo's existing `docs/adr/` is the code and architecture namespace. **Do not m
 
 - [ ] The user can say what each artifact owns, and which one to open first next time they add a feature
 
-That last one is the easiest to skip. Tell them in plain language **what you did / why / where it may differ from what they expected**, and be explicit about what you verified and what you didn't. You usually cannot verify rendered output — say so, and let them look.
+That last one is the easiest to skip. Tell them in plain language **what you did / why / where it may differ from what they expected**, and be explicit about what you verified and what you didn't.
+
+**"You usually cannot verify rendered output" is not a standing fact — check before you assert it.** With browser tooling available, a wireframe can be opened, its console captured and a screenshot taken; with `Bash` and Node, the dev server, the type-check and `check-colours.sh` all run. Whether you have those changes what "verified" means, so **branch on what you actually have** rather than declaring blindness by default:
+
+| What you have | What to say |
+|---|---|
+| Browser tooling | You looked. Say what you saw, and what the screenshot does not settle |
+| `Bash` and Node, no browser | It builds, type-checks and passes the colour check. **Nobody has looked at it** — density is the reading that needs eyes |
+| Neither | Name each unrun check individually and hand over the commands. The artifact is whole and the *readings* are missing — that is a different sentence from "grey by default", which is a source not being connected |

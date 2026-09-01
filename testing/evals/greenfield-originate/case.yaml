@@ -1,0 +1,13 @@
+schema_version: "1.1"
+name: greenfield-originate
+
+# `context.*` 三个键**不能**写在 prompt.md 的 frontmatter 里（参考文档 §Authoring cases 明写
+# scaffold_script / history_file / add_dirs 都不行），所以这个 case 从纯 prose 布局变成
+# case.yaml + prompt.md 混合布局。合并顺序：case.yaml 是基底，prompt.md 的 frontmatter 覆盖它，
+# prompt.md 的正文成为 prompt，判据是 case.yaml 的判据后接 graders/*.md 按字母序。
+# 一旦存在 case.yaml，它就作为 base document 被校验，所以 schema_version 与 name 必须自带。
+context:
+  # 默认**不跑**，要在命令行显式加 --scaffold（testing/evals/README.md 的运行命令里已经有了，
+  # existing-admin 早就靠它）。不加的话这个 case 面对的是空目录，`ui-contract-design` 的前置门
+  # 会正确地停下来，分数接近 0——那是判据在报「你忘了加开关」，不是插件坏了。
+  scaffold_script: scaffold.sh

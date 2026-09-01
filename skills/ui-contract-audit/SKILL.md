@@ -53,6 +53,7 @@ Two more states are deliberately **not** exit 3, and telling them apart is the w
 | No `config.md` at all | Defaults, **and it says so**. A legitimate state — the preconditions table above already treats it as one |
 | A `config.md` with no Key column | Defaults, and it says the config predates the Key column. Treating an older config as broken would fail every project from before this change |
 | A Key column with a **blank** Path cell | **Exit 3.** Somebody started setup and did not finish; substituting a default there audits a path nobody chose, and the report reads completely normal |
+| A Path cell holding **`none yet`** | **Not exit 3.** It is a value, not a blank: the artifact legitimately does not exist. The checks that read it skip, and say which. `design: none yet` is a **steady state**, not a transient one — a project can stop after the structural half and never run the visual one, and reporting that as a broken setup would put a permanent red on a project that did nothing wrong. Note what the script's own comment says gets through: a **translated** placeholder is read as a path, is not found, and does exit 3 |
 
 ## It reports; it does not fix
 

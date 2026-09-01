@@ -33,6 +33,17 @@ There is no wireframe precondition. Enforcement depends on the allowlist, not on
 | Plus a validation script or lint rule | Hardest | With only a wireframe existing there isn't much to validate yet — easy to build too early |
 | Documentation only | Lightest | Agents don't read a document nobody told them to read — least of all when the task sounds small |
 
+## Two passes, not one
+
+The four layers below do not become installable at the same moment, so this unit runs twice.
+
+| Pass | When | Installs | Why it cannot wait / cannot come earlier |
+|---|---|---|---|
+| **1** | Inside the structural half | **Entry** and **Directory** | Both depend on `layout.md` alone. The gap before the visual half can last weeks; during it, anything that touches the interface needs something telling it to read `layout.md` first, and an unwritten entry clause tells it nothing |
+| **2** | After the asset layer has moved into the production tree | **Compile time** and **Asset boundary** | Both are installed *on the production source tree*. Before the move there is no production tree to install on |
+
+**Do not install the compile-time layer on a staged asset layer.** A union that lives outside the product constrains only what lives beside it. Measured (2026-08-25): in the `admin-console` example, `PageWithInspector`, `TableColumnKind`, `InspectorKind` and `PageKind` are all declared in `wireframe/src/wire.tsx`; every one of them is a `layout.md` clause, and **none of them reaches a line of production code**. `ui-contract-assets` records the same measurement from the other side — kept word-for-word on both sides on purpose, so the two can be compared. It type-checks, it goes green, and it guards a directory that gets deleted.
+
 ## The layers
 
 Documents alone don't get read — least of all when the task sounds small ("just adding a button"). Miss a layer and things leak through.

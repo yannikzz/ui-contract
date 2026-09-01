@@ -32,6 +32,27 @@ printf 'import { Region } from "../ui/Region"\nexport function Bad(){ return <Re
 npx tsc -p tsconfig.json
 ```
 
+## 2026-08-28 重跑
+
+ADR-0013 改了资产层的落点（迁进生产树之前先暂驻工作台）、给它加了消费 token 文件的第二趟，
+并把移植材料拆进了 `ui-contract-assets/porting.md`——**动的正是这两个探针守的那一块**，
+所以重跑一次，而不是继续引用三天前的读数。
+
+| | 检查器 | 合法用法 | 白名单外的区域名 |
+|---|---|---|---|
+| Vue 3 SFC | `vue-tsc` | **exit 0** | **exit 2** · `src/pages/Bad.vue(6,11): error TS2322: Type '"sidebar"' is not assignable to type 'RegionId'` |
+| React Native | `tsc` | **exit 0** | **exit 2** · `src/screens/Bad.tsx(2,39): error TS2322: Type '"sidebar"' is not assignable to type '"app-shell" \| "title-row" \| …'` |
+
+两边**双向都验了**，且注入的违规删掉之后各自复原到 exit 0——只验正方向的话，一个恒真的
+配置也能拿满分。错误原文与 2026-08-25 那次逐字一致。
+
+**结论不变：复议条件不触发。** 本轮的改动是资产层**落在哪里**和**什么时候迁**，
+不是它由什么构成，所以三件要跨栈的东西一件都没动——这次重跑确认了这个推断，而不是替代它。
+
+⚠ **这两个探针仍然不在 `run.sh` 里，那是刻意的。** 它们要 `npm i`，而网关 0 的定义是
+**$0 且自包含**；把一道会因为网络失败而红的门放进去，教出来的只是「这个红可以忽略」。
+代价是它们只在有人想起来时才跑——所以每次改动资产层的构成或落点，重跑一次并在这里补一行。
+
 ## 2026-08-25 量到的
 
 | | 检查器 | 合法用法 | 白名单外的区域名 |

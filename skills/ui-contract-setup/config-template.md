@@ -32,7 +32,8 @@ Every other unit reads this table instead of assuming. Fill it in even when the 
 | `tokens` | Token file | | the project's existing token source; if there is none, write **none yet** — never a path that is not on disk |
 | `tokens-format` | Token file — **format** | | CSS custom properties / `theme.extend` / a theme object. `none yet` if there is no token file. **Do not leave blank** — every unit that writes tokens reads this, and an agent inferring it from the file leaves no trace that it inferred |
 | `src` | Production source tree | | where the product's own UI code lives — **found, not asked**; see `SKILL.md` §Look things up yourself |
-| `asset-layer` | Asset layer | | inside the production source tree |
+| `asset-layer` | Asset layer — **in the production tree** | | inside the production source tree. **`none yet` while it is still staged** — the asset layer is production code, and it does not move into somebody's tree before they authorise it. `ui-contract-assets` fills this in when it moves |
+| `asset-staged` | Asset layer — **where it is staged** | | `.ui-contract-local/assets/` inside the workbench. `none yet` once it has moved into the production tree |
 | `asset-container` | Asset layer — container, **only if it is a separate file** | | leave blank on stacks where the type and the container share one file (React, React Native). Vue splits them (`regions.ts` + `Region.vue`) |
 | `workbench` | Workbench | | `.ui-contract-local/` at the repo root — **not committed** |
 | `wireframe` | Wireframe | | `.ui-contract-local/wireframe/` — inside the workbench |
@@ -87,11 +88,17 @@ Only questions that cannot be derived from the repo belong here.
 
 | Question | Answer |
 |---|---|
+| **How far is this session authorised to go** — the structural half, or both halves? | |
 | May the existing visual spec be edited? | |
 | Where do the two specs live, and what are they called? | |
 | Where does the wireframe live? | |
-| Where does the asset layer live in the production tree? | |
-| Is the same person answering for structure **and** visuals? | |
+| Where does the asset layer live in the production tree — **once it is authorised to move there**? | |
+| **Who answers for the visual half once the structural half stops?** | |
+
+The first and the last are **two questions, not one**. The first is a scope authorisation; the
+last names a person. A session can be authorised to write both specs and still have nobody who
+can answer the visual questions — and an agent in that position answers them itself, which is
+how a visual spec nobody asked for gets written.
 
 Both specs sit **side by side at the same level** (usually the repo root) so they apply across sub-projects. Split across two locations and agents find only one of them.
 

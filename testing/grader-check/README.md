@@ -2,10 +2,11 @@
 
 `testing/evals/` 判插件做得对不对。**这里判 `testing/evals/` 的判据本身有没有判别力。**
 
-agent 一步不跑：产物由 `scaffold_script` 直接摆进沙箱，case 的 prompt 只让模型回一句 done。
-所以跑完全部 8 个夹具是 **41 秒 / $0.74**（2026-08-27 实测，单个夹具 $0.08–0.13），而不是一次完整实跑的 $18 和几十分钟。
+agent 一步不跑：产物由 `scaffold_script` 直接摆进沙箱，case 的 prompt 只让模型回一句 done
+（`focus: last_message` 的判据例外，见最后一节——它的 prompt 让模型原样输出被判的那段话）。
+所以跑完全部 10 个夹具是 **67 秒 / $0.93**（2026-08-28 实测，单个夹具 $0.08–0.13），而不是一次完整实跑的 $18 和几十分钟。
 
-> 这个数字之前写的是「12 秒 / $0.1 量级」，那是夹具还只有 4 个时量的，补到 8 个之后没跟——差了 7 倍。成本估计和别的数字一样会过期，改夹具数量时要一起改。
+> 这个数字之前写的是「12 秒 / $0.1 量级」，那是夹具还只有 4 个时量的，补到 8 个之后没跟——差了 7 倍。成本估计和别的数字一样会过期，改夹具数量时要一起改。（2026-08-28 补到 10 个，这一行跟着改了。）
 
 ```sh
 CLAUDE_CODE_WALNUT_SPIRE=1 claude plugin eval . \
@@ -39,12 +40,25 @@ CLAUDE_CODE_WALNUT_SPIRE=1 claude plugin eval . \
 | `naming-declared-missing` | `examples/admin-console` 的真实产出，产出时声明表这个概念还不存在（0 处） | 同上 | FAIL |
 | `design-values-clean` | 同一份首跑产物，色值 0 处（值都在 token 文件里） | `no-literal-values-in-design` | PASS |
 | `design-values-literal` | `existing-admin` 夹具里的「现状」`design.md`，9 处硬编码色值 | 同上 | FAIL |
+| `handoff-correct` | **2026-08-28 gate 3 的真实产物**：`greenfield-mobile` with 臂的最后一条消息 | `structural-half-handed-off` | PASS |
+| `handoff-truncated` | **同一份产物**，最后那段话换成「接下来我把视觉规范也定了」 | 同上 | FAIL |
 
-后四个是 `greenfield-originate` 实跑之后补的。两个负样本都不是手搓的，这是刻意的：
+`naming-*` 与 `design-values-*` 四个是 `greenfield-originate` 实跑之后补的。两个负样本都不是手搓的，这是刻意的：
 - `naming-declared-missing` 的「没有声明表」是**时间造成的**——那份产物早于声明表这个概念，
   `examples/README.md` 里记着它落后两个 ADR。ground truth 来自它的出生日期，不是来自 `sed`。
 - `design-values-literal` 的「含色值」是它的**本质属性**——它扮演的就是一个还没被规范化的项目，
   治熵线用例正是拿它当起点。
+
+`handoff-*` 两个是 2026-08-28 随 ADR-0013 补的。**正样本一开始是手写的，当天就被证明不够。**
+
+那条判据在手写夹具上 3-0 / 3-0 干净分离，上线当天的 gate 3 里**在真实产物上假红**：真实收尾
+九成篇幅是决策清单和产出列表，交接只在最后两段，judge 跟着篇幅走了；而手写正样本是四段纯交接的
+短消息，稀释这个变量在夹具里根本不存在。正样本现已换成那份真实产物（`fixtures/handoff-real.md`），
+判据也跟着重写，复验 $0.27：**3-0 PASS / 3-0 FAIL**。
+
+**所以下面那条纪律要对称地读**：负样本不能手搓，**正样本也不能**——手写的正样本只能证明判据
+认得出我写的那种成功。负样本 `handoff-truncated` 目前仍是手写的，这一半还欠着：它要等一次
+真实的「没收住、直接往下做」的跑。
 
 ⚠ 第四条判据 `skill-fired` **这里验不了**：夹具里 agent 一步不跑，`Skill` 自然不会被调用，
 正负两样本会长得一模一样。
@@ -58,9 +72,9 @@ CLAUDE_CODE_WALNUT_SPIRE=1 claude plugin eval . \
 （`testing/evals/README.md` 第 12 条记着这笔欠账），`traces-in-artifact` 的词表是从保留产物量出来的、
 判据本身也没跑过。各花 $0.1 量级，两条都双向正确。
 
-## 最近一次全量（2026-08-21，$0.62 / 66 秒 / 8 case，`--runs 1`）
+## 最近一次全量（2026-08-28，$0.93 / 67 秒 / 10 case，`--runs 1`）
 
-四对夹具**四对都分得开**，负样本一个都没漏：
+五对夹具**五对都分得开**，负样本一个都没漏：
 
 | 判据 | 正样本 | 负样本 | 判别力 |
 |---|---|---|---|
@@ -68,9 +82,10 @@ CLAUDE_CODE_WALNUT_SPIRE=1 claude plugin eval . \
 | `no-literal-values-in-design` | PASS ✓ | FAIL ✓ | 有 |
 | `naming-declared` | PASS ✓ | FAIL ✓ | 有 |
 | `traces-in-artifact` | PASS ✓ | FAIL ✓ | 有 |
+| `structural-half-handed-off` | PASS ✓（judge 3-0） | FAIL ✓（judge 3-0） | 有 ⚠ 见下 |
 
 汇总表里负样本那几行的 `SCORE 0.00` 是**期望值**，不是失败——这一层「全部符合预期」的意思是
-四个 1.00 和四个 0.00 各自落在该落的位置上，不是八个都绿。
+五个 1.00 和五个 0.00 各自落在该落的位置上，不是十个都绿。
 
 `naming-declared` 到此双向都验过了。它是 PR #13 里唯一写着「正方向无样本，要等一次实跑」的那条；
 `db33a85` 那次实跑把样本买了回来，**此后复验永远 $0.07**。
@@ -86,8 +101,13 @@ asbuilt-prescriptive → judge votes: FAIL FAIL FAIL — note: long file (18851 
 但注意**这次它判对了**（负样本三票一致 FAIL），与下面那张表的结论一致：
 长度不是变量，**判整体气质很行，逐行核对不行**。
 
-`--runs 1` 意味着每条判据只有一票。这次四对全部干净分离、没有一个是 2:1 的边缘票，所以没有加跑；
+`--runs 1` 意味着每条判据只有一票。这次五对全部干净分离、没有一个是 2:1 的边缘票，所以没有加跑；
 哪一对将来出现分歧票，用默认 `runs: 3` 单独重跑那个 case（`--case <name>`）。
+
+⚠ **这张表上的「有判别力」是相对夹具说的，不等于相对真实产物。** 同一天
+`structural-half-handed-off` 就在这张表上是「有」、在 gate 3 的真实产物上假红。
+**这一层能证伪判据，不能证成判据**——它便宜到可以先跑，但一条判据只有在真跑里活过一轮
+才算验过。上面那一行的 ⚠ 指的就是这件事：它现在的正样本已经换成真实产物，那之后才是真的验过。
 
 ## 夹具必须是真实产物，不能是手搓的
 
@@ -144,14 +164,26 @@ judge 只看那一份），把它写进 `testing/grader-check/` 跑一次就知�
 
 判据是**抄**进 `case.yaml` 的，夹具的全部价值在于「判的是线上那一条」，抄歪了比没有夹具更坏。
 `testing/structure/invariants.sh` 的不变量 17 对这件事对账，跑 `./testing/run.sh` 就会查。
-口径与既有两处一致：忽略空白与 `**`，并剥掉 markdown grader 的标题行
-（`graders/*.md` 的 body 含标题、`case.yaml` 内联的不含，这个差异是被容忍的）。
+口径与既有两处一致：忽略空白与 `**`，并剥掉 markdown grader 的**开头那一行标题**
+（`graders/*.md` 的 body 若以标题开头，`case.yaml` 内联的那份不含它，这个差异是被容忍的）。
+
+⚠ 剥的只有**第一行**，正则不带 `re.M`。body 中间的 `## 小标题` 要连同正文一起抄进
+`case.yaml`，抄的时候剥掉它们会判分家——2026-08-28 加 `structural-half-handed-off`
+时就是这么转红的，而这段话当时读起来像是「剥掉所有标题行」。
 
 
-## 这一层验不了什么（2026-08-21 实测）
+## 这一层验不了什么（2026-08-21 实测，2026-08-28 补一类）
 
-夹具的机制是「scaffold 把产物摆进沙箱 + agent 回一句 done」，所以它只对**看产物**的判据有效：
+夹具的机制是「scaffold 把产物摆进沙箱 + agent 回一句 done」，所以它对**看产物**的判据有效：
 `regex`、`file_exists`、`llm`（`focus: {source: file}`）。
+
+**`focus: last_message` 也验得了**，这是 2026-08-28 量出来的：产物摆进沙箱之后，让 case 的
+prompt 命令模型原样输出一段指定文本，那段文本就成了判据真正收到的输入。`handoff-correct` /
+`handoff-truncated` 两个夹具**摆的是同一份产物**，只有那段话不同，判据仍然 3-0 / 3-0 分开了。
+
+它与轨迹判据的区别在**谁产生被判的东西**：`tool_used` 要的是这一轮真发生过的调用，摆不出来；
+最后那段话是模型这一轮真说的，prompt 命令它说什么它就说什么。**代价是它验不到「模型会不会
+自发说出这种话」**——那只有真跑答得了，这里答的是「说出来了，判据认不认得」。
 
 **看轨迹的判据在这里没有替身。** 试过用 `context.history_file` 重放一份含真实工具调用的
 transcript，让 `tool_used` 判它：

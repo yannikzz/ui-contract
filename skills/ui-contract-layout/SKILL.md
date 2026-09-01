@@ -63,3 +63,22 @@ Region **descriptions** say **what goes here / what must not** — never "what t
 - [ ] Every allowlist row has a "must not hold" cell, none of them empty
 - [ ] Every anti-pattern has a reason and a replacement
 - [ ] Every region description says "what goes here / what must not", not "what this is"
+- [ ] **The half was ended where it ends, and handed over** — see below
+
+## Where this ends
+
+`layout.md` is the structural half's deliverable. Three things still follow it inside this same
+half — the asset layer, the entry-layer enforcement, and then a rebuild of the projection — and
+they are the rest of handing this document over, not the start of the visual half. The projection
+comes last because a source has just changed and it is rebuilt from the changed source.
+
+`docs/ui-contract/config.md` records two answers that decide what happens next: how far this
+session was authorised to go, and who answers for the visual half. **Unless it says the visual
+half is authorised, do not enter it.** Not "ask first" — do not enter it. A visual spec produced
+without somebody answering for the brand is a set of decisions nobody made, written in the shape
+of a specification, and nothing in the file reveals that.
+
+Hand back, in plain words: what `layout.md` owns, that the projection is a viewing device rather
+than a deliverable and does not survive a fresh clone, and what the visual half would settle if
+and when it runs.
+

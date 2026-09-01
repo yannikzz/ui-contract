@@ -113,6 +113,24 @@ That second one is measured, not hypothetical: a document explaining its own ⏳
 
 **Do not write the visual value here to resolve it.** The resolution is: the visual spec settles its scale, someone checks the number against it, and the ⏳ becomes a plain number — or a different number. A `layout.md` that starts carrying font sizes to justify its widths has become the thing the split exists to prevent, and `no-visual-values-in-structure` will say so.
 
+### A third outcome: the number is refuted — mark it ⛔
+
+Settling a ⏳ has **two** endings, not one. The visual scale can hand back a number, or it can show that the marked direction does not hold at any scale: nine fields and five actions do not fit in 360px however small the type gets. That is not "still waiting" — the question itself is dead — so it **must not stay ⏳**.
+
+**Mark it ⛔ in the same table cell, on one line, and say what refuted it.** Same placement rule as ⏳, for the same reason: the handover note and check 10 read table rows.
+
+| Panel width | ~~360~~ | ⛔ refuted by the projection — 9 fields + 5 actions do not fit at any type scale; the region needs splitting |
+
+⛔ is the **third** member of this set, and the three say different things:
+
+| | Says | Still there when the interface ships |
+|---|---|---|
+| ⏳ | a number is waiting on a decision that is definitely coming, from a named place | a process failure |
+| ⛔ | the direction that number belonged to is dead; something structural has to change | a process failure — it is unfinished work, not an open question |
+| 🌡 (`design.md`) | a clause is a hypothesis about the world | normal |
+
+⚠ **`ui-contract-audit`'s check 10 does not report ⛔ yet.** It counts and lifts ⏳ rows only. So a ⛔ line is currently invisible to the health check — that is a known gap, written here rather than left for someone to discover. What the marker buys today is that a refuted line is not *miscounted* as a pending one, and that the next reader of the document can tell the two apart. Do not read a green check 10 as "nothing was refuted".
+
 ⚠ **This only catches couplings somebody noticed.** One nobody spotted sails straight through, and the wireframe stays the backstop that finds it. Do not read "no ⏳ left" as "no coupling left".
 
 ## §4 Page archetypes

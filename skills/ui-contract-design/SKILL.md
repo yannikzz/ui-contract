@@ -27,8 +27,23 @@ For handling change requests, call the Skill tool with "spec-before-code".
 |---|---|
 | `layout.md` does not exist | **Stop.** The allowlist is what region names get aligned against; without it this step produces a second vocabulary. Call the Skill tool with "ui-contract-layout" first |
 | `design.md` exists but `layout.md` does not | **Stop and say so.** Aligning a boundary against a document that doesn't exist means inventing the other half |
-| No visual conventions exist anywhere — no `design.md`, no token source, no mockups | **Go to `originate.md`.** Do not start from this file's align procedure — there is nothing to align against |
+| No visual conventions exist anywhere — no `design.md`, no token source, no mockups — **and the visual half is authorised**: `docs/ui-contract/config.md` says so, or the user asked for it in this session | **Go to `originate.md`.** Do not start from this file's align procedure — there is nothing to align against |
+| No visual conventions exist anywhere, **and nothing authorises the visual half** | **Stop, and say why.** `originate` invents brand decisions out of nothing; entered without somebody answering for them, it produces a specification of decisions nobody made — and nothing in the output reveals that. Report what the structural half produced and what this unit would settle, and leave it there |
 | Nothing exists **and** the user asks for "something that looks good, you pick" | Still `originate.md`, still the interview. **Do not hand over a default palette.** A palette the user rubber-stamps is no longer their spec, which is the failure this whole method exists to prevent |
+
+## The scope gate is on `originate` only, and that is deliberate
+
+The two branches need different permissions, and giving them the same one breaks the other:
+
+| Branch | What it does to the user's material | What authorises it |
+|---|---|---|
+| `align` | Slims a document they already have — structural content moves out, a pointer stays | **"May the existing visual spec be edited?"** in `config.md`. It touches somebody's file; it invents no brand decision |
+| `originate` | Produces a brand direction, a scale and a set of values where none existed | **The scope authorisation.** These are decisions somebody has to answer for |
+
+Gating `align` on scope would block a boundary cleanup that the structural half needs anyway —
+an existing visual spec almost always has structural content mixed into it, and leaving it there
+gives the project two vocabularies. That is the failure `align` exists to prevent, and it has
+nothing to do with the one the handover exists to prevent.
 
 ## Start by reading `layout.md`'s ⏳ list
 
@@ -36,14 +51,31 @@ Structure and visuals are two dimensions of one interface, so a few numbers belo
 
 **Read that list first.** A type scale chosen without knowing that nine fields and five actions have to fit in 360px is a scale somebody will revisit.
 
-How it runs depends on one thing, and `config.md` records it: **is the same person answering for both dimensions?**
+**Settling them is this unit's job**, and it is done here whoever is answering. The ⏳ list is
+always brought in as a list — "these three are waiting on your scale" — never folded silently
+into the structural interview, because the two interviews sit in different halves. What
+`config.md` changes is only **when** this interview happens, not how it runs:
 
-| | How to run it |
+| The handover was | When this runs |
 |---|---|
-| **Same person** | Fold the ⏳ questions into this interview. They are already holding both dimensions in their head; asking in two separate sittings is overhead, and the coupling gets resolved on the spot |
-| **Different people** | The ⏳ list **is the handover note.** Bring those numbers to the visual owner as "these three are waiting on your scale" — they should not have to read the whole structural spec to find them. Answers go back into `layout.md`, by its own change process |
+| **Soft** — the same person answers for both halves | Straight after the hand-back, in the same sitting, with the ⏳ list on the table |
+| **Hard** — somebody else, or nobody yet | Whenever that person picks it up. The ⏳ list travelled to them as the note; they should not have to read the whole structural spec to find those three numbers |
+
+Answers go back into `layout.md`, by its own change process — this unit does not edit it directly.
 
 **Do not require the two people to be in a room together.** That is often impossible, and a mechanism that assumes it simply fails in that half of the world. The marker travels between them precisely so the meeting is not the mechanism — this whole plugin exists because "somebody will remember to" is not one either.
+
+**A ⏳ line can come back refuted rather than filled.** Building the projection can show that a
+marked number does not hold at all — nine fields and five actions do not fit in 360px, whatever
+the scale. That is a different fact from "waiting for a number", and it must not reuse the ⏳
+marker: one says *give me a value*, the other says *the direction you were going to give a value
+for is dead*.
+
+**Mark it ⛔ in `layout.md`, in the number's own table cell, with what refuted it** — the marker
+and its placement rule are defined in `ui-contract-layout`'s outline, §3 "A third outcome". Note
+what that section records: `ui-contract-audit`'s check 10 does not report ⛔ yet, so a refuted line
+is invisible to the health check. **Name the refuted lines explicitly in the hand-back**; do not
+rely on the check to carry them.
 
 ## This step aligns; it does not rewrite
 
@@ -84,7 +116,7 @@ Do **not** silently invent values back into `design.md` to make it self-containe
 
 ## Before you call this document done
 
-- [ ] **Every ⏳ in `layout.md` was resolved, or is explicitly left open with a reason** — and read **before** settling the scales, not after: a scale chosen without knowing what has to fit at it is a scale that will be revisited
+- [ ] **Every ⏳ in `layout.md` was resolved, refuted, or is explicitly left open with a reason** — and read **before** settling the scales, not after: a scale chosen without knowing what has to fit at it is a scale that will be revisited. "Resolved" and "refuted" are different endings; the line-level item near the bottom of this list says how each is marked
 - [ ] **Resolving one means editing `layout.md`** — the ⏳ becomes a plain number. Not the type size written into `layout.md`, not the width copied into `design.md`: both directions are the bleed the split exists to prevent
 - [ ] `design.md` contains no literal color or size values; the token file is the single value authority
 - [ ] Structural content has been moved out and only a one-line pointer remains
@@ -98,8 +130,10 @@ Do **not** silently invent values back into `design.md` to make it self-containe
 - [ ] On the `originate` branch: every derived value traces to a coordinate, and the **hue's basis is named in `design.md` §1** — one of the four in `originate.md` §The gap the axes do not close, or an explicit "none applies" that marks the hue as the weakest value in the set. The axes fix count and saturation but not hue, so it is the one slot with no source
 - [ ] On the `originate` branch: no value in `tokens.input.json` is a framework default (the list is in `originate.md` §Do not emit a framework default) — emitting one means the coordinates never reached the values
 - [ ] On the `originate` branch: the hue's basis is stated **without a literal colour** — not the chosen value, not the default being contrasted against. `design.md` carries no hex anywhere, and explaining a choice is not an exemption from that
-- [ ] On the `originate` branch: **the token file itself was written** — the real one, at the path and format the paths table gives, committed. Not described, not left for another unit: the old handoff landed 2 of 5 runs
+- [ ] On the `originate` branch: **the token file itself was written** — the real one, at the path and format the paths table gives, committed. Not described, not left for another unit: the old write-the-record-and-let-another-unit-land-it handoff landed 2 of 5 runs (2026-08-25)
 - [ ] On the `originate` branch: `tokens.input.json` was also written, at **`.ui-contract-local/tokens.input.json`** — pinned, not configurable, because the instrument and a grader both need one answer
 - [ ] On the `originate` branch: **the user was not told to keep or commit the knobs record.** It is not a deliverable; describing it as one invites somebody to maintain a file nothing reads
 - [ ] On the `originate` branch: **the two are not confused in the deliverable** (identity table above). Describing the record as where the values live is the second value authority this split exists to prevent
+- [ ] **If the token file landed while the asset layer is still without one, `ui-contract-assets` was called again.** It runs twice on a greenfield project and both runs are correct; pass 2 consumes the token file. This unit does not touch the asset layer itself — values are authored here, consumed there, and reversing that gives the project two value authorities
+- [ ] **Every ⏳ line in `layout.md` was either settled, refuted, or explicitly left open with a reason** — settled means it became a plain number; refuted means it carries ⛔ and what refuted it (definition: `ui-contract-layout`'s outline §3); left open means the reason is written down. A ⏳ that is merely still there is none of the three. This is the same condition as the first item in this list, stated at the line level — refuted lines were also **named in the hand-back**, because check 10 cannot see them
 - [ ] Reported to the user: which sections were touched, how many names were replaced, what was deliberately left alone

@@ -285,7 +285,15 @@ recorded one — and a grader's `target.path` is not a glob.
 
 ⚠ **The two files are not interchangeable, and the difference is the point.** The token file is
 committed and authoritative. The knobs record is local, disposable, and loses to the token file
-in any disagreement — see Step 4.
+in any disagreement. **The identity table that says so lives in this unit's `SKILL.md`** — carry
+it into the deliverable from there, never from a copy, and never demoted to a code comment.
+
+**The record's keys are the names from the declaration table.** Mapping into the project's format
+— CSS custom properties, `theme.extend`, a theme object — changes the *format* and never the
+*names*; that is where cross-stack naming actually pays off. The record stays stack-neutral, and
+the token file is where the format is chosen. Both are written **here**, by this unit:
+`ui-contract-assets` consumes the token file exactly as production code does, and does not
+re-derive values from the record.
 
 ---
 
@@ -306,18 +314,6 @@ The right column is information architecture, not controls. Ship those and the i
 **Only visual scales are tunable** — spacing, type size, radius, colour. Column widths, minimum widths and gutters belong to `layout.md`; changing one of those goes through `spec-before-code`, not through a slider.
 
 **Contrast is validated live**, against the threshold written in `design.md` §2. The instrument does not carry its own number.
-
----
-
-## Step 4 — landing the values
-
-⚠ **The JSON's identity has to be written down, or it becomes a second value authority.**
-The identity table is in `ui-contract-design`'s own body — carry it into the deliverable from
-there rather than from a copy here, and do not demote it to a code comment.
-
-**The JSON's keys are the names from the declaration table.** The mapping into the project's format — CSS custom properties, `theme.extend`, a theme object — changes the *format* and never the *names*. That is where cross-stack naming actually pays off.
-
-The JSON stays stack-neutral; the token file is where the format is chosen. **Both are written in Step 2, by this unit.** `ui-contract-assets` does not land values from the record any more — it consumes the token file, exactly as production code does. A second unit reading a local, uncommitted record and re-deriving the authority from it is the hop that was removed.
 
 ---
 
