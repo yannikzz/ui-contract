@@ -1,0 +1,27 @@
+schema_version: "1.1"
+name: structure-values-function-notation
+description: >
+  负样本：真实 design.md 的 9 处色值机械改写成函数记法后摆进 layout.md 的位置。必须 FAIL——旧模式下它是绿的。
+
+context:
+  scaffold_script: scaffold.sh
+
+execution:
+  prompt: |
+    只回复 done。不要使用任何工具，不要读写任何文件。
+  max_turns: 2
+  timeout_seconds: 120
+  allowed_tools: []
+
+runs: 1
+
+graders:
+  - type: regex
+    name: no-visual-values-in-structure
+    target:
+      source: file
+      path: layout.md
+    pattern: "#[0-9a-fA-F]{3,8}\\b|\\brgba?\\(|\\bhsla?\\(|\\boklch\\(|\\boklab\\(|\\blab\\(|\\blch\\(|\\bcolor\\(|\\b(font-size|border-radius|box-shadow)\\b"
+    flags: "i"
+    match: not_contains
+    weight: 1

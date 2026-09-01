@@ -4,9 +4,9 @@
 
 agent 一步不跑：产物由 `scaffold_script` 直接摆进沙箱，case 的 prompt 只让模型回一句 done
 （`focus: last_message` 的判据例外，见最后一节——它的 prompt 让模型原样输出被判的那段话）。
-所以跑完全部 10 个夹具是 **67 秒 / $0.93**（2026-08-28 实测，单个夹具 $0.08–0.13），而不是一次完整实跑的 $18 和几十分钟。
+所以跑完全部 12 个夹具是 **107 秒 / $1.18**（2026-09-01 实测，单个夹具 $0.09–0.17），而不是一次完整实跑的 $18 和几十分钟。
 
-> 这个数字之前写的是「12 秒 / $0.1 量级」，那是夹具还只有 4 个时量的，补到 8 个之后没跟——差了 7 倍。成本估计和别的数字一样会过期，改夹具数量时要一起改。（2026-08-28 补到 10 个，这一行跟着改了。）
+> 这个数字之前写的是「12 秒 / $0.1 量级」，那是夹具还只有 4 个时量的，补到 8 个之后没跟——差了 7 倍。成本估计和别的数字一样会过期，改夹具数量时要一起改。（2026-08-28 补到 10 个、2026-09-01 补到 12 个，这一行两次都跟着改了。）
 
 ```sh
 CLAUDE_CODE_WALNUT_SPIRE=1 claude plugin eval . \
@@ -42,6 +42,8 @@ CLAUDE_CODE_WALNUT_SPIRE=1 claude plugin eval . \
 | `design-values-literal` | `existing-admin` 夹具里的「现状」`design.md`，9 处硬编码色值 | 同上 | FAIL |
 | `handoff-correct` | **2026-08-28 gate 3 的真实产物**：`greenfield-mobile` with 臂的最后一条消息 | `structural-half-handed-off` | PASS |
 | `handoff-truncated` | **同一份产物**，最后那段话换成「接下来我把视觉规范也定了」 | 同上 | FAIL |
+| `structure-values-clean` | 2026-08-20 实跑产出的真 `layout.md`，598 行、零视觉值 | `no-visual-values-in-structure` | PASS |
+| `structure-values-function-notation` | `design-with-literals.md` 真实携带的 9 处色值**逐个换成函数记法**后摆进 `layout.md` 的位置 | 同上 | FAIL |
 
 `naming-*` 与 `design-values-*` 四个是 `greenfield-originate` 实跑之后补的。两个负样本都不是手搓的，这是刻意的：
 - `naming-declared-missing` 的「没有声明表」是**时间造成的**——那份产物早于声明表这个概念，
@@ -198,3 +200,25 @@ transcript，让 `tool_used` 判它：
 另外：结构判据（`regex` / `tool_used` / `tool_order` / `file_exists`）本身**不花钱**，
 judge 一次都不调。这一层的 $0.06 全部花在那一次「回一句 done」的 agent run 上——
 **所以多条结构判据挂在同一个夹具 case 上，一次 $0.06 能验一批**，不必一条一个 case。
+
+## `structure-values-*` 这一对为什么值得单独说（2026-09-01）
+
+补它的直接原因是：**这条判据刚被改过，而 gate 2 覆盖不到它**。
+`testing/evals/README.md` 说三处规范文档检查「统一放宽到 `#{3,8}` 并补齐函数记法」，
+`no-visual-values-in-structure` 只拿到了前半句——`layout.md` 里写函数记法的颜色是绿的。
+补齐之后如果不补夹具，gate 2 报绿只说明**别的五对没坏**，而那个绿很容易被读成「改动验过了」。
+
+**负样本不是手搓的，改的只是记法。** 它来自 `design-with-literals.md`——一份真实产物，
+「带着字面色值」是它的本质属性（治熵线用例正是拿它当起点）。机械改写只动记法这一个变量，
+其余一字未动。判别力在花钱之前就离线量过：**旧模式下它命中 0 处（会假绿），新模式下 9 处**，
+9 正是原产物真实携带的色值数。
+
+⚠ **夹具头部的说明刻意不写出那种记法本身。** 判据是全文匹配，注释里用一次就多算一处命中——
+第一版就是这么写的，命中数从 9 变成 10。本仓库在 `layout.md` 的待定标记上栽过同一个跟头：
+一份解释自己标记约定的文档，把三个待定数报成了六个。**用词描述，不要用样例。**
+
+⚠ **仍然欠着的**：正样本是真实产物，负样本是机械改写，而这条判据是 `regex` 不是 `llm`——
+regex 没有 judge，所以「手搓样本只能证明判据认得出我写的那种失败」这条纪律在这里的分量比
+llm 判据轻，但没有消失。它守的是**记法**这个闭集，守不住任何不在集合里的写法：
+CSS 具名颜色（`crimson`）、`line-height` / `opacity` 这类属性名，以及用文字描述的视觉值。
+判据文件里列了这些，不要读成「视觉值已被覆盖」。
