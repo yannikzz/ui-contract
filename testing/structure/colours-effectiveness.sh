@@ -92,6 +92,21 @@ run 1 "2 · 删掉 APPARATUS: 声明行（缺席不是「没声明任何东西�
   "python3 -c \"import io;p='$P/inspect.tsx';L=io.open(p,encoding='utf-8').readlines();io.open(p,'w',encoding='utf-8').writelines([l for l in L if 'APPARATUS:' not in l])\""
 run 0 "2 · 名单里多一个尚未存在的名字不判红（名单是上界）" \
   "python3 -c \"import io;p='$P/inspect.tsx';s=io.open(p,encoding='utf-8').read();s=s.replace('APPARATUS: ','APPARATUS: NotYetWritten ',1);io.open(p,'w',encoding='utf-8').write(s)\""
+# 下面三条钉的是**解构导出**。旧实现没有解构分支：`export const [c] = y` 会把 `[c]` 削成空、
+# 走过 `=`，打印出右边的 `y`——一个根本不是导出的名字。于是第一条曾经因为**错误的理由**判红
+# （报的是不存在的 `y`），第二条曾经**假红**（`c` 已声明，却因为报 `y` 而挂）。
+# 两条注释当时都写着「取不到名字」，和实际行为相反。第三条钉对象解构只取到第一个名字那次漏报。
+#
+# ⚠ **三条里只有后两条有判别力，第一条没有，写在这里而不是让人以为有。** 把解构分支退回旧实现
+# 实测过：第一条**新旧都绿**——旧实现报的是右值 `y`，`y` 也不在名单里，于是**因为错误的理由
+# 拿到了正确的退出码**。它守的是「报出来的名字对不对」，而退出码看不见名字。后两条各自会红
+# （第二条旧实现假红，第三条旧实现漏报），分家真的发生时是它们出声。
+run 1 "2 · 数组解构导出未声明（报的必须是绑定名 c，不是右边的 y）" \
+  "printf '\nconst y = [1]\nexport const [Sneaky] = y\n' >> $P/inspect.tsx"
+run 0 "2 · 数组解构导出已声明不判红（旧实现在这里报右值，假红）" \
+  "python3 -c \"import io;p='$P/inspect.tsx';s=io.open(p,encoding='utf-8').read();s=s.replace('APPARATUS: ','APPARATUS: Bound ',1);s+='\nconst src = [1]\nexport const [Bound] = src\n';io.open(p,'w',encoding='utf-8').write(s)\""
+run 1 "2 · 对象解构导出的第二个名字未声明（旧实现只取得到第一个）" \
+  "python3 -c \"import io;p='$P/inspect.tsx';s=io.open(p,encoding='utf-8').read();s=s.replace('APPARATUS: ','APPARATUS: First ',1);s+='\nconst o = { First: 1, Sneaky: 2 }\nexport const { First, Sneaky } = o\n';io.open(p,'w',encoding='utf-8').write(s)\""
 
 echo "D. 检查 3 · 每个 NEUTRAL 角色在 SKIN 里有决定"
 run 1 "3 · NEUTRAL 长出一个角色而 SKIN 里没有（线框在发明规范）" \

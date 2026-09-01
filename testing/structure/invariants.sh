@@ -324,7 +324,10 @@ APPARATUS_EXPORTS = set(m_decl.group(1).split())
 #   · 跨行写的导出（`export {` 名字在下几行；名字与 `export` 不在同一行）。这里逐行读，
 #     和 check-colours.sh 一致。
 #   · `export * from './x'` 会红，但它说不出**进来了哪些名字**。
-#   · `export const [a] = …` 这种数组解构，取不到名字。
+#   · 解构导出走下面的解构分支，取每一部分的**绑定名**：`export const { a, b } = x` 得 `a`、`b`，
+#     `export const [c] = y` 得 `c`，`export const { a: r } = x` 得 `r`。它到不了上面的花括号分支——
+#     那一支要求 `{` 紧跟 `export`，而 `export const {` 中间隔着 `const`。
+#     那里仍然漏掉的：跨行写的解构，以及默认值里带逗号（`export const { a = f(1, 2) } = x` 会多读出一部分）。
 #   · TypeScript 的 `export =`，它没有名字可判。
 MODIFIERS = ('async','declare','abstract','const','let','var','function','class','type','interface','enum')
 def exported_names(src):
@@ -338,6 +341,16 @@ def exported_names(src):
                 for part in m_br.group(1).split(','):
                     w = part.split()
                     if w: names.add(w[-1])          # `A as C` 对外是 C
+            continue
+        # 解构分支。没有它，下面的循环会把 `[c]` 削成空、走过 `=`、打印出**右边**的
+        # 标识符 `y`——一个根本不是导出的名字，于是报出一个不存在的未声明导出。实测过。
+        m_d = re.match(r'^export[ \t]+(?:const|let|var)[ \t]*([\[{][^\]}]*[\]}])', line)
+        if m_d:
+            for part in m_d.group(1)[1:-1].split(','):
+                part = re.sub(r'=.*$', '', part)        # 去掉默认值
+                part = re.sub(r'^[^:]*:', '', part)     # `a: r` 绑定的是 r
+                m_id = re.search(r'[A-Za-z0-9_$]+', part)
+                if m_id: names.add(m_id.group(0))
             continue
         for tok in line.split()[1:]:
             tok = re.sub(r'[^A-Za-z0-9_$].*$', '', tok)   # `Foo({` → `Foo`；`function*` → `function`

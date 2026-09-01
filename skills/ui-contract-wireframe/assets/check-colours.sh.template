@@ -127,8 +127,13 @@ else
   #     or a name that is not on the same line as its `export`. This reads one line
   #     at a time, like the rest of this script.
   #   · `export * from './x'` fails, but it cannot tell you WHICH names arrived.
-  #   · a destructuring export (`export const { a, b } = …`) yields `a` and `b`
-  #     only via the brace branch below; `export const [a] = …` yields nothing.
+  #   · a destructuring export is read by the DESTRUCTURING BRANCH below, which takes
+  #     the bound name of each part: `export const { a, b } = x` yields `a` and `b`,
+  #     `export const [c] = y` yields `c`, `export const { a: r } = x` yields `r`.
+  #     It does NOT reach the brace branch above — that one requires `{` immediately
+  #     after `export`, and `export const {` has `const` in between.
+  #     Still gets through there: a pattern split across lines, and a default whose
+  #     value contains a comma (`export const { a = f(1, 2) } = x` reads a second part).
   #   · TypeScript's `export =`. It has no name to check.
   EXTRA=""
   for n in $(awk '
@@ -140,6 +145,22 @@ else
           for (i = 1; i <= n; i++) {
             m = split(parts[i], w, /[ \t]+/)           # `A as C` publishes C
             for (j = m; j >= 1; j--) if (w[j] != "") { print w[j]; break }
+          }
+        }
+        next
+      }
+      # DESTRUCTURING BRANCH. `export const [c] = y` / `export const { a, b } = x`.
+      # Without this the loop below strips `[c]` to nothing, walks past `=`, and prints
+      # the RIGHT-HAND SIDE identifier `y` — a name that is not an export at all, so the
+      # check reports an undeclared export that does not exist. Measured, not theorised.
+      if (match($0, /^export[ \t]+(const|let|var)[ \t]*[\[{]/)) {
+        if (match($0, /[\[{][^\]}]*[\]}]/)) {
+          n = split(substr($0, RSTART + 1, RLENGTH - 2), parts, ",")
+          for (i = 1; i <= n; i++) {
+            p = parts[i]
+            sub(/=.*$/, "", p)                         # drop a default value
+            sub(/^[^:]*:/, "", p)                      # `a: r` binds r, not a
+            if (match(p, /[A-Za-z0-9_$]+/)) print substr(p, RSTART, RLENGTH)
           }
         }
         next

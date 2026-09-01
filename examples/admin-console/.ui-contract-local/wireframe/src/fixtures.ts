@@ -55,8 +55,17 @@ export const NAV_SETTINGS: { group: string; items: NavItem[] }[] = [
 /**
  * 状态 → 语义类。**这张表是 layout.md §6.4 的代码形态**，`Record` 是穷尽的，
  * 所以加一个状态就必须给它归类，忘了会类型报错。
+ *
+ * 穷尽靠的是 `Status` 这个字面量联合，不是 `Record` 本身——`Record<string, …>`
+ * 对任何字符串都成立，编译器不会说话。曾经就是那么写的：`Row.status` 是 `string`，
+ * 于是 `ROWS` 里加一个没归类的状态，`STATUS_KIND[r.status]` 取到 `undefined`，
+ * 一路传进 `StatusEdge`（它的 `kind` 没有默认值），渲染成
+ * `var(--wire-status-undefined)`——**3px 的状态色边悄悄消失，没有任何报错**。
+ * `Badge` 因为有 `kind = 'neutral'` 兜底，看起来还是正常的，所以更难发现。
  */
-export const STATUS_KIND: Record<string, StatusKind> = {
+export type Status = '草稿' | '已归档' | '处理中' | '待审核' | '被驳回' | '已发布'
+
+export const STATUS_KIND: Record<Status, StatusKind> = {
   草稿: 'neutral',
   已归档: 'neutral',   // 终态但不是成功——刻意不归 done
   处理中: 'progress',
@@ -78,7 +87,7 @@ export const TABLE_COLUMNS: TableColumn[] = [
 export type Row = {
   id: string
   title: string
-  status: string
+  status: Status
   channel: string
   author: string
   updated: string
