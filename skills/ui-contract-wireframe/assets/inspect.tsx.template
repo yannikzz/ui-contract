@@ -2,9 +2,9 @@
  * Inspect apparatus. Starting point for <wireframe>/src/inspect.tsx.
  *
  * **This file IS the wireframe's colour exemption.** The exemption is a file, not a
- * marker inside a file. Everything here is apparatus and never a
- * product surface: region badges, the region outline, the tooltip, the skin-preview
- * banner, the skin editor, and the whole demo toggle bar.
+ * marker inside a file. Everything here is apparatus and never a product surface:
+ * region badges, the region outline, the tooltip, the skin-preview banner, the skin
+ * editor, and the whole browser chrome — viewport, corners, panel, zones, wall.
  *
  * All of it carries fixed colour values on purpose. Every surface here is something
  * you use to control or interpret the wireframe, so it has to stay readable no matter
@@ -16,12 +16,26 @@
  *     version used --wire-strong / --wire-strong-fg; a pale brand colour turned it
  *     white-on-white, so the guard disappeared exactly where the theme made it
  *     hardest to notice. A warning may not depend on what it warns about.
- *   - The demo toggle bar holds the control that turns the skin OFF. Skin that, and a
- *     bad theme becomes a trap you cannot get out of.
+ *   - The panel holds the control that turns the skin OFF. Skin that, and a bad
+ *     theme becomes a trap you cannot get out of.
+ *
+ * The browser around the projection has four parts and ONE placement rule, and the
+ * rule is enforced by the components below rather than by anyone's judgement:
+ *
+ *   Browser    the page frame: white, holds the viewport column and the panel.
+ *              App.tsx carries no colour, so the frame's white lives here
+ *   Viewport   the light-grey rounded area; the projection lives inside it
+ *   Corners    inside the viewport — only what acts on the VIEWPORT (view switch,
+ *              lens, fit, canvas background). A closed set, owned by Viewport
+ *   Panel      outside the viewport — only what acts on the PROTOTYPE. Its children
+ *              are Zones; Zone requires a zone; Panel orders them. Nothing in App.tsx
+ *              decides where a control goes
+ *   Wall       the viewport's second view: every archetype × state × width tier.
+ *              It draws no arrows — nothing on it may lack a clause in layout.md
  *
  * The exports below are a CLOSED, DECLARED list, and this is where it is declared:
  *
- * APPARATUS: LabelsProvider useLabels AnnotatedRegion SkinBanner SkinEditor toHex DemoPanel ThemeSwitch Group Sw Readout Alert
+ * APPARATUS: LabelsProvider useLabels AnnotatedRegion SkinBanner SkinEditor toHex ViewMode PanelZone Browser Viewport Panel Zone Choice Readout Alert Wall
  *
  * That line is the decision, and it lives here because here is where the decision is
  * made — adding a name to it shows up in a diff of this file, next to the thing being
@@ -40,9 +54,9 @@
  * Everything that is NOT apparatus lives in wire.tsx and takes its colour through
  * var(--wire-*). The only values there are the NEUTRAL map.
  */
-import { createContext, useContext, useRef, useState } from 'react'
+import { Children, createContext, isValidElement, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { CSSProperties, ReactNode, RefObject } from 'react'
+import type { CSSProperties, ReactElement, ReactNode, RefObject } from 'react'
 
 // TODO point this at the project's asset layer (the file produced by ui-contract-assets).
 // The wireframe imports from the asset layer; never the reverse.
@@ -289,14 +303,14 @@ export function SkinEditor({
   const prompt = lines.join('\n')
 
   return (
-    <div className="border-t border-neutral-700 bg-neutral-900 p-2 text-[11px] text-neutral-200">
+    <div className="text-[11px] text-neutral-800">
       <div className="mb-1.5 flex items-center gap-2">
-        <span className="font-mono text-neutral-400">skin editor</span>
+        <span className="font-mono text-neutral-500">skin editor</span>
         <span className="text-neutral-500">
           {changed.length ? `${changed.length} changed` : 'no changes'}
         </span>
         <button
-          className="ml-auto rounded border border-neutral-600 px-1.5 py-0.5 hover:bg-neutral-800"
+          className="ml-auto rounded border border-neutral-300 px-1.5 py-0.5 hover:bg-neutral-100"
           onClick={onReset}
         >
           reset
@@ -332,13 +346,13 @@ export function SkinEditor({
           value={prompt}
           onFocus={(e) => e.currentTarget.select()}
           rows={Math.min(10, prompt.split('\n').length)}
-          className="mb-1.5 w-full resize-y rounded border border-neutral-700 bg-neutral-950 p-1.5 font-mono text-[10px] leading-relaxed text-neutral-200"
+          className="mb-1.5 w-full resize-y rounded border border-neutral-200 bg-neutral-50 p-1.5 font-mono text-[10px] leading-relaxed text-neutral-800"
         />
       ) : (
         // Say why the button is grey. Left as bare `disabled`, it reads as broken.
         <p className="mb-1.5 text-neutral-500">TODO, in the deliverable's language: change a value and the prompt appears here.</p>
       )}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-x-3 gap-y-1">
+      <div className="grid grid-cols-1 gap-y-1">
         {rows.map(([role, token]) => {
           const cur = draft[role] ?? base[role] ?? ''
           const dirty = draft[role] !== undefined && !sameValue(base[role] ?? '', draft[role])
@@ -346,7 +360,7 @@ export function SkinEditor({
           return (
             <label key={role} className="flex items-center gap-1.5">
               <span
-                className={`w-28 shrink-0 truncate font-mono ${dirty ? 'text-amber-300' : 'text-neutral-400'}`}
+                className={`w-28 shrink-0 truncate font-mono ${dirty ? 'text-amber-700' : 'text-neutral-500'}`}
                 title={`${token}  (${role})`}
               >
                 {token}
@@ -361,14 +375,14 @@ export function SkinEditor({
                   // made, and it now shows up as one instead of vanishing.
                   value={hex.slice(0, 7)}
                   onChange={(e) => onChange(role, e.target.value)}
-                  className="h-5 w-6 shrink-0 rounded border border-neutral-600 bg-transparent p-0"
+                  className="h-5 w-6 shrink-0 rounded border border-neutral-300 bg-transparent p-0"
                 />
               )}
               <input
                 type="text"
                 value={cur}
                 onChange={(e) => onChange(role, e.target.value)}
-                className="min-w-0 flex-1 rounded border border-neutral-600 bg-neutral-950 px-1 py-0.5 font-mono text-neutral-200"
+                className="min-w-0 flex-1 rounded border border-neutral-300 bg-white px-1 py-0.5 font-mono text-neutral-800"
               />
             </label>
           )
@@ -422,132 +436,59 @@ export function toHex(v: string): string | null {
   return d[3] === 255 ? rgb : rgb + n(d[3])
 }
 
-// ── The demo toggle bar ───────────────────────
+// ── The browser chrome ────────────────────────────────────────
 /**
- * The bar is not part of the product interface — it sits outside the window so a
- * person can verify the spec. Its chrome lives in this file for one reason: **it
- * holds the control that turns the skin off.**
+ * Four parts, one rule: a control that changes HOW you look goes in a corner; one
+ * that changes WHAT you look at goes in the panel. The rule lives in these
+ * components — Viewport owns the corners, Panel accepts only Zones, Zone requires
+ * a zone, Choice picks its own widget — so App.tsx composes and decides nothing.
  *
- * This placement also removes a trap that used to be a note. `Sw` and `Group` sat at
- * the bottom of App.tsx, well past the product markup, so a "convert everything below
- * the product marker to var()" pass took them along and the toggles started changing
- * colour with the theme. A note said "keep them hard-coded"; a file boundary makes
- * that pass impossible to write wrongly.
- *
- * App.tsx composes these and carries no colour of its own.
+ * All of this is chrome: light, fixed colours, never following the skin. The
+ * one closed exception to the rule is the panel's own collapse/expand — an
+ * operation that must stay visible, or there is no way back in.
  */
-export function DemoPanel({
-  open,
-  onToggle,
-  children,
-}: {
-  open: boolean
-  onToggle: () => void
-  children: ReactNode
-}) {
-  // 收起态**必须仍然是一个看得出来能点的东西**。第一版收起后留下一条 560px 宽的黑条，
-  // 宽度没变、只是空了——读起来像残留而不是入口，用户找不到回去的路。
-  // 所以收起时缩成一个自适应宽度的角标，展开时才铺开。
-  if (!open) {
-    return (
-      <button
-        onClick={onToggle}
-        title="expand"
-        className="fixed bottom-3 left-3 z-50 rounded border border-neutral-600 bg-neutral-900 px-2.5 py-1.5 text-[11px] font-medium text-white shadow-lg hover:bg-neutral-800"
-      >
-        ⚙ TODO name it in the deliverable's language
-      </button>
-    )
-  }
-  return (
-    <div className="fixed bottom-3 left-3 z-50 flex max-h-[85vh] w-[min(560px,calc(100vw-1.5rem))] flex-col rounded border border-neutral-600 bg-neutral-900 text-white shadow-xl">
-      <button
-        onClick={onToggle}
-        className="flex shrink-0 items-center justify-between gap-3 px-3 py-1.5 text-left text-[11px] font-medium hover:bg-neutral-800"
-      >
-        <span>TODO name it in the deliverable's language</span>
-        <span className="text-neutral-400">收起 ▾</span>
-      </button>
-      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto border-t border-neutral-700 px-3 py-2">
-        {children}
-      </div>
-    </div>
-  )
-}
+
+/** The two views the viewport can show. */
+export type ViewMode = 'proto' | 'wall'
 
 /**
- * Direction switch — **this project's own candidate directions**, not themes this
- * plugin ships.
- *
- * The distinction is hard, not stylistic: a plugin shipping three brand palettes is
- * "generate a default brand" three times over — the one thing this method refuses —
- * and the values would live in a throwaway file, a second value authority. What
- * belongs here is the set of directions `originate` Step 1 already put to the user:
- * the chosen one, and the ones that were declined. Switching between them answers
- * "what did we turn down" **at real density**, which is the one question paper
- * cannot answer.
- *
- * Read the candidates from the knobs record; do not write values into this file.
- *
- * ⚠ It swaps **tokens**, so it shows the token-level difference between directions and
- * nothing else. A direction whose defining trait is a *treatment* — filling whole rows
- * rather than marking their edge — will look nearly identical here. Say so when you
- * hand it over, or the switch quietly claims to preview more than it does.
+ * The panel's zones, by what the control changes. A CLOSED union: a control that
+ * fits none of them is a control that acts on the viewport, and belongs in a corner.
  */
-export function ThemeSwitch({
-  value,
-  onChange,
-  options,
-}: {
-  value: string
-  onChange: (id: string) => void
-  options: { id: string; label: string; axes: string }[]
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-      <span className="text-neutral-400">TODO label, in the deliverable's language</span>
-      {options.map((o) => (
-        <button
-          key={o.id}
-          onClick={() => onChange(o.id)}
-          title={o.axes}
-          className={`rounded border px-1.5 py-0.5 ${
-            value === o.id ? 'border-white bg-white text-neutral-900' : 'border-neutral-600 text-neutral-300'
-          }`}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  )
+export type PanelZone = 'screen' | 'condition' | 'view' | 'output'
+const ZONE_ORDER: readonly PanelZone[] = ['screen', 'condition', 'view', 'output']
+// TODO zone titles in the deliverable's language. Two words each; no subtitles.
+const ZONE_TITLE: Record<PanelZone, string> = {
+  screen: 'TODO screen',
+  condition: 'TODO condition',
+  view: 'TODO view',
+  output: 'TODO output',
 }
 
-/** One labelled cluster of switches. */
-export function Group({ name, children }: { name: string; children: ReactNode }) {
-  return (
-    <div className="flex items-center gap-1.5 text-[11px]">
-      <span className="text-neutral-400">{name}</span>
-      <div className="flex flex-wrap gap-1">{children}</div>
-    </div>
-  )
-}
+const ZOOM_MIN = 0.1
+const ZOOM_MAX = 3
+const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +z.toFixed(3)))
 
-/** One switch. `on` is the selected state. */
-export function Sw({
+function CornerBtn({
   on,
+  mono,
+  title,
   onClick,
   children,
 }: {
-  on: boolean
+  on?: boolean
+  mono?: boolean
+  title?: string
   onClick: () => void
   children: ReactNode
 }) {
   return (
     <button
+      title={title}
       onClick={onClick}
-      className={`rounded border px-1.5 py-0.5 text-[11px] ${
-        on ? 'border-white bg-white text-neutral-900' : 'border-neutral-600 text-neutral-300'
-      }`}
+      className={`inline-flex h-6 min-w-6 items-center justify-center rounded-[5px] px-1.5 text-[11px] hover:bg-neutral-100 hover:text-neutral-900 ${
+        on ? 'bg-neutral-100 font-medium text-neutral-900' : 'text-neutral-500'
+      } ${mono ? 'min-w-11 font-mono' : ''}`}
     >
       {children}
     </button>
@@ -555,13 +496,423 @@ export function Sw({
 }
 
 /**
- * The live readout row. A degradation rule has to be checkable against numbers rather
- * than by feel, so print the measured width, each column's resolved state, the
- * threshold, and which steps fired.
+ * The page frame. White, fixed: it is chrome, and App.tsx may carry no colour of
+ * its own. `children` is the viewport column (banner above, viewport below);
+ * `panel` sits to the right, outside the viewport, with no line between them —
+ * the viewport's grey edge is the boundary.
+ */
+export function Browser({ panel, children }: { panel: ReactNode; children: ReactNode }) {
+  return (
+    <div className="flex h-screen bg-white font-sans text-neutral-900">
+      <div className="flex min-w-0 flex-1 flex-col gap-2.5 p-3.5">{children}</div>
+      {panel}
+    </div>
+  )
+}
+
+/**
+ * The viewport: the projection lives inside it, the panel lives outside it.
+ *
+ * It owns the lens and the corners. The lens is a CSS `zoom`, which scales the box
+ * in layout — so scrolling follows it, the anchor maths is one line, and the
+ * MEASURED width does not move: `offsetWidth` and ResizeObserver report unzoomed
+ * layout pixels. **Never derive the shell width from getBoundingClientRect divided
+ * by the lens.** Measured: with a transition on the lens and that division in the
+ * reading, every pinch tick measured mid-animation, the shell width jittered, and
+ * the degradation flipped with it. The lens has no transition for the same reason.
+ *
+ * Pinch and ⌘+wheel are intercepted so the browser does not zoom the page. In wall
+ * mode the zoom is anchored at the cursor and the canvas pans by dragging. There
+ * are no scrollbars; wheel and drag move the canvas.
+ */
+export function Viewport({
+  mode,
+  onMode,
+  zoom,
+  onZoom,
+  clamp = 0,
+  wall,
+  children,
+}: {
+  mode: ViewMode
+  onMode: (m: ViewMode) => void
+  zoom: number
+  onZoom: (z: number) => void
+  /** the width tier the prototype is clamped to; 0 = fluid */
+  clamp?: number
+  /** the wall. Omit it and the view switch is not rendered — an empty corner does not render */
+  wall?: ReactNode
+  children: ReactNode
+}) {
+  const vp = useRef<HTMLDivElement>(null)
+  const sc = useRef<HTMLDivElement>(null)
+  const wallEl = useRef<HTMLDivElement>(null)
+  const stageEl = useRef<HTMLDivElement>(null)
+  const [dark, setDark] = useState(false)
+  const [dragging, setDragging] = useState(false)
+  // Latest values for the non-React listeners below, so they are attached once.
+  const live = useRef({ mode, zoom, onZoom })
+  live.current = { mode, zoom, onZoom }
+  // The point to keep still across a zoom: (ax, ay) in the anchor element's own
+  // unzoomed coordinates, (cx, cy) where it sits on screen. Applied after React has
+  // re-rendered at the new zoom, by measuring where the element actually landed —
+  // so the moment the prototype outgrows the viewport and stops being centred,
+  // nothing jumps. getBoundingClientRect here is a POSITION reading, never a width.
+  const anchorEl = () => (live.current.mode === 'wall' ? wallEl.current : stageEl.current)
+  const pendingAnchor = useRef<{ ax: number; ay: number; cx: number; cy: number } | null>(null)
+  const zoomTo = (next: number, cx: number, cy: number) => {
+    const { zoom, onZoom } = live.current
+    if (next === zoom) return
+    const el = anchorEl()
+    if (el) {
+      const r = el.getBoundingClientRect()
+      pendingAnchor.current = { ax: (cx - r.left) / zoom, ay: (cy - r.top) / zoom, cx, cy }
+    }
+    onZoom(next)
+  }
+  const zoomToRef = useRef(zoomTo)
+  zoomToRef.current = zoomTo
+  // Buttons have no cursor, so they anchor at the viewport's centre — which, when the
+  // prototype fits, is the prototype's centre.
+  const zoomAtCentre = (next: number) => {
+    const el = vp.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    zoomTo(next, r.left + el.clientWidth / 2, r.top + el.clientHeight / 2)
+  }
+
+  useLayoutEffect(() => {
+    const a = pendingAnchor.current
+    const s = sc.current
+    const el = anchorEl()
+    if (!a || !s || !el) return
+    const r = el.getBoundingClientRect()
+    s.scrollLeft += r.left + a.ax * live.current.zoom - a.cx
+    s.scrollTop += r.top + a.ay * live.current.zoom - a.cy
+    pendingAnchor.current = null
+  })
+
+  useEffect(() => {
+    const el = vp.current
+    const s = sc.current
+    if (!el || !s) return
+    // Anchored at the cursor, in both modes.
+    const zoomAt = (factor: number, cx: number, cy: number) =>
+      zoomToRef.current(clampZoom(live.current.zoom * factor), cx, cy)
+    // A trackpad pinch arrives as wheel + ctrlKey; ⌘+wheel is the same gesture on a mouse.
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return
+      e.preventDefault()
+      zoomAt(Math.exp(-e.deltaY * 0.01), e.clientX, e.clientY)
+    }
+    // Safari also fires gesture events; without these it zooms the page.
+    type GestureEvt = Event & { scale?: number; clientX?: number; clientY?: number }
+    let last = 1
+    const onGestureStart = (e: Event) => {
+      e.preventDefault()
+      last = 1
+    }
+    const onGestureChange = (e: GestureEvt) => {
+      e.preventDefault()
+      const scale = e.scale ?? 1
+      zoomAt(scale / last, e.clientX ?? 0, e.clientY ?? 0)
+      last = scale
+    }
+    const onGestureEnd = (e: Event) => e.preventDefault()
+    el.addEventListener('wheel', onWheel, { passive: false })
+    el.addEventListener('gesturestart', onGestureStart, { passive: false })
+    el.addEventListener('gesturechange', onGestureChange, { passive: false })
+    el.addEventListener('gestureend', onGestureEnd, { passive: false })
+    return () => {
+      el.removeEventListener('wheel', onWheel)
+      el.removeEventListener('gesturestart', onGestureStart)
+      el.removeEventListener('gesturechange', onGestureChange)
+      el.removeEventListener('gestureend', onGestureEnd)
+    }
+  }, [])
+
+  // Drag to pan, wall mode only. Window listeners so a fast drag does not drop out.
+  useEffect(() => {
+    const s = sc.current
+    if (!s) return
+    let drag: { x: number; y: number; l: number; t: number } | null = null
+    const down = (e: MouseEvent) => {
+      if (live.current.mode !== 'wall' || e.button !== 0) return
+      drag = { x: e.clientX, y: e.clientY, l: s.scrollLeft, t: s.scrollTop }
+      setDragging(true)
+    }
+    const move = (e: MouseEvent) => {
+      if (!drag) return
+      s.scrollLeft = drag.l - (e.clientX - drag.x)
+      s.scrollTop = drag.t - (e.clientY - drag.y)
+    }
+    const up = () => {
+      drag = null
+      setDragging(false)
+    }
+    s.addEventListener('mousedown', down)
+    window.addEventListener('mousemove', move)
+    window.addEventListener('mouseup', up)
+    return () => {
+      s.removeEventListener('mousedown', down)
+      window.removeEventListener('mousemove', move)
+      window.removeEventListener('mouseup', up)
+    }
+  }, [])
+
+  const fit = () => {
+    const el = vp.current
+    if (!el) return
+    if (mode === 'wall' && wallEl.current) {
+      // The whole wall in one screen: whichever axis is tighter.
+      const w = wallEl.current.offsetWidth
+      const h = wallEl.current.offsetHeight
+      zoomAtCentre(clampZoom(Math.min(1, el.clientWidth / w, el.clientHeight / h)))
+    } else {
+      const avail = el.clientWidth - 40
+      zoomAtCentre(clampZoom(Math.min(1, avail / (clamp || avail))))
+    }
+  }
+
+  const corner =
+    'absolute bottom-3 z-10 flex h-8 items-center gap-0.5 rounded-lg border border-neutral-200 bg-white p-[3px] text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,.06),0_4px_12px_rgba(0,0,0,.06)]'
+
+  return (
+    <div
+      ref={vp}
+      data-canvas={dark ? 'dark' : 'light'}
+      className={`group relative min-h-0 flex-1 overflow-hidden rounded-xl border ${
+        dark ? 'border-neutral-700 bg-neutral-800' : 'border-neutral-200 bg-neutral-100'
+      }`}
+    >
+      <div
+        ref={sc}
+        className={`absolute inset-0 overflow-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+          mode === 'wall' ? (dragging ? 'cursor-grabbing select-none' : 'cursor-grab') : ''
+        }`}
+      >
+        {mode === 'proto' ? (
+          <div className="flex min-h-full p-5 pb-16" style={{ justifyContent: 'safe center', alignItems: 'safe center' }}>
+            <div ref={stageEl} className="shrink-0" style={{ width: clamp || '100%', zoom }}>
+              {children}
+            </div>
+          </div>
+        ) : (
+          <div ref={wallEl} className="w-max p-6 pb-20" style={{ zoom }}>
+            {wall}
+          </div>
+        )}
+      </div>
+
+      {wall !== undefined && (
+        <div className={`${corner} left-3`}>
+          <CornerBtn on={mode === 'proto'} onClick={() => onMode('proto')}>
+            TODO prototype
+          </CornerBtn>
+          <CornerBtn on={mode === 'wall'} onClick={() => onMode('wall')}>
+            TODO wall
+          </CornerBtn>
+        </div>
+      )}
+      <div className={`${corner} right-3`}>
+        <CornerBtn title="TODO zoom out" onClick={() => zoomAtCentre(clampZoom(zoom - 0.1))}>
+          −
+        </CornerBtn>
+        <CornerBtn mono title="TODO reset to 100%" onClick={() => zoomAtCentre(1)}>
+          {Math.round(zoom * 100)}%
+        </CornerBtn>
+        <CornerBtn title="TODO zoom in" onClick={() => zoomAtCentre(clampZoom(zoom + 0.1))}>
+          +
+        </CornerBtn>
+        <CornerBtn title="TODO fit to viewport" onClick={fit}>
+          TODO fit
+        </CornerBtn>
+        <span className="mx-0.5 h-4 w-px bg-neutral-200" />
+        <CornerBtn on={dark} title="TODO canvas background" onClick={() => setDark(!dark)}>
+          ◐
+        </CornerBtn>
+      </div>
+    </div>
+  )
+}
+
+type ZoneProps = { zone: PanelZone; children?: ReactNode }
+
+/**
+ * One zone of the panel. `zone` is required and closed, so a control cannot be
+ * placed without saying what it changes. An empty zone renders nothing — the
+ * wizard-step control disappears with the wizard, not into an empty heading.
+ *
+ * The output zone is set apart on purpose: it is the only zone whose result flows
+ * back into the project (the editor's prompt). Everything else dies with the tab.
+ */
+export function Zone({ zone, children }: ZoneProps) {
+  if (Children.toArray(children).length === 0) return null
+  const out = zone === 'output'
+  return (
+    <section className={`border-t border-neutral-200 px-3.5 pt-3 pb-3.5 ${out ? 'bg-neutral-50' : ''}`}>
+      <div className={`mb-2.5 text-[11px] font-semibold ${out ? 'text-amber-700' : 'text-neutral-900'}`}>
+        {ZONE_TITLE[zone]}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+/**
+ * The panel. It takes Zones and nothing else, and it orders them — App.tsx cannot
+ * put a control first, last, or outside a zone. In wall mode the screen and
+ * condition zones are dropped (they have become the wall's axes) and so is the
+ * readout (there is no "current" screen).
+ *
+ * Collapsed, it has to remain a thing that reads as clickable. The first version
+ * left an empty 560px strip — same width, nothing in it — which read as a
+ * leftover, and the user could not find the way back.
+ */
+export function Panel({
+  open,
+  onToggle,
+  mode,
+  title,
+  readout,
+  children,
+}: {
+  open: boolean
+  onToggle: () => void
+  mode: ViewMode
+  /** TODO the panel's name, in the deliverable's language */
+  title: string
+  /** the readout block; hidden in wall mode */
+  readout?: ReactNode
+  children?: ReactNode
+}) {
+  if (!open) {
+    return (
+      <button
+        onClick={onToggle}
+        className="fixed top-1/2 right-0 z-50 -translate-y-1/2 rounded-l-lg border border-r-0 border-neutral-200 bg-white px-2 py-2.5 text-[11px] tracking-widest text-neutral-900 shadow-md [writing-mode:vertical-rl] hover:bg-neutral-100"
+      >
+        ⚙ {title}
+      </button>
+    )
+  }
+  const kids = Children.toArray(children)
+  for (const z of kids) {
+    if (!isValidElement(z) || z.type !== Zone) {
+      // Loud on purpose. TypeScript cannot check a JSX child's component, so the
+      // rule "nothing sits in the panel outside a zone" is held here, at render.
+      throw new Error('Panel accepts <Zone> children only — a control outside a zone has no place')
+    }
+  }
+  const zones = kids as ReactElement<ZoneProps>[]
+  const hidden: readonly PanelZone[] = mode === 'wall' ? ['screen', 'condition'] : []
+  const ordered = ZONE_ORDER.filter((k) => !hidden.includes(k)).flatMap((k) =>
+    zones.filter((z) => z.props.zone === k),
+  )
+  return (
+    <aside className="flex w-[288px] shrink-0 flex-col bg-white pr-1 text-neutral-900">
+      <div className="flex shrink-0 items-center justify-between px-3.5 pt-3 pb-2.5">
+        <span className="text-xs font-semibold">{title}</span>
+        <button
+          onClick={onToggle}
+          title="TODO collapse"
+          className="inline-flex h-[26px] w-[26px] items-center justify-center rounded-md border border-neutral-200 text-xs text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
+        >
+          ›
+        </button>
+      </div>
+      {/* readout OUTSIDE the scroller: it stays put while the zones scroll */}
+      {mode === 'proto' && <div className="shrink-0">{readout}</div>}
+      <div className="min-h-0 flex-1 overflow-y-auto">{ordered}</div>
+    </aside>
+  )
+}
+
+type ChoiceBool = {
+  label: string
+  value: boolean
+  onChange: (v: boolean) => void
+  options?: undefined
+}
+type ChoiceOne<T extends string | number> = {
+  label: string
+  options: readonly T[]
+  value: T
+  onChange: (v: T) => void
+  labelOf?: (v: T) => string
+}
+
+/**
+ * The one control. Its shape is a function of the data, and the caller never
+ * picks it: a boolean is a switch, up to four exclusive options are a segmented
+ * control, five or more are a dropdown. "Can choose" is where inconsistency gets
+ * in; this removes the choice, the same way Panel removes the ordering.
+ */
+export function Choice<T extends string | number>(p: ChoiceBool | ChoiceOne<T>) {
+  let widget: ReactNode
+  if (p.options === undefined) {
+    widget = (
+      <button
+        role="switch"
+        aria-checked={p.value}
+        onClick={() => p.onChange(!p.value)}
+        className={`relative h-[18px] w-[30px] rounded-full transition-colors ${p.value ? 'bg-neutral-900' : 'bg-neutral-300'}`}
+      >
+        <span
+          className={`absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-[left] ${p.value ? 'left-[14px]' : 'left-0.5'}`}
+        />
+      </button>
+    )
+  } else if (p.options.length <= 4) {
+    const { options, value, onChange, labelOf } = p
+    widget = (
+      <div className="inline-flex max-w-full gap-0.5 rounded-[7px] bg-neutral-100 p-0.5">
+        {options.map((o) => (
+          <button
+            key={o}
+            onClick={() => onChange(o)}
+            className={`rounded-[5px] px-2 py-[3px] text-[11px] whitespace-nowrap ${
+              o === value ? 'bg-white font-medium text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,.08)]' : 'text-neutral-500'
+            }`}
+          >
+            {labelOf ? labelOf(o) : o}
+          </button>
+        ))}
+      </div>
+    )
+  } else {
+    const { options, value, onChange, labelOf } = p
+    widget = (
+      <select
+        value={value}
+        onChange={(e) => onChange(options[e.target.selectedIndex])}
+        className="rounded-md border border-neutral-200 bg-white px-2 py-[3px] text-[11px] text-neutral-900"
+      >
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {labelOf ? labelOf(o) : o}
+          </option>
+        ))}
+      </select>
+    )
+  }
+  return (
+    <div className="mb-2 flex min-h-[26px] items-center gap-2.5 last:mb-0">
+      <label className="w-[60px] shrink-0 text-[11px] text-neutral-500">{p.label}</label>
+      <div className="min-w-0 flex-1">{widget}</div>
+    </div>
+  )
+}
+
+/**
+ * The readout block: measured numbers, pinned above the zones. A degradation rule
+ * has to be checkable against numbers rather than by feel, so print the measured
+ * width, the lens scale, each column's resolved state, the threshold, and which
+ * steps fired. Wrap a value in <b> to make it read as the number.
  */
 export function Readout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-neutral-700 pt-1.5 font-mono text-[10px] text-neutral-300">
+    <div className="mx-3.5 mb-1.5 grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-neutral-100 px-3 py-2 font-mono text-[10.5px] leading-normal text-neutral-500 [&_b]:font-semibold [&_b]:text-neutral-900">
       {children}
     </div>
   )
@@ -572,5 +923,63 @@ export function Readout({ children }: { children: ReactNode }) {
  * else here: a readout you cannot read under the current skin cannot report on it.
  */
 export function Alert({ children }: { children: ReactNode }) {
-  return <span className="text-amber-300">{children}</span>
+  return <span className="col-span-2 font-semibold text-amber-700">{children}</span>
+}
+
+/**
+ * The wall: every archetype × every state × every width tier, side by side.
+ * The rows and columns are the caller's — they come from layout.md §4, §8 and
+ * §3.4 — and `render` is the shell at that column's width. **It draws no arrows.**
+ * layout.md has no clause for how a user gets from one screen to the next, so a
+ * connector here would be the wireframe inventing structure.
+ *
+ * Each tile is the shell laid out at its real width and shown through a CSS zoom,
+ * so the density on a tile is the density at that tier.
+ */
+export function Wall({
+  rows,
+  cols,
+  scale = 0.28,
+  tileHeight = 640,
+  render,
+  caption,
+}: {
+  rows: readonly { id: string; label: string; sub?: string }[]
+  cols: readonly { id: string; label: string; sub?: string; width: number }[]
+  scale?: number
+  /** the shell's height inside a tile, in layout pixels */
+  tileHeight?: number
+  render: (rowId: string, colId: string, width: number) => ReactNode
+  caption?: (rowId: string, colId: string) => string
+}) {
+  const tpl = `120px ${cols.map((c) => Math.round(c.width * scale) + 'px').join(' ')}`
+  return (
+    <div className="text-neutral-900 group-data-[canvas=dark]:text-neutral-100">
+      <div className="mb-2 grid items-end gap-5" style={{ gridTemplateColumns: tpl }}>
+        <div />
+        {cols.map((c) => (
+          <div key={c.id} className="font-mono text-[10px] font-semibold tracking-wider text-neutral-500 uppercase group-data-[canvas=dark]:text-neutral-400">
+            {c.label}
+            {c.sub && <small className="mt-0.5 block font-normal tracking-normal text-neutral-400 normal-case">{c.sub}</small>}
+          </div>
+        ))}
+      </div>
+      {rows.map((r) => (
+        <div key={r.id} className="mb-7 grid items-start gap-5" style={{ gridTemplateColumns: tpl }}>
+          <div className="sticky left-0 text-xs font-semibold">
+            {r.label}
+            {r.sub && <small className="block text-[10px] font-normal text-neutral-400">{r.sub}</small>}
+          </div>
+          {cols.map((c) => (
+            <div key={c.id}>
+              <div className="overflow-hidden" style={{ width: c.width, height: tileHeight, zoom: scale }}>
+                {render(r.id, c.id, c.width)}
+              </div>
+              {caption && <div className="mt-1.5 font-mono text-[10px] text-neutral-400">{caption(r.id, c.id)}</div>}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
 }

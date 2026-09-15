@@ -15,7 +15,7 @@
  *
  * **That rule covers the whole wireframe directory, not just this file.** The single
  * exemption is `inspect.tsx`, which holds the apparatus — annotation layer, skin
- * banner, skin editor, demo toggle bar — and carries fixed colours because none of it
+ * banner, skin editor, and the browser chrome — and carries fixed colours because none of it
  * may follow the skin. The exemption is a file, so moving something into it shows up
  * as a file move in review. `check-colours.sh` enforces both halves in the generated
  * project; nothing else does.

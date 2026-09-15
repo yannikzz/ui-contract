@@ -43,7 +43,7 @@ export type ShellLayout = {
   mainWidth: number
   /** 触底：可用宽已低于 mainMinWidth，不再继续降级 */
   atFloor: boolean
-  /** 本次实际触发的降级级次，用于在演示条上显示，让规则能被对着数字验证 */
+  /** 本次实际触发的降级级次，用于在读数块里显示，让规则能被对着数字验证 */
   triggered: string[]
 }
 

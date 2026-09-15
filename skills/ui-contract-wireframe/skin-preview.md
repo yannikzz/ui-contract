@@ -29,7 +29,7 @@ Rule 4 is aimed at one exact failure: six months on, somebody opens the preview,
 |---|---|
 | Fixed colours — a marker tinted by the theme it warns about can vanish (measured; see below) | That it must sit at the top |
 | Names the token file, so the reader of the picture knows where to go | That it must be a full-width strip |
-| Not dismissible, and not hidden by collapsing the verification panel | That it must occupy layout space rather than overlay |
+| Not dismissible, and not hidden by collapsing the panel | That it must occupy layout space rather than overlay |
 | Big enough to read at screenshot scale, and not croppable-by-accident like a corner badge | Any particular height |
 
 ⚠ **This used to read "do not shrink it into a corner badge", full stop.** That is a shape, not a rule, and a shape gets worked around: the next person has a different shape and no way to tell whether it satisfies anything. A corner badge does fail the requirement (easy to crop, easy to miss) — saying so *without saying why* leaves the boundary to guesswork.
@@ -43,15 +43,15 @@ project, and this repo's own invariants — read it rather than keeping a copy.
 The exemption is a file and its exports are a declared closed list; what this settles is where
 the declaration lives. Written into three places, one decision cost three edits and only the
 checks caught a missed one — measured twice in an afternoon, adding `SkinBanner` and renaming
-`DemoBar` to `DemoPanel`. The decision belongs where it is made: adding a name shows up in that
-file's diff.
+the panel component of that day. The decision belongs where it is made: adding a name shows up in
+that file's diff.
 
 Two properties the readers must keep, and both are the same rule seen elsewhere:
 
 - **The marker stays ASCII** even when the comment is written in the deliverable's language — as with the paths table's Key column and the declaration table's three keywords.
 - **A missing declaration fails loudly.** "No `APPARATUS:` line" must never be read as "nothing is declared", because that silently exempts every export in the file.
 
-**Inspect chrome does not follow the skin** — badges, region outline, tooltip, banner, skin editor, demo toggle panel. They are apparatus, not product surfaces, so they carry fixed colours, and all of them live in **`inspect.tsx`, which is the exemption**: anchored on the file, not on a marker inside one. Its exports are a declared closed list, so moving a product component in — buying it the right to hardcode colour — has to be a decision somebody wrote down.
+**Inspect chrome does not follow the skin** — badges, region outline, tooltip, banner, skin editor, and the browser chrome (viewport, corners, panel, zones, wall headers). They are apparatus, not product surfaces, so they carry fixed colours, and all of them live in **`inspect.tsx`, which is the exemption**: anchored on the file, not on a marker inside one. Its exports are a declared closed list, so moving a product component in — buying it the right to hardcode colour — has to be a decision somebody wrote down.
 
 Which surfaces, and what breaks for each, is the table in §Control surfaces are not skinned
 either below — one rule, not a list of exceptions.
@@ -117,10 +117,10 @@ Three things needed this exception, and they are one rule, not three:
 |---|---|
 | Annotation badges, region outline, tooltip | A tooltip tinted by the theme it describes cannot describe it |
 | The skin banner | A warning tinted by the values it warns about can vanish |
-| **The demo toggle panel** (`DemoPanel` / `Group` / `Sw` / `Readout` / `Alert`) | **The control that turns the skin off becomes unreadable — you are stuck in it** |
-| The skin editor panel | Same as the toggle panel: the fields you fix a bad theme with must survive that theme |
+| **The panel and its controls** (`Panel` / `Zone` / `Choice` / `Readout` / `Alert`) and the viewport chrome (`Viewport` / `Wall`) | **The control that turns the skin off becomes unreadable — you are stuck in it** |
+| The skin editor | Same as the panel: the fields you fix a bad theme with must survive that theme |
 
-The third one was found by converting a real wireframe and watching the toggles change colour. `Sw` and `Group` used to sit at the bottom of `App.tsx`, well past the product markup, so a "convert everything below the product marker" pass took them with it.
+The third one was found by converting a real wireframe and watching the toggles change colour. The toggle primitives of that day sat at the bottom of `App.tsx`, well past the product markup, so a "convert everything below the product marker" pass took them with it.
 
 **That trap is now closed by where the code lives, not by this paragraph.** The panel's chrome is in `inspect.tsx`, so the conversion pass cannot reach it and `App.tsx` carries no colour of its own. The note is kept because it says *why* the file boundary is drawn there — a rule whose reason is lost gets undone by the next person who finds it inconvenient.
 

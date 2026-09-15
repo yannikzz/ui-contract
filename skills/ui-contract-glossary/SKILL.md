@@ -136,6 +136,15 @@ When producing deliverables in a language **not** listed here, pick one renderin
 | source (of a projection) | 源 | `layout.md` is required; `design.md` and the decision records are optional |
 | the handover | 交接 | Where the structural half ends. The visual half is a separate engagement with no arrow into it — never call this a 停点 or draw it as a step |
 | annotation layer | 区域标注层 | The inspect mode over the wireframe |
+| prototype browser | 原型浏览器 | The apparatus around the projection, as a whole: viewport + corners + panel + wall. Never 控制台 for the whole — that word is the panel's |
+| viewport | 视口 | The light-grey rounded area the projection lives in. The panel is outside it |
+| corner controls | 角落控制 | Inside the viewport; only what acts on the viewport itself (view switch, lens, canvas background) |
+| panel | 控制面板 | Outside the viewport; only what acts on the prototype. Never 演示条 / 开关条 |
+| zone (of the panel) | 区 | 选屏 / 条件 / 视图 / 输出 — by what the control changes. Fixed order, closed set |
+| readout block | 读数块 | The measured numbers, pinned above the zones |
+| choice | 选择器 | The one control; its shape follows the data (开关 / 分段 / 下拉) and is never picked by hand |
+| wall | 样张墙 | Every archetype × state × width tier laid out at once. Never 流程图 — it draws no arrows |
+| lens | 镜头 | The viewport's zoom. It changes the scale, never the measured width |
 | asset layer | 资产层 | Token file + structural components, in the project's production tree |
 | deliberate tradeoffs | 刻意的取舍 | The list that stops the next agent from "fixing" them |
 | anti-pattern | 反模式 | |

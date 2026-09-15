@@ -50,12 +50,13 @@ that does apply on every pass is in §Visual discipline above.
         ├── README.md              How to run it, what each toggle verifies, why it's grey
         └── src/
             ├── inspect.tsx        The apparatus, and THE colour exemption: annotation layer,
-            │                      skin banner, skin editor, demo-panel chrome. Imports RegionId /
-            │                      Region / REGION_META from the asset layer — never redefines them
+            │                      skin banner, skin editor, and the browser chrome — viewport,
+            │                      corners, panel, zones, wall. Imports RegionId / Region /
+            │                      REGION_META from the asset layer — never redefines them
             ├── wire.tsx           NEUTRAL + SKIN + the neutral parts. No colour values outside NEUTRAL
             ├── structure.ts       Structural parameter constants + the degradation pure function
             ├── fixtures.ts        Fake data (header says "not a spec")
-            ├── App.tsx            Shell + archetype routing + demo toggles
+            ├── App.tsx            Browser state + shell composition. Places nothing; carries no colour
             └── pages/*.tsx        One file per page archetype
 ```
 
@@ -84,7 +85,7 @@ Three consequences, none of which take care of themselves:
 
 **Regenerating rebuilds `wireframe/` only.** The workbench also holds `tokens.input.json`, written by a different step. Wiping the whole workbench takes the user's brand knobs with it, silently.
 
-`assets/wire.tsx.template` and `assets/inspect.tsx.template` are the starting points for those two files, and `assets/check-colours.sh.template` for the check — copy and adapt.
+`assets/wire.tsx.template` and `assets/inspect.tsx.template` are the starting points for those two files, and `assets/check-colours.sh.template` for the check — copy and adapt. **The apparatus template carries `TODO` placeholders that render as text** — the four zone titles, the corner labels, the panel's title — in addition to the ones in comments. Replace every one in the deliverable's language; `check-colours.sh` does not look for them.
 
 **The allowlist is not defined here.** `RegionId`, `REGION_META` and the bare `Region` container live in the asset layer, in the project's production tree. If you find yourself declaring a region name inside the wireframe, stop — that inverts the dependency and gives the project two allowlists.
 
@@ -139,27 +140,61 @@ Handle the first-frame case: before `ResizeObserver` reports, the measured width
 
 ---
 
-## The verification panel
+## The prototype browser
 
-**Floating and collapsible, not a bar pinned to the top.** A fixed bar costs about 180px of
-vertical space, and one of the wireframe's two jobs is showing **real density** — a permanent
-strip above the product distorts the very question "how many rows fit". Collapsed, it is a
-corner control and the product gets the whole screen.
+The apparatus around the projection is itself a small interface, and it gets the same treatment
+this plugin gives the product: **named parts, one placement rule, closed sets.** Not a list of
+"at least these controls" — that is a lower bound, and the tenth control lands wherever the agent
+puts it. The parts and their rule are fixed in `inspect.tsx`; `App.tsx` composes them and decides
+nothing about placement.
 
-⚠ **The skin banner does not live inside it.** A warning that can be folded away is not a
-warning; render the banner outside the panel so collapsing cannot hide it.
+### Four parts, one rule
 
-At minimum the panel holds:
+| Part | What it is | What goes there |
+|---|---|---|
+| **Viewport** | The light-grey rounded area. The projection lives inside it — either the prototype or the wall | The thing being looked at |
+| **Corners** | Bottom-left and bottom-right, inside the viewport | Controls that **act on the viewport**: view switch, lens zoom, fit, canvas background |
+| **Panel** | To the right, **outside** the viewport, on the page's white | Controls that **act on the prototype**, plus the readout block |
+| **Wall** | The viewport's second view | Every archetype × state × width tier, side by side. §Wall below |
 
-- **Archetype switch** — verifies which shell parts are present per archetype
-- **Key state switch** — for every place the spec defines states
-- **Width clamp** (a few steps) — verifies the degradation cascade
-- **Overlay toggle** (if there is one)
-- **Annotation toggle**
-- **Skin preview toggle** — off by default, never persisted; see the section above
-- **Direction switch** — the candidate directions from `originate` Step 1: the chosen one and the ones declined. **Not themes this plugin ships** — that would be "generate a default brand", three times, with the values living in a throwaway file. Read them from the knobs record
-- **Token editor** — every mapped token gets a field, edits apply live and die with the tab, output is a prompt
-- **Live data row** — current width, main-area width, threshold, degradations fired, user preference state
+> **Does it change *how you look*, or *what you look at*?** The first goes in a corner; the second
+> goes in the panel. Every new control answers that in one step.
+
+The one closed exception is the panel's own collapse/expand: it is an operation, but it must stay
+visible or there is no way back. Collapsed, the panel becomes a stub that still reads as clickable —
+the first version left an empty 560px strip that read as a leftover, and the user could not find
+the way back.
+
+**There is no top bar.** The reason the old rule gave — the wireframe's job is showing real
+density, and a permanent strip above the product distorts "how many rows fit" — still holds. A
+strip that only displays numbers is not worth what it costs; the numbers go in the panel instead.
+
+⚠ **The skin banner is still outside the panel**, across the top of the viewport, and cannot be
+collapsed. A warning that can be folded away is not a warning.
+
+### The panel: a readout block and four zones
+
+The readout block sits above the zones and does not scroll with them: shell width as measured,
+lens scale, each column's resolved state, main-area width against its threshold, which
+degradations fired. It is how a degradation rule gets verified against numbers instead of by feel.
+
+Below it, four zones in a **fixed order**, chosen by what the control changes:
+
+| Zone | Changes | Holds |
+|---|---|---|
+| Screen | Which page | Archetype, wizard step |
+| Condition | The environment it is seen in | Width clamp, nav preference, data state, panel state, overlay |
+| View | How it is seen — on the prototype, not the viewport | Annotation toggle, skin preview toggle |
+| Output | **The only zone whose result flows back into the project** | Direction switch, token editor |
+
+`Zone` requires a `zone` prop, the zone type is a closed union, and `Panel` sorts its children by
+that order. An empty zone does not render. The output zone is visually set apart because it is
+different in kind: everything else is pure observation and dies with the tab; this zone produces
+the prompt that edits `tokens.input.json`. Zone titles are two words; no subtitles.
+
+**Direction switch** — the candidate directions from `originate` Step 1: the chosen one and the
+ones declined. **Not themes this plugin ships** — that would be "generate a default brand", three
+times, with the values living in a throwaway file. Read them from the knobs record.
 
 ⚠ **Say what the direction switch cannot show.** It swaps tokens, so a direction whose defining
 trait is a *treatment* rather than a value — filling whole rows instead of marking their edge —
@@ -167,7 +202,70 @@ looks nearly identical to the chosen one. Measured on a real wireframe: the decl
 row" direction differed only in chip saturation once switched. Hand it over with that stated, or
 the control quietly claims to preview more than it does.
 
-Give the README a "toggle → what it verifies" table. That table is how the user reviews the work; don't make them guess.
+### Controls: the shape is a function of the data
+
+`Choice` picks its own widget: a boolean is a switch, up to four exclusive options are a
+segmented control, five or more are a dropdown. The agent supplies options and never a widget.
+"Can choose" is where inconsistency gets in, and this removes the choice — the same move as the
+zone order. Ten archetypes therefore become a dropdown; that hides the others, and ten archetypes
+is also the enumeration bloat `layout.md`'s object-test exists to stop.
+
+### Corners
+
+Bottom-left: the view switch (prototype / wall) — rendered only when a wall is supplied.
+Bottom-right: lens out / scale / in, fit-to-viewport, and the canvas background toggle. The set is
+closed inside `Viewport`; a project that needs one more viewport-level control edits the apparatus
+file and its `APPARATUS:` line, so the addition is a visible diff.
+
+"Dark mode" here means the **canvas background** only. A dark version of the prototype would be a
+second `NEUTRAL` map — part of the thing being looked at, and out of scope.
+
+### The lens is not width
+
+The viewport has a lens: trackpad pinch and ⌘+wheel zoom the canvas **around the cursor** in both
+views (the browser's own page zoom is intercepted); the corner buttons zoom around the viewport's
+centre; the wall pans by dragging; the canvas shows no scrollbars. **At rest the prototype is
+centred on both axes** — a phone-width tier sits in the middle of the viewport, not at its top —
+and once it outgrows the viewport it becomes scrollable from the top-left. The anchor is computed
+from where the element actually lands after the re-render, so that transition does not jump. The lens is available on the prototype too, because a 1440 laptop minus the panel does
+not fit the 1280 tier and clipping is the only alternative.
+
+**The measured width is read from layout — `offsetWidth`, or `ResizeObserver`'s `contentRect` —
+and never from `getBoundingClientRect` divided by the lens. The lens has no transition.** Measured:
+with a 0.15s transition and the rect-divided-by-scale reading, every pinch tick measured mid-animation,
+the shell width jittered, and the degradation flipped with it. Layout is what is being measured;
+pixels are how it is shown.
+
+### Wall
+
+The wall lays out **every archetype × every non-happy-path state × every width tier**, each tile
+rendered by the same shell at that tier's width. `Wall` itself is a two-axis grid: rows are
+archetypes, columns are the width tiers in the normal state followed by each non-happy-path state
+at one reference tier — the caller folds the third axis into the columns, and the column labels
+say which section each came from. All three axes are already in `layout.md` — §4
+archetypes, §8 states, §3.4 tiers — so the wall projects them and invents nothing. It answers the
+question single-page switching cannot: does the structure hold on every page at once, and what
+does a direction look like on all of them.
+
+**It draws no arrows.** `layout.md` has no clause for how a user gets from one screen to the next;
+it answers where a feature goes. A connector on the wall would be the wireframe inventing structure,
+and the next agent would build to it. Flow diagrams start with a section in `layout.md`, not here.
+
+In wall mode the screen and condition zones do not render — they have become the wall's axes — the
+view and output zones act on every tile, and the readout block hides because there is no "current"
+screen.
+
+**This requires the shell to be a component that takes its width as a prop.** The prototype view
+feeds it the `ResizeObserver` reading; the wall feeds it the column's width. A shell inlined in
+`App.tsx` with its hooks cannot be tiled. Build it as a component from the start.
+
+### Visual order
+
+Page white → viewport light grey, rounded → prototype white. The panel sits on the page's white,
+outside the viewport, with no line between them — the grey edge is the boundary. The chrome is
+light and its colours are fixed; the exemption is unchanged.
+
+Give the README a "control → what it verifies" table. That table is how the user reviews the work; don't make them guess.
 
 ---
 
@@ -177,7 +275,7 @@ Must contain:
 
 1. **What this is**: the reference implementation of a named spec; a low-fidelity wireframe; not product code; a **consumer** of the asset layer.
 2. **Before you touch anything** (not skippable): which document and sections to read; walk the decision tree; stop if it doesn't land; every region must render through `AnnotatedRegion` with an id from the allowlist; the order for adding a region (spec → asset layer → here).
-3. **The deliberate-tradeoffs list** — a two-column table: current state | this is deliberate. Its job is to **stop the next agent from "fixing" things left out on purpose**. Include at least: **grey is the default and the skin preview is off by default — neither is a bug**, no colour values outside `NEUTRAL`, uniform status label color, buttons only differentiated by grey, dense fixtures, clicking does nothing, degradation measured rather than breakpointed — plus anything the spec explicitly forbids that looks like an omission on screen.
+3. **The deliberate-tradeoffs list** — a two-column table: current state | this is deliberate. Its job is to **stop the next agent from "fixing" things left out on purpose**. Include at least: **grey is the default and the skin preview is off by default — neither is a bug**, no colour values outside `NEUTRAL`, uniform status label color, buttons only differentiated by grey, dense fixtures, clicking does nothing, degradation measured rather than breakpointed, **the wall draws no arrows**, **the lens changes the scale and not the measured width** — plus anything the spec explicitly forbids that looks like an omission on screen.
 
 Get that first entry right. Left as the old "no brand visuals here", the next agent reads the preview mode as something to rip out.
 4. **The single source for structural parameters**: which file, that changing it changes the spec, and that it is expected to move to the asset layer later.

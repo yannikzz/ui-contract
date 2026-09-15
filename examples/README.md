@@ -6,7 +6,7 @@ Real output from this skill, not hand-written illustrations. Reading one is the 
 
 | | |
 |---|---|
-| **Regenerated** by following `ui-contract-assets`, `ui-contract-enforce` and `ui-contract-wireframe` | the asset layer (it now holds the four prohibition types), `src/ui-contract.assert.ts`, `src/tokens.css`, the wireframe's `inspect.tsx` / `wire.tsx` / colour conversion, `check-colours.sh`, and every path that moved |
+| **Regenerated** by following `ui-contract-assets`, `ui-contract-enforce` and `ui-contract-wireframe` | the asset layer (it now holds the four prohibition types), `src/ui-contract.assert.ts`, `src/tokens.css`, the wireframe's `inspect.tsx` / `wire.tsx` / colour conversion, `check-colours.sh`, and every path that moved. **2026-09-15:** `inspect.tsx` regenerated again from the four-part browser template, and `App.tsx` adapted to its API (`Browser` / `Viewport` / `Panel` / `Zone` / `Choice`) — the controls' *order* is now the panel's, not the original run's, because the new API leaves no way to order them by hand |
 | **Untouched, from the original 2026-08-21 run** | `layout.md`, `design.md`, the ten layout ADRs, the fixtures, the page files' structure, and Appendix C's traces |
 
 It is **not** a hand-patch made to look like current output, and it is **not** a from-scratch re-run either. Calling it either one would be false, so it is called what it is. The rule it obeys is the one below: never edit this to *look* right.
@@ -27,6 +27,7 @@ The reason is that the two have different jobs. **A user's project exists to be 
 |---|---|
 | The naming declaration table in `design.md`, and borrowed token names | [ADR-0005](../docs/adr/0005-originate-instrument-and-borrowed-token-names.md) |
 | The pointer cut — 16 references into this plugin's own development tree still stand in the produced artifacts | `invariants.sh` check 34, landed 2026-08-26 against `skills/` only |
+| **The wall** — the viewport's second view, every archetype × state × width tier. The template's `Viewport` takes a `wall` and renders the view switch only when given one; this example gives none, because its shell is inlined in `App.tsx` with its hooks and cannot be tiled. `App.tsx` says so at the call site. The `Wall` export exists in `inspect.tsx`, unused | [ADR-0015](../docs/adr/0015-prototype-browser-four-parts.md) |
 | **The two halves, and everything that follows from the split** — this example was produced by one uninterrupted pass, so its asset layer sits in the production tree with no sign of anyone having authorised the move, its `config.md` has neither the scope authorisation nor the staged-asset row, and nothing in it distinguishes the structural half from the visual one | [ADR-0013](../docs/adr/0013-projection-layer-and-two-halves.md) |
 
 **About that third row.** It is the largest gap in this table, and it will not be closed by an
@@ -53,7 +54,7 @@ A shape that slips past the pattern entirely: `.ui-contract-local/wireframe/CLAU
 Cleared by re-running the affected units, not by editing these files — "It is deliberately not hand-patched to close what remains", below.
 
 
-**Nothing is behind on the wireframe's features any more.** The skin preview, the token editor (`SkinEditor`, `toHex`), the direction switch and the collapsible verification panel are all present — and the last two went the other way: they were built here first and then moved into the templates, which is what `invariants.sh` check 23 caught when the example started exporting `DemoPanel` while the template still shipped `DemoBar`.
+**One wireframe feature is behind — the wall — and it is the first row of the table above.** Everything else the template ships is present: the skin preview, the token editor (`SkinEditor`, `toHex`), the direction switch, the collapsible panel. Two of those once went the other way: they were built here first and then moved into the templates, which is what `invariants.sh` check 23 caught when the example started exporting a panel component the template did not yet ship.
 
 The example also carries two things the outlines only learned from it: a **border section** with one width and three enumerated levels, and **status semantic classes** split across the two specs. Both were found by building this wireframe — it had six border roles against the spec's two, and every status label the same grey — and both are now requirements in `layout-md-outline.md` / `design-md-outline.md`.
 
@@ -98,12 +99,12 @@ admin-console/
         ├── index.html                  — vite entry, 12 lines. No structure of its own
         ├── src/main.tsx                — mounts App and pulls in index.css. 5 lines
         ├── src/index.css               — imports the production token file: the wireframe consumes values, it owns none
-        ├── src/inspect.tsx             — the apparatus, and the colour exemption itself: annotation layer + demo-panel chrome
+        ├── src/inspect.tsx             — the apparatus, and the colour exemption itself: annotation layer + browser chrome (frame, viewport, corners, panel, zones, wall)
         ├── src/wire.tsx                — neutral parts + NEUTRAL, the only other place a colour value may appear
         ├── src/structure.ts            — structural parameters + degradation as a pure function
         ├── src/fixtures.ts             — fake data at deliberate maximum density: 20 rows, truncating titles, five status kinds. **Not a spec**
         ├── src/Inspector.tsx           — the focus slot. Its constraints live on the types: `page: PageWithInspector`, `kind: InspectorKind`
-        ├── src/App.tsx                 — shell + archetype routing + demo toggles, and no colour of its own
+        ├── src/App.tsx                 — browser state + shell composition; places no control and carries no colour of its own
         └── src/pages/*.tsx             — one file per page archetype
 ```
 
