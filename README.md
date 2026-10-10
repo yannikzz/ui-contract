@@ -179,11 +179,11 @@ The most valuable contributions are **scenarios where it produced a bad spec**. 
 
 Second most valuable: form-factor add-ons in `skills/ui-contract-layout/interview-layout.md`. The current set covers desktop, mobile, dashboards and content sites. Anything else (TV, watch, embedded, extension popups, CLI companions) is a gap.
 
-## Status and license
+Contributions are accepted under the same MIT license as the rest of the repository.
 
-This repository is **private while the skills are being finished**, and no license has been
-chosen yet. Until one is added, no permission to use, copy, modify, or distribute is
-granted — default copyright applies. A license will land here before the repo goes public.
+## License
+
+[MIT](LICENSE), copyright [@yannikzz](https://github.com/yannikzz) and [@loot20mal](https://github.com/loot20mal).
 
 ---
 

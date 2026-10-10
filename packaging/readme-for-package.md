@@ -83,3 +83,7 @@ claude plugin marketplace remove yannikzz
 ```
 
 用方式 B 安装的话，到技能目录里删掉这 15 个文件夹即可。
+
+## 许可证
+
+MIT，见同目录下的 `LICENSE`。版权归 yannikzz 和 loot20mal（GitHub 账号）。

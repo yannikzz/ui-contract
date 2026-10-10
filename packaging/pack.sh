@@ -5,7 +5,7 @@
 #   ./packaging/pack.sh
 #
 # What goes in is a closed list, not "everything minus the dev files": the manifests,
-# skills/, install.sh, and packaging/readme-for-package.md as the README. A new
+# skills/, install.sh, LICENSE, and packaging/readme-for-package.md as the README. A new
 # top-level directory therefore stays out until it is added here on purpose — the
 # safe direction for a file that leaves the repo.
 #
@@ -20,7 +20,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 
-SHIPPED=".claude-plugin skills install.sh packaging/readme-for-package.md"
+SHIPPED=".claude-plugin skills install.sh LICENSE packaging/readme-for-package.md"
 
 for tool in git python3 zip; do
   command -v "$tool" >/dev/null 2>&1 || { echo "pack.sh needs $tool." >&2; exit 1; }
