@@ -71,7 +71,14 @@ A friendly input passes on any tree, hole included. That is precisely how this d
 
 Must answer: which region names are legal · what each region holds · **what it must not hold**.
 
-Four columns: region name | responsibility (one line) | must hold | must not hold. Add a fifth for size constraints where they exist.
+Four columns: region name | responsibility (one line) | must hold | must not hold. Add a fifth for size constraints where they exist. **Copy the header row, do not translate it:**
+
+```
+| Region | Responsibility | Must hold | Must not hold |
+| 区域名 | 职责 | 允许放 | 禁止放 |
+```
+
+In any other language, keep the English beside your rendering in that column's header — `<yours> (must not hold)`. `ui-contract-audit` finds this column **by its header**, and only by these two spellings: a header that says 禁止 or 不该放 instead reads as no column at all.
 
 Requirements:
 

@@ -362,8 +362,47 @@ else
 fi
 
 echo "5. Every allowlist row states what it must not hold"
-B=$(awk '/^\| *`?[a-z]/ && /\|/ {n=split($0,a,"|"); if (a[n-1] ~ /^ *$/) print NR": "$0}' "$LAYOUT")
-[ -z "$B" ] && ok "no empty forbidden cells" || drift "$(echo "$B" | head -10)"
+# This used to test whether a row's LAST cell was empty. Two ways that was green on
+# exactly the defect it exists for, both measured:
+#
+#   · the column missing altogether — the last cell is then "must hold", which is
+#     never empty, so a three-column allowlist passed;
+#   · a fifth column for sizes, which layout-md-outline.md §2 allows — the check then
+#     read the size column, and an empty forbidden cell beside it passed.
+#
+# Anchored on a word in a header cell, a closed set: 禁止放 / must not hold, the
+# renderings ui-contract-glossary pins and the outline's §2 header spells out. The
+# column is found by name, then every row of that table is read at that index. Only a
+# header — a row directly above a |---| line — counts, so prose or a glossary row that
+# quotes the word does not open a table.
+# What gets through: a cell that says nothing in words (无, none, n/a) — only blanks
+# and lone dashes count as empty. What turns red that arguably should not: a header in
+# a third language without the English anchor beside it, and a table without leading
+# pipes. Both are loud and one edit from green, the direction `none yet` above prefers.
+B=$(awk '
+  function cells(line, arr) {
+    gsub(/\\\|/, "", line); sub(/^[ \t]*\|/, "", line); sub(/\|[ \t]*$/, "", line)
+    return split(line, arr, "|")
+  }
+  function named(s) { return index(s, "禁止放") || index(tolower(s), "must not hold") }
+  function blank(s) { gsub(/[ \t*]/, "", s); return s == "" || s == "-" || s == "—" || s == "–" }
+  !/^[ \t]*\|/ { col = 0; pend = 0; next }
+  col {
+    n = cells($0, c)
+    if (n < col || blank(c[col])) print NR": "$0
+    rows++; next
+  }
+  pend && /^[ \t]*\|[ \t:|-]*-[ \t:|-]*$/ { col = pend; pend = 0; found++; next }
+  { pend = 0; n = cells($0, h); for (i = 1; i <= n; i++) if (named(h[i])) { pend = i; break } }
+  END { if (!found) print "NOCOL"; else if (!rows) print "NOROWS" }
+' "$LAYOUT")
+case "$B" in
+  "")     ok "every allowlist row has a forbidden cell" ;;
+  NOCOL)  drift "no table in $LAYOUT has a 禁止放 / must not hold column — the allowlist lists what goes in but not what must not, and that column is the only part the type layer can enforce" ;;
+  NOROWS) drift "the 禁止放 / must not hold table in $LAYOUT has no rows" ;;
+  *)      drift "rows with an empty forbidden cell:
+$(echo "$B" | head -10)" ;;
+esac
 
 echo "6. Every allowlist name is findable in code"
 if [ -f "$REGION_TYPE" ]; then

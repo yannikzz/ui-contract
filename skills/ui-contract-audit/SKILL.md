@@ -74,7 +74,7 @@ The value of a health check is inversely proportional to what it costs to run. I
 | `design.md` holding literal **colours** | regex | full |
 | Declaration table and token file name the same tokens | parse both, compare | full (**warn**) |
 | Surface / `-foreground` pairs clear the contrast threshold | compute the ratio | full, hex only |
-| Every allowlist row has a "must not hold" cell | parse the table | full |
+| Every allowlist row has a "must not hold" cell | find the column by its header (禁止放 / must not hold), read every row at that index | full |
 | Every declared name is findable in code | grep each name | full |
 | The workbench is actually in `.gitignore` | grep | full |
 | The token file is **outside** the workbench | path comparison | full |

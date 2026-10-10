@@ -32,6 +32,21 @@ io.open(p,'w',encoding='utf-8').write(s.replace(old,new,1))
 PY
 }
 
+# 改夹具白名单的**每一行**，而不是只改表头：drop 删掉最后一列（模型漏写那一列时的真实形态），
+# add 在最后追加一列尺寸（大纲 §2 允许的第五列）。只改表头的话，测的是一张自相矛盾的表。
+lastcol(){ # lastcol <drop|add>
+  python3 - "$1" <<'PY'
+import io,re,sys
+p='layout.md'; s=io.open(p,encoding='utf-8').read()
+row=re.compile(r'(?m)^(\|.*\|)[^|\n]*\|$') if sys.argv[1]=='drop' else re.compile(r'(?m)^(\|.*\|)$')
+rep=(lambda m:m.group(1)) if sys.argv[1]=='drop' else \
+    (lambda m:m.group(1)+(' 尺寸 |' if '禁止放' in m.group(1) else '---|' if set(m.group(1))<=set('|-') else ' 220 |'))
+t=row.sub(rep,s)
+if t==s: sys.exit(9)
+io.open(p,'w',encoding='utf-8').write(t)
+PY
+}
+
 CASES=0
 # run_case 只看退出码。**warn 不改退出码**，所以一条只报 warn 的检查用 run_case
 # 是证明不了的——它挂了和它没挂，退出码一模一样。而「看起来在工作、其实永远返回绿」
@@ -108,6 +123,24 @@ run_case 1 "检查 4 · 三位十六进制（原来的 {6} 锚放过的那种写
   "printf '\n正文色 #fff。\n' >> design.md"
 run_case 1 "检查 5 · 白名单某行没写「禁止放什么」" \
   "sub layout.md '| \`inspector\` | 单对象属性 | 列表、批量动作 |' '| \`inspector\` | 单对象属性 |  |'"
+# 检查 5 原来判的是「每行**最后一格**空不空」，下面两种写法量过都是绿的（issue #17）：
+# 整列没写时最后一格是「允许放」，永远不空；有第五列尺寸时它判的是尺寸那一格。
+run_out 1 "no table in" "检查 5 · 整列「禁止放」都没写（每行只剩两格）" \
+  "lastcol drop"
+run_out 1 "rows with an empty forbidden cell" "检查 5 · 有第五列尺寸时，空的是中间那格「禁止放」" \
+  "lastcol add && sub layout.md '| 列表、批量动作 | 220 |' '|  | 220 |'"
+run_out 1 "no table in" "检查 5 · 表头写成非规范的「禁止」（术语表钉的是「禁止放」）" \
+  "sub layout.md '| 禁止放 |' '| 禁止 |'"
+run_out 1 "rows with an empty forbidden cell" "检查 5 · 用一个破折号占位，等于没写" \
+  "sub layout.md '| 列表、批量动作 |' '| — |'"
+# 同一条检查不许喊狼来了的那一半：英文表头要认得；空的是尺寸那格不算；
+# 别的表里有一行**内容**引用了「禁止放」这个词，不许被当成白名单的表头。
+run_case 0 "检查 5 · 英文表头 Must not hold 也认（术语表钉的另一种渲染）" \
+  "sub layout.md '| 区域名 | 允许放 | 禁止放 |' '| Region | Must hold | Must not hold |'"
+run_case 0 "检查 5 · 第五列尺寸空着不判红（判的是「禁止放」那一列，不是最后一列）" \
+  "lastcol add && sub layout.md '| 列表、批量动作 | 220 |' '| 列表、批量动作 |  |'"
+run_case 0 "检查 5 · 术语表里有一行写着「禁止放」，不许被当成表头" \
+  "printf '\n## 术语\n\n| 英文 | 中文 |\n|---|---|\n| must not hold | 禁止放 |\n| focus slot |  |\n' >> layout.md"
 run_case 1 "检查 8 · 一对 surface/-foreground 的对比度低于 design.md 的阈值" \
   "sub src/tokens.css '--card-foreground: #1a1a1a;' '--card-foreground: #f2f2f2;'"
 run_case 1 "检查 6 · 白名单里的区域名从没被渲染" \

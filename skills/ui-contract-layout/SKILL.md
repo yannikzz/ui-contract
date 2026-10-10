@@ -60,7 +60,7 @@ Region **descriptions** say **what goes here / what must not** — never "what t
 - [ ] Traced the decision tree with the four **hostile** inputs (`layout-md-outline.md` §Verify), each landing on exactly one region name or the explicit stop. **The traces are written into Appendix C**, not just performed in the conversation — one that leaves no trace in the artifact is indistinguishable from one that never happened
 - [ ] The fallback is *stop → §9*, not a real region, and it doesn't route back into the tree
 - [ ] Traced three or four **ordinary** requirements onto region names, **also in Appendix C** — stopping on everything passes the hostile traces too, and turns the contract into a permission queue
-- [ ] Every allowlist row has a "must not hold" cell, none of them empty
+- [ ] Every allowlist row has a "must not hold" cell, none of them empty, **and the column's header is copied from `layout-md-outline.md` §2** — re-read the table you wrote, not the one you meant to write. This is the step that has been skipped: the document still looks complete without the column
 - [ ] Every anti-pattern has a reason and a replacement
 - [ ] Every region description says "what goes here / what must not", not "what this is"
 - [ ] **The half was ended where it ends, and handed over** — see below
