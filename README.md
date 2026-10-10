@@ -144,6 +144,7 @@ docs/adr/               Decisions about developing this plugin
 docs/reference/         The plugin-eval harness reference — it has no public docs page
 .claude-plugin/         Marketplace + plugin manifests
 install.sh              Cross-agent installer; traverses skills/ with nothing hardcoded
+packaging/              pack.sh builds dist/ui-contract-<version>.zip for people without repo access
 ```
 
 `examples/admin-console/` is the fastest way to see what "done" looks like — including the part that's hard to describe: an allowlist where every row states what must **not** go there, and an appendix that records a judgement call along with the condition for reversing it. It is **not shipped with the skills**, deliberately: one product's information architecture sitting next to an agent is the single fastest way to get it copied.
