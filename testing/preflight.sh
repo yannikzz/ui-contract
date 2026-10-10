@@ -35,7 +35,7 @@ probe() { # probe <人话名字> <eval 目录>
   # early access 没开：跳过而不是判失败——否则没拿到灰度的人连网关 0 都跑不完。
   # 但要喊得足够响，因为「静默跳过」正是这套测试要防的东西。
   if printf '%s' "$out" | grep -q 'currently in early access'; then
-    warn "$name 跳过：这台机器的 \`plugin eval\` 早期访问没开（见 docs/reference/plugin-eval.md § Availability）"
+    warn "$name 跳过：这台机器的 \`plugin eval\` 早期访问没开（见 docs/reference/plugin-eval.md § Availability；本地没有就先按 docs/reference/EXTRACT.md 提取）"
     return 0
   fi
 

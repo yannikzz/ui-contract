@@ -1020,7 +1020,7 @@ graders: [ { type: tool_used, tool: Read, min: 1 } ]
 
 ### `tool_used: Skill` 默认不计分
 
-官方规则（`docs/reference/plugin-eval.md` § Graders）：`arm: with-only`，**以及每一条不写
+官方规则（`docs/reference/plugin-eval.md` § Graders，本地提取，见 `docs/reference/EXTRACT.md`）：`arm: with-only`，**以及每一条不写
 `arm` 的 `tool_used` on `Skill`**，在 `with-without` 的两个臂里都被排除出分数——
 原文 *a `passed: false` with `scored: false` under a run scoring 1.0 is expected*。
 

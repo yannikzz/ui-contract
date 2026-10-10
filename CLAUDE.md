@@ -23,7 +23,7 @@ Ordered by cost. `./testing/run.sh` runs the two free ones; the paid ones have t
 
 **A green CI does not mean mergeable.** `.github/workflows/gates.yml` runs gate 0 only, because it is the only one that is both free and self-contained. Gate 1 is free too and still cannot run there. The one rule above is unchanged: run `./testing/run.sh` locally, which does run gate 1.
 
-Gate 1 is `claude plugin eval --max-cost-usd 0`: the suite is fully loaded, validated and coherence-checked, then every run is skipped. It costs nothing and takes under a second. The harness reference is vendored at `docs/reference/plugin-eval.md` — that surface has **no public documentation page**, so the copy in this repo is the documentation.
+Gate 1 is `claude plugin eval --max-cost-usd 0`: the suite is fully loaded, validated and coherence-checked, then every run is skipped. It costs nothing and takes under a second. That surface has **no public documentation page**; its reference lives inside the `claude` binary. `docs/reference/EXTRACT.md` extracts it to `docs/reference/plugin-eval.md`, which is gitignored — it is Anthropic's text and does not ship under this repo's MIT license (ADR-0016). Extract it before working on the gates; the local copy is the documentation.
 
 ## What the invariants are protecting
 

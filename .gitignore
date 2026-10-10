@@ -12,3 +12,7 @@ testing/stack-probes/*/package-lock.json
 # 仓库从未跟踪过任何图片（`git ls-files` 里一张都没有），说明要留的图不走这条路。
 .playwright-mcp/
 /*.png
+
+# Anthropic 的 plugin eval 参考文档，从本机 claude CLI 里逐字提取。版权不归本仓库，
+# 不能随 MIT 分发，所以只在本地生成、不提交。步骤见 docs/reference/EXTRACT.md，理由见 ADR-0016。
+docs/reference/plugin-eval.md

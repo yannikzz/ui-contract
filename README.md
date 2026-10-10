@@ -169,7 +169,7 @@ claude plugin eval . --ablation with-without \
 
 **Gate 3** runs the real scenarios. `--ablation with-without` runs a genuine no-plugin control arm; an earlier hand-rolled control was contaminated because a subagent sees the skill's description in its listing even without invoking it.
 
-The harness itself is documented at `docs/reference/plugin-eval.md`, vendored from the CLI because that surface has no public documentation page.
+The harness has no public documentation page. `docs/reference/EXTRACT.md` extracts its reference from your local `claude` CLI into `docs/reference/plugin-eval.md`; that file is Anthropic's text, so it is gitignored rather than committed.
 
 What deliberately has no automated coverage is listed in `testing/evals/README.md`, including one boundary that was measured rather than assumed: a grader cannot see tool calls replayed from a frozen transcript, so `tool_used` and `tool_order` assertions can only be verified by a paid run. Read that before trusting a green one.
 
