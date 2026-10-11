@@ -179,6 +179,8 @@ The most valuable contributions are **scenarios where it produced a bad spec**. 
 
 Second most valuable: form-factor add-ons in `skills/ui-contract-layout/interview-layout.md`. The current set covers desktop, mobile, dashboards and content sites. Anything else (TV, watch, embedded, extension popups, CLI companions) is a gap.
 
+**Before a pull request:** run `./testing/run.sh`. That is the one rule, and [`CLAUDE.md`](CLAUDE.md) is where it and the reasoning behind it live — read it rather than a summary here. Gate 0 runs in CI as well. Gate 1 needs a `claude` CLI with early access to `plugin eval`; without either, the script skips that gate with a warning rather than failing. Gates 2 and 3 cost money, so maintainers run them — say in the pull request if your change touches `skills/` or `testing/evals/`, so they know one is needed.
+
 Contributions are accepted under the same MIT license as the rest of the repository.
 
 ## License

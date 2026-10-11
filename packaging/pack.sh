@@ -1,6 +1,6 @@
 #!/bin/sh
 # Build dist/ui-contract-<version>.zip — the plugin as a user installs it, and nothing
-# of how it was made. For sharing with someone who cannot reach this repo.
+# of how it was made. For someone who will not use git or the plugin marketplace.
 #
 #   ./packaging/pack.sh
 #
