@@ -67,6 +67,14 @@ probe() { # probe <人话名字> <eval 目录>
 }
 
 echo "eval 套件的 schema 与判据 coherence（\$0，零 agent run）"
+
+# 没装 CLI 和没拿到 early access 是同一类情况：跳过、喊响，不判失败。不先拦下来的话，
+# 下面会报「没解析出被测插件」，外部贡献者看到的是一个指错方向的红。
+if ! command -v claude >/dev/null 2>&1; then
+  warn "网关 1 整个跳过：这台机器没有 \`claude\` CLI。改了 skills/ 或 testing/ 的话，在 PR 里说明，由维护者补跑"
+  exit 0
+fi
+
 probe "testing/evals"        "testing/evals"
 probe "testing/grader-check" "testing/grader-check"
 
