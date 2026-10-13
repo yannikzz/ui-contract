@@ -29,20 +29,64 @@ echo "2. frontmatter name 与目录名一致"
 M=""; for d in skills/*/; do n=$(grep -m1 '^name:' "$d/SKILL.md" | sed 's/name: *//'); b=$(basename "$d"); [ "$n" = "$b" ] || M="$M $b"; done
 [ -z "$M" ] && ok "全部一致" || no "不一致:$M"
 
+echo "36. 每个 SKILL.md 的 frontmatter 能被严格 YAML 解析器解析（解析不了 = 技能装不上）"
+# 这条是买来的：三个 description 里有没加引号的 `: `，从 0.3.1 起一路带病到第一个
+# 公开版本。宽松的读法照样读得出值，严格的解析器直接拒载，GitHub 页面报
+# 「mapping values are not allowed」——而在此之前，这里没有一条检查**解析**过 frontmatter：
+# 3 和 8 用正则从原文里抠 description，抠得出来就绿。
+# 排在 3 前面，是为了坏文件出现时病根先打印出来；3 与 8 跳过它解析不了的文件，
+# 一个坏文件只在这里红一次。
+#
+# 锚是**一个真解析器**（PyYAML 的 safe_load），不是某个字面特征——所以「把 `: `
+# 换成别的写法」绕不过去，凡是解析器拒的写法都红。
+# **走得过去的**：解析器放行、但值已经不是作者本意的写法。`#` 前面有空格会把描述
+# 后半截当注释吃掉，合法 YAML，值只是变短了；重复的键 PyYAML 静默取后一个。
+# 以及比 PyYAML（YAML 1.1）更严的解析器才拒的写法——两者的差异在这里用不到的语法上。
+python3 - <<'P36' || FAIL=1
+import os,re,sys
+try: import yaml
+except ImportError:
+    print('  \033[31m✗\033[0m 缺 PyYAML（pip install pyyaml）——没有真解析器，这条和 3、8 都无从判'); sys.exit(1)
+bad=0;n=0
+for d in sorted(os.listdir('skills')):
+    p=f'skills/{d}/SKILL.md'
+    if not os.path.exists(p): continue
+    n+=1
+    m=re.match(r'---\n(.*?)\n---\n', open(p,encoding='utf-8').read(), re.S)
+    if not m: print(f'  \033[31m✗\033[0m {d}: 文件开头没有成对的 --- 包住的 frontmatter'); bad=1; continue
+    try: fm=yaml.safe_load(m.group(1))
+    except yaml.YAMLError as e:
+        mark=getattr(e,'problem_mark',None)
+        at=f'第 {mark.line+2} 行第 {mark.column+1} 列' if mark else ''
+        print(f'  \033[31m✗\033[0m {d}: {at}解析失败——{getattr(e,"problem",None) or e}'); bad=1; continue
+    if not isinstance(fm,dict) or not all(isinstance(fm.get(k),str) and fm[k].strip() for k in ('name','description')):
+        print(f'  \033[31m✗\033[0m {d}: 解析出来不是一个带字符串 name 与 description 的映射'); bad=1
+if not bad: print(f'  \033[32m✓\033[0m {n} 个 SKILL.md 全部可解析')
+sys.exit(bad)
+P36
+
 echo "3. description 在 1024 字符 / 1022 UTF-8 字节内"
+# 量的是**解析后的值**。以前用正则从原文里抠，加了引号的 description 会把引号和
+# 转义用的反斜杠一起算进去（ui-contract 实际 921，量成 929），真实长度贴着上限时误报。
 python3 - <<'PY' || FAIL=1
 import re,os,sys
+try: import yaml
+except ImportError: print('  \033[31m✗\033[0m 缺 PyYAML，见第 36 条'); sys.exit(1)
 bad=0;tot=0
 for d in sorted(os.listdir('skills')):
     p=f'skills/{d}/SKILL.md'
     if not os.path.exists(p): continue
-    fm=open(p).read().split('---')[1]
-    m=re.search(r'^description:\s*(.*?)(?=\n[a-z_-]+:\s|\Z)', fm, re.S|re.M)
-    s=m.group(1).strip() if m else ''
+    m=re.match(r'---\n(.*?)\n---\n', open(p,encoding='utf-8').read(), re.S)
+    try: fm=yaml.safe_load(m.group(1)) if m else None
+    except yaml.YAMLError: continue          # 第 36 条报
+    if not isinstance(fm,dict): continue     # 同上
+    s=fm.get('description') or ''
+    if not isinstance(s,str): continue       # 同上
+    s=s.strip()
     n=len(s); b=len(s.encode()); tot+=n
     if n>1024 or b>1022: print(f'  \033[31m✗\033[0m {d}: {n} 字符 / {b} 字节'); bad=1
     elif n==0: print(f'  \033[31m✗\033[0m {d}: 无 description'); bad=1
-print(f'  \033[32m✓\033[0m 全部合规，常驻合计 {tot} 字符')
+if not bad: print(f'  \033[32m✓\033[0m 全部合规，常驻合计 {tot} 字符')
 sys.exit(bad)
 PY
 
@@ -92,14 +136,20 @@ PY
 echo "8. 只有编排层与 audit 配富触发词（其余 description 只覆盖自己那件产物）"
 python3 - <<'PY' || FAIL=1
 import re,os,sys
+try: import yaml
+except ImportError: print('  \033[31m✗\033[0m 缺 PyYAML，见第 36 条'); sys.exit(1)
 RICH={'ui-contract','ui-contract-audit'}
 bad=0
 for d in sorted(os.listdir('skills')):
     p=f'skills/{d}/SKILL.md'
     if not os.path.exists(p): continue
-    fm=open(p).read().split('---')[1]
-    m=re.search(r'^description:\s*(.*?)(?=\n[a-z_-]+:\s|\Z)', fm, re.S|re.M)
-    n=len(m.group(1).strip()) if m else 0
+    # 与检查 3 同一个口径：量解析后的值，解析不了的交给第 36 条。
+    m=re.match(r'---\n(.*?)\n---\n', open(p,encoding='utf-8').read(), re.S)
+    try: fm=yaml.safe_load(m.group(1)) if m else None
+    except yaml.YAMLError: continue
+    s=fm.get('description') if isinstance(fm,dict) else None
+    if not isinstance(s,str): continue
+    n=len(s.strip())
     if d in RICH and n<400: print(f'  \033[31m✗\033[0m {d} 是入口却只有 {n} 字符，触发面不够'); bad=1
     if d not in RICH and n>600: print(f'  \033[31m✗\033[0m {d} 不是入口却有 {n} 字符，会和入口抢触发'); bad=1
 if not bad: print('  \033[32m✓\033[0m 富/窄 description 分工正确')
