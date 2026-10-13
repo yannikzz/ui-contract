@@ -941,6 +941,20 @@ else:
 sys.exit(1)
 P35
 
+echo "37. SKILL.md 不携带 version 字段（plugin.json 是唯一的版本权威）"
+# 买来的：orchestrator 的 metadata.version 停在 0.2.0，与插件真实版本脱节 13 个
+# 发布；15 个包里只有它带这个字段，没有消费方读它，也没有断言钉它——两个版本
+# 权威，其中一个在说谎，而输出上没有任何东西能揭示这一点。与 tokens.input.json 对
+# token 文件是同一次裁决：单一权威，连「保持同步」的第二份都不要。
+# 锚是**字段位置的 version:（行首缩进 + 冒号）**，不是任何具体数字——改成任何数都红。
+# 能穿过去的：prose 句子里写到 version 一词（无缩进不匹配），但那从来不是第二权威。
+BAD=$(grep -ln '^[[:space:]]*version:' skills/*/SKILL.md 2>/dev/null)
+if [ -n "$BAD" ]; then
+  no "SKILL.md 带着版本字段——版本权威只有 plugin.json 一处: $BAD"
+else
+  ok "没有任何 SKILL.md 携带版本字段"
+fi
+
 # 总结行必须是最后一行输出。它曾打印在 32/33/34 之前：那几条判红时，终端上先出现
 # 绿色的「结构不变量全部通过」，红叉跟在后面。退出码一直是对的，run.sh 也照样报失败，
 # 但那一行本身是假的——而它正是扫一眼输出的人唯一会读的那一行。

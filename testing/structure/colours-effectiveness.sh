@@ -18,8 +18,8 @@
 # 干净的那条必须绿——只测红的话，一个 `exit 1` 就能骗过整份测试。
 cd "$(dirname "$0")/../.." || exit 1
 FAIL=0
-ok(){ printf '  \033[32m✓\033[0m %s\n' "$1"; }
-no(){ printf '  \033[31m✗\033[0m %s\n' "$1"; FAIL=1; }
+CASES=0
+. testing/structure/lib.sh
 
 TEMPLATE="skills/ui-contract-wireframe/assets/check-colours.sh.template"
 # 夹具是**示例里的真实线框**，不是另造一份。理由：它是这个脚本唯一的真实消费者，
@@ -27,6 +27,16 @@ TEMPLATE="skills/ui-contract-wireframe/assets/check-colours.sh.template"
 # 那时下面会报「注入本身失败」而不是绿着跳过。
 FIXTURE="examples/admin-console/.ui-contract-local"
 WIRE="wireframe/src"
+
+EFF_PREPARE(){
+  mkdir -p "$1/.ui-contract-local/wireframe" &&
+  cp -R "$FIXTURE/$WIRE" "$1/.ui-contract-local/wireframe/" &&
+  cp "$TEMPLATE" "$1/check-colours.sh"
+}
+EFF_RUN(){ "$SH" ./check-colours.sh 2>&1; }
+
+# 旧签名保持不变：调用点全是 run <期望退出码> <说明> <注入命令>。
+run(){ run_case "$@"; }
 [ -f "$TEMPLATE" ] || { no "找不到 $TEMPLATE"; exit 1; }
 [ -d "$FIXTURE/$WIRE" ] || { no "找不到 $FIXTURE/$WIRE"; exit 1; }
 
@@ -34,21 +44,6 @@ WIRE="wireframe/src"
 SH=$(command -v dash 2>/dev/null || command -v sh)
 
 CASES=0
-run(){ # run <期望退出码> <说明> <注入命令>
-  want=$1; name=$2; mutate=$3
-  CASES=$((CASES+1))
-  W=$(mktemp -d) || { no "$name: mktemp 失败"; return; }
-  mkdir -p "$W/.ui-contract-local/wireframe" || { no "$name: 夹具准备失败"; rm -rf "$W"; return; }
-  cp -R "$FIXTURE/$WIRE" "$W/.ui-contract-local/wireframe/" || { no "$name: 夹具准备失败"; rm -rf "$W"; return; }
-  cp "$TEMPLATE" "$W/check-colours.sh"
-  if ! ( cd "$W" && eval "$mutate" ); then
-    no "$name: 注入本身失败（线框里的锚点变了？）"; rm -rf "$W"; return
-  fi
-  ( cd "$W" && "$SH" ./check-colours.sh >/dev/null 2>&1 ); got=$?
-  rm -rf "$W"
-  if [ "$got" -eq "$want" ]; then ok "$name"
-  else no "$name — 期望 exit ${want}，实得 exit ${got}"; fi
-}
 
 S="\$W"; P=".ui-contract-local/wireframe/src"
 
@@ -122,3 +117,4 @@ printf '\n'
 [ $FAIL -eq 0 ] && printf '  \033[32m%s 个用例全部符合预期（%s）\033[0m\n' "$CASES" "$(basename "$SH")" \
                 || printf '  \033[31m有检查名存实亡\033[0m\n'
 exit $FAIL
+

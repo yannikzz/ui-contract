@@ -4,7 +4,6 @@ description: "Establish a project's UI contract by interview: layout.md (structu
 compatibility: Works in any agent with filesystem access. The asset layer and wireframe need Node and a TypeScript toolchain; without TypeScript the compile-time allowlist cannot be enforced and degrades to an honor-system rule.
 metadata:
   author: yannikzz
-  version: "0.2.0"
 ---
 
 # UI contract — orchestration
