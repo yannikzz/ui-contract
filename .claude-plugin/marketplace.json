@@ -26,7 +26,7 @@
         "./skills/ui-contract-audit",
         "./skills/ui-contract"
       ],
-      "version": "0.3.2",
+      "version": "0.3.3",
       "description": "Establishes a project's UI contract: a structural spec with a placement decision tree and a region-name allowlist, a visual spec whose values live in the token file, an asset layer in the production tree, a runnable low-fidelity wireframe, enforcement that stops coding agents putting new features in the wrong place, and a health check that reports drift months later.",
       "author": {
         "name": "yannikzz"

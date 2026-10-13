@@ -1,6 +1,6 @@
 ---
 name: ui-contract-design
-description: Align an existing visual spec (design.md) against the structural spec - add the division-of-labor statement, move structural content out leaving a pointer, replace old component-style names with allowlist names, and move literal values into the token file so design.md holds rules rather than values. Use when a project has visual conventions that need to become a spec with a clean boundary. Or originate one when there are none at all - choose a brand direction on attributes rather than colours, derive the values, tune them on a page. Chinese: 生成品牌/配色规范/token 命名/主题调校.
+description: "Align an existing visual spec (design.md) against the structural spec - add the division-of-labor statement, move structural content out leaving a pointer, replace old component-style names with allowlist names, and move literal values into the token file so design.md holds rules rather than values. Use when a project has visual conventions that need to become a spec with a clean boundary. Or originate one when there are none at all - choose a brand direction on attributes rather than colours, derive the values, tune them on a page. Chinese: 生成品牌/配色规范/token 命名/主题调校."
 ---
 
 # Visual spec — `design.md`

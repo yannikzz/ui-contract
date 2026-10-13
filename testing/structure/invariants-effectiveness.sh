@@ -1,7 +1,7 @@
 #!/bin/sh
 # invariants.sh 的每条断言**真的能失败**。
 #
-# 覆盖范围（这一行是承诺，别让它变成散文）：**1–35 全部有用例**。
+# 覆盖范围（这一行是承诺，别让它变成散文）：**1–36 全部有用例**。
 #
 # 2026-08-25：这一行**真的变成过散文**——它写着 1–30 而检查已经有 31 条，没有任何东西
 # 在比对。现在由 invariants.sh 第 32 条机检：每条检查都有用例，且这一行的上界等于实际条数。
@@ -116,8 +116,10 @@ run_case 1 "1 · README 索引与磁盘不一致（改索引里的一个包名�
 run_case 1 "2 · frontmatter name 与目录名不一致" \
   "sub skills/ui-contract-glossary/SKILL.md 'name: ui-contract-glossary' 'name: ui-contract-glossaryx'"
 # 撑爆的是入口包：检查 8 只在入口 description **过短**时判红，所以这一条不会串到 8。
+# 锚点带上开引号：这个 description 是加了引号的，塞在引号外面造出来的是坏 YAML，
+# 那样这条会因为第 36 条红，而不是因为长度——证明不了检查 3 自己能红。
 run_case 1 "3 · description 超过 1024 字符（921 + 200）" \
-  "pad skills/ui-contract/SKILL.md 'description: ' 200"
+  "pad skills/ui-contract/SKILL.md 'description: \"' 200"
 run_case 1 "4 · 某个技能标了 disable-model-invocation" \
   "printf '\ndisable-model-invocation: true\n' >> skills/ui-contract-glossary/SKILL.md"
 run_case 1 "5 · 原语包里出现 UI 词汇" \
@@ -306,6 +308,19 @@ run_case 1 "22 · 用 CSS 具名颜色写死值（记法外的颜色）" \
   "sub $W_TPL 'export function Badge({ children }: { children: ReactNode }) {' 'export function Badge({ children }: { children: ReactNode }) {
   const leak = { color: \"crimson\" }; void leak;'"
 
+echo "C2. 36 · frontmatter 能被严格 YAML 解析"
+# 第一条是真实发生过的那一种：没加引号的 description 里出现 `: `。
+# 3 与 8 跳过解析不了的文件，所以只有 36 红。
+run_case 1 "36 · 未加引号的 description 里有 \`: \`（0.3.1–0.3.2 真实带出去的病）" \
+  "sub skills/ui-contract-glossary/SKILL.md 'description: ' 'description: Chinese: '"
+# 换一种写法：不是冒号，是以反引号开头——YAML 的保留字符，写 \`layout.md\` 开头的
+# 描述很自然。只防冒号的检查在这里会绿，真解析器不会。
+run_case 1 "36 · description 以反引号开头（保留字符，另一种解析失败）" \
+  "sub skills/ui-contract-glossary/SKILL.md 'description: ' 'description: \`x\` '"
+# 反方向：加了引号的值里有 \`: \` 必须是绿的。判的是「解析得了」，不是「出现了冒号」。
+run_case 0 "36 · 加了引号的 description 里有 \`: \` → 不判红" \
+  "sub skills/ui-contract-design/SKILL.md 'description: \"' 'description: \"Note: '"
+
 echo "D. 32 · 覆盖承诺与检查数"
 # 这条断言守的是**这份文件自己**，所以它的用例也在这份文件里——递归但没问题：
 # 注入发生在临时副本里，跑的是那份副本的 invariants.sh 读那份副本的 effectiveness。
@@ -315,9 +330,9 @@ run_case 1 "32 · 加一条检查但不加用例（CLAUDE.md 说这不算完成�
 # ——参数里含着同一串字——于是注入「成功」了却没碰承诺行，副本干净、退出 0。
 # 第 32 条的检查早就为此把锚钉在行首注释上；用例这一侧漏了，2026-08-26 补上。
 run_case 1 "32 · 覆盖承诺的上界与实际条数对不上（那一行变回散文）" \
-  "sub testing/structure/invariants-effectiveness.sh '# 覆盖范围（这一行是承诺，别让它变成散文）：**1–35 全部有用例**' '# 覆盖范围（这一行是承诺，别让它变成散文）：**1–99 全部有用例**'"
+  "sub testing/structure/invariants-effectiveness.sh '# 覆盖范围（这一行是承诺，别让它变成散文）：**1–36 全部有用例**' '# 覆盖范围（这一行是承诺，别让它变成散文）：**1–99 全部有用例**'"
 run_case 1 "32 · 覆盖承诺整句被删掉（唯一的全称声明不许消失）" \
-  "sub testing/structure/invariants-effectiveness.sh '# 覆盖范围（这一行是承诺，别让它变成散文）：**1–35 全部有用例**' '覆盖了一些检查'"
+  "sub testing/structure/invariants-effectiveness.sh '# 覆盖范围（这一行是承诺，别让它变成散文）：**1–36 全部有用例**' '覆盖了一些检查'"
 
 echo "E. 33 · 颜色知识三份一致"
 # 漂移的三种走法各一条：改一份、把哨兵删掉、把名单裁短。

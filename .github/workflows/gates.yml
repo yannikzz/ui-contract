@@ -32,6 +32,7 @@ jobs:
       - name: 依赖自检
         run: |
           command -v python3
+          python3 -c "import yaml" || { echo "缺 PyYAML：invariants.sh 第 3、8、36 条要用真解析器读 frontmatter"; exit 1; }
           command -v dash || echo "没有 dash，脚本会退回 sh——dash 专属的问题将测不到"
 
       - name: 网关 0

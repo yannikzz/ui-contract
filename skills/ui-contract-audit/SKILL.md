@@ -1,6 +1,6 @@
 ---
 name: ui-contract-audit
-description: Health-check an existing UI contract for drift. Runs automated checks that region names in code stay inside the allowlist, that the RegionId type is not bypassed by casts, that no color values are hardcoded past the token file, and that design.md carries no literal values - then reports the differences with fix suggestions and fixes nothing automatically. Produces a runnable script that lives in the repo and works in CI. Use when a project already has a layout.md or design.md and someone asks whether the spec is still in force, whether the code and the spec have drifted apart, what broke since the contract was written, or wants the contract checked before a release. Chinese: 界面规范还在起作用吗/规范和代码对不上了/检查界面契约/规范漂移/区域名违规/契约体检.
+description: "Health-check an existing UI contract for drift. Runs automated checks that region names in code stay inside the allowlist, that the RegionId type is not bypassed by casts, that no color values are hardcoded past the token file, and that design.md carries no literal values - then reports the differences with fix suggestions and fixes nothing automatically. Produces a runnable script that lives in the repo and works in CI. Use when a project already has a layout.md or design.md and someone asks whether the spec is still in force, whether the code and the spec have drifted apart, what broke since the contract was written, or wants the contract checked before a release. Chinese: 界面规范还在起作用吗/规范和代码对不上了/检查界面契约/规范漂移/区域名违规/契约体检."
 ---
 
 # Health check
