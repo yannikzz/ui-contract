@@ -10,8 +10,8 @@
 # 红的必须红，绿的必须绿——只测前者的话，一个 `exit 1` 就能骗过整份测试。
 cd "$(dirname "$0")/../.." || exit 1
 FAIL=0
-ok(){ printf '  \033[32m✓\033[0m %s\n' "$1"; }
-no(){ printf '  \033[31m✗\033[0m %s\n' "$1"; FAIL=1; }
+CASES=0
+. testing/structure/lib.sh
 
 TEMPLATE="skills/ui-contract-audit/assets/audit.sh.template"
 FIXTURE="testing/structure/fixtures/audit-project"
@@ -21,16 +21,9 @@ FIXTURE="testing/structure/fixtures/audit-project"
 # 模板自称要能在 dash 下跑，所以优先用 dash 跑，顺便守住这条。
 SH=$(command -v dash 2>/dev/null || command -v sh)
 
-# 用 python3 做文本替换：sed -i 在 BSD 与 GNU 下语法不同。
-sub(){ # sub <文件> <旧> <新>
-  python3 - "$1" "$2" "$3" <<'PY'
-import io,sys
-p,old,new=sys.argv[1],sys.argv[2],sys.argv[3]
-s=io.open(p,encoding='utf-8').read()
-if old not in s: sys.exit(9)
-io.open(p,'w',encoding='utf-8').write(s.replace(old,new,1))
-PY
-}
+EFF_PREPARE(){ cp -R "$FIXTURE"/. "$1"/ && cp "$TEMPLATE" "$1/audit.sh"; }
+EFF_RUN(){ "$SH" ./audit.sh 2>&1; }
+
 
 # 改夹具白名单的**每一行**，而不是只改表头：drop 删掉最后一列（模型漏写那一列时的真实形态），
 # add 在最后追加一列尺寸（大纲 §2 允许的第五列）。只改表头的话，测的是一张自相矛盾的表。
@@ -52,41 +45,7 @@ CASES=0
 # 是证明不了的——它挂了和它没挂，退出码一模一样。而「看起来在工作、其实永远返回绿」
 # 正是这份测试的由来，加了 warn 档就等于给那个病根开了一个新入口。这一版看输出。
 # needle 以 `!` 开头表示「必须**不**出现」——用来钉住「不许喊狼来了」的那一半。
-run_out(){ # run_out <期望退出码> <必须出现|!必须不出现> <说明> <注入命令>
-  want=$1; needle=$2; name=$3; mutate=$4
-  CASES=$((CASES+1))
-  W=$(mktemp -d) || { no "$name: mktemp 失败"; return; }
-  cp -R "$FIXTURE"/. "$W"/ && cp "$TEMPLATE" "$W/audit.sh" || { no "$name: 夹具准备失败"; rm -rf "$W"; return; }
-  if ! ( cd "$W" && eval "$mutate" ); then
-    no "$name: 注入本身失败（夹具里的锚点变了？）"; rm -rf "$W"; return
-  fi
-  OUT=$( cd "$W" && "$SH" ./audit.sh 2>&1 ); got=$?
-  rm -rf "$W"
-  if [ "$got" -ne "$want" ]; then
-    no "$name — 期望 exit ${want}，实得 exit ${got}"; return
-  fi
-  case "$needle" in
-    '!'*) if printf '%s' "$OUT" | grep -qF "${needle#!}"; then
-            no "$name — 输出里不该出现「${needle#!}」"; else ok "$name"; fi ;;
-    *)    if printf '%s' "$OUT" | grep -qF "$needle"; then ok "$name"
-          else no "$name — 输出里没有「$needle」"; fi ;;
-  esac
-}
 
-run_case(){ # run_case <期望退出码> <说明> <注入命令>
-  want=$1; name=$2; mutate=$3
-  CASES=$((CASES+1))
-  W=$(mktemp -d) || { no "$name: mktemp 失败"; return; }
-  cp -R "$FIXTURE"/. "$W"/ && cp "$TEMPLATE" "$W/audit.sh" || { no "$name: 夹具准备失败"; rm -rf "$W"; return; }
-  if ! ( cd "$W" && eval "$mutate" ); then
-    no "$name: 注入本身失败（夹具里的锚点变了？）"; rm -rf "$W"; return
-  fi
-  ( cd "$W" && "$SH" ./audit.sh >/dev/null 2>&1 )
-  got=$?
-  rm -rf "$W"
-  if [ "$got" -eq "$want" ]; then ok "$name"
-  else no "$name — 期望 exit ${want}，实得 exit ${got}"; fi
-}
 
 echo "A. 基线：未注入时必须全绿"
 run_case 0 "干净的夹具 exit 0" "true"
@@ -408,7 +367,29 @@ run_out 0 "!copy from here" "10 · 没有 ⏳ 时不许打印交接单" "true"
 run_out 0 "!copy from here" "10 · 散文里提到 ⏳ 不算一个待定数字（锚在表格行，不在字符）" \
   "printf '\n关于 ⏳ 的约定：它表示这个数还在等视觉刻度。\n' >> layout.md"
 
+# ⛔ 的三条。check 10 曾只数 ⏳，被驳回的方向（⛔）对体检不可见——缺口写在三个
+# 文件的例外注记里，交接靠人工点名。机制补上后，这几条钉住三件事：报得出、
+# 不混进 ⏳、散文里的 ⛔ 不算（与 ⏳ 同锚：表格行）。退出码不变是故意的：
+# ⛔ 和 ⏳ 同属 warn 层——挂掉构建只会鼓励人删标记，而不是回答它。
+run_out 0 "refuted structural direction" "10 · ⛔ 表行报为 refuted（warn 层，退出码不变）" \
+  "printf '\n| 面板宽 | ~~360~~ | ⛔ 被投影驳回：9 字段 + 5 动作在任何字号下都放不进 360 |\n' >> layout.md"
+run_out 0 "!still marked" "10 · ⛔ 不许混进待定 ⏳ 的计数（死问题不是开放问题）" \
+  "printf '\n| 面板宽 | ~~360~~ | ⛔ 被投影驳回：9 字段 + 5 动作在任何字号下都放不进 360 |\n' >> layout.md"
+run_out 0 "!refuted structural direction" "10 · ⛔ 写在散文里不算（与 ⏳ 同锚：表格行）" \
+  "printf '\n这个方向被驳回了：⛔ 换一种布局。\n' >> layout.md"
+
+# JSON 尾注的三条。散文报告与退出码不动，尾注是给自动化调用方的；
+# 「哪些检查静默跳过」从此是字段，不是语气。
+run_out 0 'AUDIT-JSON' "尾注 · 每次运行都带机器可读汇总（干净夹具全 pass）" "true"
+run_out 1 '"3":"fail"' "尾注 · 注入检查 3 违规后，尾注把 3 标为 fail" \
+  "printf '.card { background: #123456; }\n' > src/feature.css"
+# rm design.md 走 exit 3 早退，不带尾注——skip 用例用检查 8 的 oklch 降级路径。
+run_out 0 '"8":"skip"' "尾注 · 检查 8 的 oklch 降级路径记 skip，不是静默绿" \
+  "sub src/tokens.css '--card: #ffffff;' '--card: oklch(1 0 0);' && sub src/tokens.css '--card-foreground: #1a1a1a;' '--card-foreground: oklch(0.2 0 0);'"
+
+
 printf '\n'
 [ $FAIL -eq 0 ] && printf '  \033[32m%s 个用例全部符合预期（%s）\033[0m\n' "$CASES" "$(basename "$SH")" \
                 || printf '  \033[31m有检查名存实亡\033[0m\n'
 exit $FAIL
+

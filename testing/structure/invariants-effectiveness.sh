@@ -1,7 +1,7 @@
 #!/bin/sh
 # invariants.sh 的每条断言**真的能失败**。
 #
-# 覆盖范围（这一行是承诺，别让它变成散文）：**1–36 全部有用例**。
+# 覆盖范围（这一行是承诺，别让它变成散文）：**1–37 全部有用例**。
 #
 # 2026-08-25：这一行**真的变成过散文**——它写着 1–30 而检查已经有 31 条，没有任何东西
 # 在比对。现在由 invariants.sh 第 32 条机检：每条检查都有用例，且这一行的上界等于实际条数。
@@ -27,28 +27,26 @@
 # 红的必须红，绿的必须绿——只测前者的话，一个 `exit 1` 就能骗过整份测试。
 cd "$(dirname "$0")/../.." || exit 1
 FAIL=0
-ok(){ printf '  \033[32m✓\033[0m %s\n' "$1"; }
-no(){ printf '  \033[31m✗\033[0m %s\n' "$1"; FAIL=1; }
+CASES=0
+. testing/structure/lib.sh
 
 D="skills/ui-contract-design/SKILL.md"
 T="skills/ui-contract-design/assets/theme-studio.html.template"
 W_TPL="skills/ui-contract-wireframe/assets/wire.tsx.template"
 W_APP="skills/ui-contract-wireframe/assets/inspect.tsx.template"
 BL_GRD="testing/evals/greenfield-originate/graders/no-framework-default-values.md"
+
+# 整树拷贝时排掉 node_modules 与 .git：invariants.sh 只读 skills/、docs/adr/、
+# testing/、examples/README.md、README.md 与 .claude-plugin/，那两者一个字都不读。
+# 量史（「不到 1MB」实为 92MB，一次跑四个多 G，0c 从秒级变分钟级）记在 git 历史
+# 里；用 tar 管道是因为 cp 没有可移植的排除写法。这些理由跟着夹具走，lib.sh 不替
+# 它们背书。run_case 本体在 lib.sh：注入 → 跑 invariants.sh → 比对退出码。
+EFF_PREPARE(){ tar -cf - --exclude=node_modules --exclude=.git . 2>/dev/null | ( cd "$1" && tar -xf - ); }
+EFF_RUN(){ ./testing/structure/invariants.sh >/dev/null 2>&1; }
 for f in testing/structure/invariants.sh "$D" "$T" "$W_TPL" "$W_APP" "$BL_GRD" examples/README.md; do
   [ -f "$f" ] || { no "找不到 $f"; exit 1; }
 done
 
-# 用 python3 做文本替换：sed -i 在 BSD 与 GNU 下语法不同。
-sub(){ # sub <文件> <旧> <新>
-  python3 - "$1" "$2" "$3" <<'PY'
-import io,sys
-p,old,new=sys.argv[1],sys.argv[2],sys.argv[3]
-s=io.open(p,encoding='utf-8').read()
-if old not in s: sys.exit(9)
-io.open(p,'w',encoding='utf-8').write(s.replace(old,new,1))
-PY
-}
 
 # 同上，但换掉**全部**出现处。`sub` 只换第一处，对「grep 找得到就算数」的断言不够：
 # 换掉一处，剩下的照样能被 grep 到，断言green，注入等于没做。
@@ -74,32 +72,6 @@ PY
 }
 
 CASES=0
-run_case(){ # run_case <期望退出码> <说明> <注入命令>
-  want=$1; name=$2; mutate=$3
-  CASES=$((CASES+1))
-  W=$(mktemp -d) || { no "$name: mktemp 失败"; return; }
-  # 断言判的是仓库自身，所以整树拷一份——但**要排掉 node_modules 与 .git**。
-  #
-  # 这里原来写着「不到 1MB」，而量出来是 92MB：`examples/admin-console/node_modules`
-  # 一个人占 85MB。用例涨到 46 条之后，一次跑要拷四个多 G，整份 0c 从秒级变成分钟级。
-  # 那句「不到 1MB」曾经是真的，没人再量过——和这份测试抓的其他东西是同一种失效，
-  # 只不过代价是时间而不是正确性。所以这里写的是**为什么可以排**，不是又一个数字：
-  # invariants.sh 只读 skills/、docs/adr/、testing/、examples/README.md、README.md
-  # 与 .claude-plugin/，`node_modules` 与 `.git` 一个字都不读。
-  #
-  # 用 tar 管道而不是 `cp -R` + 删：BSD 与 GNU 的 tar 都认 --exclude，
-  # 而 cp 没有可移植的排除写法。
-  tar -cf - --exclude=node_modules --exclude=.git . 2>/dev/null | ( cd "$W" && tar -xf - ) \
-    || { no "$name: 夹具准备失败"; rm -rf "$W"; return; }
-  if ! ( cd "$W" && eval "$mutate" ); then
-    no "$name: 注入本身失败（锚点变了？）"; rm -rf "$W"; return
-  fi
-  ( cd "$W" && ./testing/structure/invariants.sh >/dev/null 2>&1 )
-  got=$?
-  rm -rf "$W"
-  if [ "$got" -eq "$want" ]; then ok "$name"
-  else no "$name — 期望 exit ${want}，实得 exit ${got}"; fi
-}
 
 echo "A. 基线：未注入时必须全绿"
 run_case 0 "干净的整树拷贝 exit 0" "true"
@@ -330,9 +302,9 @@ run_case 1 "32 · 加一条检查但不加用例（CLAUDE.md 说这不算完成�
 # ——参数里含着同一串字——于是注入「成功」了却没碰承诺行，副本干净、退出 0。
 # 第 32 条的检查早就为此把锚钉在行首注释上；用例这一侧漏了，2026-08-26 补上。
 run_case 1 "32 · 覆盖承诺的上界与实际条数对不上（那一行变回散文）" \
-  "sub testing/structure/invariants-effectiveness.sh '# 覆盖范围（这一行是承诺，别让它变成散文）：**1–36 全部有用例**' '# 覆盖范围（这一行是承诺，别让它变成散文）：**1–99 全部有用例**'"
+  "sub testing/structure/invariants-effectiveness.sh '# 覆盖范围（这一行是承诺，别让它变成散文）：**1–37 全部有用例**' '# 覆盖范围（这一行是承诺，别让它变成散文）：**1–99 全部有用例**'"
 run_case 1 "32 · 覆盖承诺整句被删掉（唯一的全称声明不许消失）" \
-  "sub testing/structure/invariants-effectiveness.sh '# 覆盖范围（这一行是承诺，别让它变成散文）：**1–36 全部有用例**' '覆盖了一些检查'"
+  "sub testing/structure/invariants-effectiveness.sh '# 覆盖范围（这一行是承诺，别让它变成散文）：**1–37 全部有用例**' '覆盖了一些检查'"
 
 echo "E. 33 · 颜色知识三份一致"
 # 漂移的三种走法各一条：改一份、把哨兵删掉、把名单裁短。
@@ -365,6 +337,15 @@ printf '\n'
 #   · 往 NEUTRAL 里加品牌色（NEUTRAL 内本来就允许写值，「加进去的是不是灰」只能人评审，PR #13 已声明）
 #   · 改现有导出的实现而不动它的名字（第 23 条只比对导出名的集合。这一条
 #     是故意宽的：示例是实跑产出，逐行比对等于逐行逆向维护它，而这会把它变成手绘插图）
+
+echo "F. 37 版本字段"
+# 买来的：orchestrator 的 metadata.version 停在 0.2.0，脱节 13 个发布，无消费方、
+# 无断言。不变式 37 钉「SKILL.md 不携带 version 字段」；这里钉它**能失败**。
+run_case 1 "37 · SKILL.md 里长出 version 字段 → 红（plugin.json 是唯一版本权威）" \
+  "printf '  version: \"9.9.9\"\n' >> skills/ui-contract/SKILL.md"
+
 [ $FAIL -eq 0 ] && printf '\033[32m%s 个用例：断言全部能按预期红/绿\033[0m\n' "$CASES" \
                 || printf '\033[31m有断言没按预期红/绿\033[0m\n'
 exit $FAIL
+
+

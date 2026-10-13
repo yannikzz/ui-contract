@@ -102,6 +102,8 @@ Test: take a component the spec doesn't cover and hold it against the three prin
 
 A generated brand is 🌡 by default — it is a hypothesis until real users have seen it. So is a borrowed naming convention: it came from another project, not from this one's structure. Marking them 🔒 claims a certainty nobody measured.
 
+**What a generated brand records here, and how 🌡 resolves.** Besides the direction and its cost, §1 carries three things when `originate` ran: the **benchmark and tradeoffs** line (which real references were torn down, what was kept, what was deliberately broken, where the screens are stored), the **baseline paths** (the frames the tuning session closed with — see `originate.md` §Close the tuning session), and the **review verdict** once the context-free pass has run. 🌡 resolves through evidence, never through silence: a review pass is evidence with a date; real users remain the final settle.
+
 ## §2 Color
 
 Three tables:
@@ -196,6 +198,8 @@ Hard rule: an arbitrary radius must enter the table first; no writing off-table 
 Principles (fast, restrained, predictable) plus a duration table (scenario → duration) plus the list of permitted transition classes.
 
 If the product has state transitions (queued → running → done), require that **state color changes go through a transition** — an instant switch makes users doubt what they saw.
+
+Motion values have no coordinate in the attribute interview, so they must state their **basis**: the product's state-machine rhythm, the host platform's convention, or derivation from §1's signature treatment — or §8 is marked explicitly the weakest section of the spec. See `originate.md` §Motion has the same gap as hue. The axes stay three; this is a source requirement, not a fourth axis.
 
 ## §9 Component usage
 
