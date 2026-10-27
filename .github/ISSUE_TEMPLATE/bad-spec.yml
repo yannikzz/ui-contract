@@ -38,4 +38,4 @@ body:
     attributes:
       label: Agent and version
       description: Which agent you ran it in, and the plugin version if you know it.
-      placeholder: Claude Code, ui-contract 0.3.3 — or Cursor via install.sh, installed around 2026-10-20
+      placeholder: Claude Code, ui-contract x.y.z — or Cursor via install.sh, installed around 2026-10-20
