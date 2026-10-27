@@ -21,7 +21,7 @@ Ordered by cost. `./testing/run.sh` runs the two free ones; the paid ones have t
 | 2 | Whether a grader can tell right from wrong | $0.74 a round (8 fixtures) | `testing/grader-check/` | no — costs money |
 | 3 | Whether the plugin changes behaviour | $2.60/run; ~$36 for a full `--runs 3` | `testing/evals/` | no — costs money |
 
-**A green CI does not mean mergeable.** `.github/workflows/gates.yml` runs gate 0 only, because it is the only one that is both free and self-contained. Gate 1 is free too and still cannot run there. The one rule above is unchanged: run `./testing/run.sh` locally, which does run gate 1.
+**A green CI does not mean mergeable.** `.github/workflows/gates.yml` runs `./testing/run.sh` — the same entry point as locally — and there that amounts to gate 0 only, because it is the only one that is both free and self-contained. Gate 1 is free too and still cannot run there: with no `claude` CLI on the runner, it skips itself. The one rule above is unchanged: run `./testing/run.sh` locally, which does run gate 1.
 
 Gate 1 is `claude plugin eval --max-cost-usd 0`: the suite is fully loaded, validated and coherence-checked, then every run is skipped. It costs nothing and takes under a second. That surface has **no public documentation page**; its reference lives inside the `claude` binary. `docs/reference/EXTRACT.md` extracts it to `docs/reference/plugin-eval.md`, which is gitignored — it is Anthropic's text and does not ship under this repo's MIT license (ADR-0016). Extract it before working on the gates; the local copy is the documentation.
 
