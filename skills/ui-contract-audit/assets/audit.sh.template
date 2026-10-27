@@ -133,9 +133,11 @@ REGION_COMPONENT=$(cfg_path asset-container 2>/dev/null)
 
 FAIL=0
 WARNS=0
+FAILED=" "   # 空格垫边，供 " $X " 匹配（防 1 误配 10）
+SKIPPED=" "
 ok(){   printf '  \033[32m✓\033[0m %s\n' "$1"; }
-drift(){ printf '  \033[31m✗\033[0m %s\n' "$1"; FAIL=1; }
-skip(){ printf '  \033[33m—\033[0m %s\n' "$1"; }
+drift(){ printf '  \033[31m✗\033[0m %s\n' "$1"; FAIL=1; FAILED="$FAILED$CHECK_NO "; }
+skip(){ printf '  \033[33m—\033[0m %s\n' "$1"; SKIPPED="$SKIPPED$CHECK_NO "; }
 # Provisional clauses report here. A warn does NOT set FAIL and does not change
 # the exit code — a clause marked 🌡 is a hypothesis, and failing a build on one
 # would hand a third-party convention veto power over this repo's CI.
@@ -249,6 +251,7 @@ if [ -n "$DEFAULTED" ]; then
 fi
 
 echo "1. Region names in code are inside the allowlist"
+CHECK_NO="1"
 if [ -f "$REGION_TYPE" ]; then
   # allowlist as declared in the type
   ALLOWED=$(sed -n "/export type RegionId/,/^$/p" "$REGION_TYPE" | grep -o "'[^']*'" | tr -d "'" | sort -u)
@@ -271,6 +274,7 @@ else
 fi
 
 echo "2. RegionId is not bypassed"
+CHECK_NO="2"
 # Two shapes, and they need different treatment. `as RegionId` names the type, so
 # it is a bypass wherever it appears. `as any` only counts inside a container call
 # site — but filtering for that with a line-wise `grep -i region` drops the very
@@ -283,6 +287,7 @@ B=$(printf '%s\n%s\n' "$B" "$B2" | grep -v '^$')
 [ -z "$B" ] && ok "no casts around region ids" || drift "$B"
 
 echo "2b. No hand-written region markers bypassing the container"
+CHECK_NO="2b"
 # A marker attribute on a raw element means somebody wrote the element instead of
 # going through the container, which skips the type check entirely.
 #
@@ -325,6 +330,7 @@ else
 fi
 
 echo "3. No hardcoded color values in feature code (they belong to the token file)"
+CHECK_NO="3"
 # Exclude the token file by path and nothing else. This once excluded every *.css
 # file, which turned the check off exactly where hardcoded colours accumulate:
 # a #123456 dropped into a feature stylesheet was reported as no drift.
@@ -341,6 +347,7 @@ N=$(grep -rnE '([A-Za-z]*[Cc]olor|background|fill|stroke|outline)[[:space:]]*:[[
 [ -z "$B" ] && ok "no raw color literals" || drift "$(echo "$B" | head -20)"
 
 echo "4. design.md holds rules, not values"
+CHECK_NO="4"
 if [ -f "$DESIGN" ]; then
   # Only hex colours are checked automatically. Sizes are NOT: a visual spec
   # legitimately discusses numbers in prose and in anti-pattern rows ("six months
@@ -362,6 +369,7 @@ else
 fi
 
 echo "5. Every allowlist row states what it must not hold"
+CHECK_NO="5"
 # This used to test whether a row's LAST cell was empty. Two ways that was green on
 # exactly the defect it exists for, both measured:
 #
@@ -405,6 +413,7 @@ $(echo "$B" | head -10)" ;;
 esac
 
 echo "6. Every allowlist name is findable in code"
+CHECK_NO="6"
 if [ -f "$REGION_TYPE" ]; then
   # $REGION_TYPE itself sits under $SRC, so a plain search finds every name in its
   # own union declaration and the check can never fail. Judge on the call sites
@@ -510,6 +519,7 @@ token_pairs(){
 }
 
 echo "7. design.md's declaration table and the token file name the same tokens"
+CHECK_NO="7"
 # Provisional (design.md marks the naming convention 🌡), so this warns and does
 # not fail the build. What it catches is the drift that makes every other
 # name-based check meaningless: a spec naming tokens the code does not have.
@@ -572,6 +582,7 @@ else
 fi
 
 echo "8. Surface / -foreground pairs meet design.md's contrast threshold"
+CHECK_NO="8"
 # The threshold is stated once, in design.md; the tuning instrument reads the
 # same one. Neither hardcodes a number. Found by its shape (`4.5:1`), which is
 # language-independent — the surrounding prose is not.
@@ -652,6 +663,7 @@ else
 fi
 
 echo "9. The workbench holds no authority, and is actually ignored"
+CHECK_NO="9"
 # The workbench is the one directory in this contract that is NOT committed. Two
 # things follow, and both fail silently if nobody checks them.
 #
@@ -747,6 +759,7 @@ else
 fi
 
 echo "10. No structural number is still waiting on the visual scale"
+CHECK_NO="10"
 # A few numbers in $LAYOUT are only correct relative to a type or spacing scale — a
 # fixed panel width, a minimum usable width, a page size. `ui-contract-layout` marks
 # those ⏳; `ui-contract-design` is supposed to clear them once the scales are settled.
@@ -773,9 +786,15 @@ else
   # own table cell for exactly this reason, and says so; this is the other half of that
   # agreement, not an accident.
   PENDING=$(grep -n '⏳' "$LAYOUT" 2>/dev/null | grep '^[0-9]*:[[:space:]]*|')
-  if [ -z "$PENDING" ]; then
-    ok "no structural number left waiting"
-  else
+  # ⛔ 同锚：带标记的表格行。同一摆放规则、同一理由——交接单、check 10、
+  # layout.md 大纲读的都是表格行。⛔ 不是待定数字，绝不能计进 ⏳：它所属的
+  # 那个问题已经死了。它也不再不可见：行逐字上提，check 10 的绿从现在起
+  # 确实意味着「没有被驳回的」——「只算有人标记过的」是另一条 ⚠，保持不变。
+  REFUTED=$(grep -n '⛔' "$LAYOUT" 2>/dev/null | grep '^[0-9]*:[[:space:]]*|')
+  if [ -z "$PENDING" ] && [ -z "$REFUTED" ]; then
+    ok "no structural number left waiting, and none refuted"
+  fi
+  if [ -n "$PENDING" ]; then
     N=$(printf '%s\n' "$PENDING" | wc -l | tr -d ' ')
     warn "$N structural number(s) in $LAYOUT still marked ⏳ — waiting on the visual scale."
     # Print a handover note that can be pasted somewhere, rather than a list the
@@ -798,10 +817,34 @@ else
     printf '      │ the bleed the two documents exist to prevent.\n'
     printf '      └─ to here ───────────────────────────────────────────────────\n\n'
   fi
+  if [ -n "$REFUTED" ]; then
+    N=$(printf '%s\n' "$REFUTED" | wc -l | tr -d ' ')
+    warn "$N refuted structural direction(s) in $LAYOUT marked ⛔ — the direction is dead; something structural has to change."
+    # 逐字上提，理由同 ⏳ 的交接单：改写等于这个脚本在发明需求。
+    printf '%s\n' "$REFUTED" | sed "s|^|      refuted: $LAYOUT:|"
+    printf '      A ⛔ is not a number to pick. The direction itself did not hold, so the\n'
+    printf '      structural decision reopens — through the change process, not by\n'
+    printf '      editing the marker or choosing another value.\n'
+  fi
 fi
 
 printf '\n'
 [ $WARNS -gt 0 ] && printf '\033[33m%s warning(s) — provisional clauses; they do not change the exit code.\033[0m\n' "$WARNS"
 [ $FAIL -eq 0 ] && printf '\033[32mNo drift found.\033[0m\n' \
                 || printf '\033[31mDrift found. This script does not fix anything — read the spec, decide, then change the document first.\033[0m\n'
+
+# 机器可读尾注。散文报告与退出码是人形调用方的 interface，这一行是给自动化
+# 调用方的：每条检查 ran(pass)/skipped/failed、⚠ 数。哪些检查**静默跳过**
+# 曾只有读完散文才知道——SKILL.md 自己写过，静默跳过一半检查的绿报告比红报告
+# 更糟；跳过从此是字段，不是语气。键是检查编号（静态清单），值取最坏档：
+# fail > skip > pass。dash 兼容，无外部依赖。
+AUDIT_JSON=""
+for CHECK in 1 2 2b 3 4 5 6 7 8 9 10; do
+  case " $FAILED " in *" $CHECK "*) ST="fail" ;;
+    *) case " $SKIPPED " in *" $CHECK "*) ST="skip" ;; *) ST="pass" ;; esac ;;
+  esac
+  AUDIT_JSON="$AUDIT_JSON\"$CHECK\":\"$ST\","
+done
+AUDIT_JSON=${AUDIT_JSON%,}
+printf 'AUDIT-JSON {"checks":{%s},"warnings":%s}\n' "$AUDIT_JSON" "$WARNS"
 exit $FAIL

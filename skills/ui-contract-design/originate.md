@@ -60,6 +60,28 @@ not that. Points named from the work land differently from points named from the
 offered, unchanged, for a different product in the same category. If yes, they were drawn from
 the category and the interview is about to produce the appearance of a decision.
 
+### Tear down two or three real references
+
+The points are placed from this product's world; the floor they have to clear, and the
+lookalike test they have to survive, come from outside it. Before the points are offered:
+
+1. **Get real screens.** Two or three products this one sits beside — the user names them, or
+   the host fetches them. Real screens, not memory: memory of a category's best products is
+   memory of what they looked like years ago. A screen that will not load is replaced, not
+   approximated from recollection; two real teardowns are enough.
+2. **Tear one of them down** into 6–10 visible elements — control shapes, type, colour,
+   states and feedback, what the first screen carries — each with *why it is that way*. A
+   teardown that says only "clean, spacious, one accent" has not happened; take a different
+   reference.
+3. **Record it.** `design.md` §1 gains a *benchmark and tradeoffs* line: which products were
+   torn down, what was kept (the baseline users already expect), what this direction
+   deliberately breaks, and where the screens are stored.
+
+Two things downstream consume this line. The swap test above now runs against these screens
+instead of against imagination. And lookalike stops being a feeling: a direction whose type,
+colour and hero would sit unnoticed inside the torn-down product has failed the check. The
+look-level blacklist later in this file stays as a last filter, not the primary defence.
+
 ### One of the three has to cost something
 
 Three safe points are not a choice. If every option is defensible to everyone, the user is
@@ -87,6 +109,27 @@ Every option carries a cost, and the cost is written as **a specific consequence
 An option whose cost is an adjective carries no information. If you cannot name the consequence, you have not understood the option well enough to offer it.
 
 The chosen direction and its stated cost land in `design.md` §1, marked 🌡 — a generated brand is a hypothesis until real users have seen it.
+
+### Vague words must translate
+
+The costs table disciplines the options; this table disciplines the session around them.
+When the user — or you — reaches for an aesthetic adjective ("more premium", "more
+restrained", "more polished"), it must be translated on the spot into the token groups it
+moves and one observable decision:
+
+| Vague word | Translates to |
+|---|---|
+| Premium / high-end | Which contrast in type, which means of separation, which scale of spacing, how many hues |
+| Restrained | A saturation budget (accent at most N% of the frame), a motion-amplitude ceiling |
+| Polished / refined | Tolerances: letter-spacing, the alignment grid, how many shadow levels exist |
+| Epic | Scale: how large the display size, how much area the hero takes, how strong the light-dark contrast |
+| Rough / raw | Which means, each to what degree — offset by how many pixels, rotated by how many degrees |
+| Simple / clean | The density setting, and what gets deleted, and why |
+
+A word that cannot be translated leaves the reasoning entirely: "tune it until it feels
+premium" is not a tuning instruction, it is a rubber stamp with extra steps. Translate,
+then move the named sliders in Step 3 — the instrument's knob set is the destination these
+words resolve into.
 
 ---
 
@@ -172,6 +215,10 @@ has none, and the surrounding restraint is what makes the one legible.
 Write it into `design.md` §1 beside the direction, and say **which coordinate forced it**. A
 signature you cannot trace to a coordinate is decoration, and it is the first thing to cut.
 
+The signature may carry motion: when it does, §8's duration table derives from that one
+treatment and says so — one place in the spec where things move characteristically, rather
+than three.
+
 ### Then check whether you produced the category's answer
 
 Before writing anything, run the derivation back the other way: **would this same set come out
@@ -198,6 +245,26 @@ Name why these faces suit this product's work — what they do at the density th
 for, what the reading pattern is (scanning a column of statuses is not reading prose).
 "The system stack" is legitimate when the reason is stated: on a tool people use for hours,
 matching the OS is a decision, not an absence of one.
+
+### Motion has the same gap as hue
+
+The axes fix spacing, radius and colour; they say nothing about **how things move**, and §8
+of `design.md` asks for motion principles, a duration table and permitted transitions
+anyway. That is an unconstrained slot — the shape of the hue gap, one size larger, because
+motion has neither a basis mechanism nor a blacklist.
+
+The three axes stay three: motion does not become a fourth. Close the slot the way hue's is
+closed — with a stated basis, written into `design.md` §8:
+
+| Basis | Example of the reasoning |
+|---|---|
+| The product's state-machine rhythm | A review queue flips states all day; transitions match the pace of triage, not of marketing pages |
+| The host platform's convention | A tool people live in follows the OS; matching it is a decision, stated as one |
+| The signature treatment | When §1's signature carries motion, §8's table derives from it and says so |
+| Explicit waiver | None applies: say so, and mark §8 the weakest section of the spec, exactly as hue's rule does |
+
+A motion value with no basis is a defaulted value, exactly as a colour value with no basis
+is. The test is the same one, applied to a different token group.
 
 ### Do not emit a framework default
 
@@ -314,6 +381,35 @@ The right column is information architecture, not controls. Ship those and the i
 **Only visual scales are tunable** — spacing, type size, radius, colour. Column widths, minimum widths and gutters belong to `layout.md`; changing one of those goes through `spec-before-code`, not through a slider.
 
 **Contrast is validated live**, against the threshold written in `design.md` §2. The instrument does not carry its own number.
+
+### Close the tuning session: capture the baseline, then one context-free review
+
+Tuning by sliders ends when the user says it ends; the session does not. Two closing steps,
+in order:
+
+**The baseline.** From the prototype browser wearing the final skin — not from the
+instrument, which shows generic controls; the wall shows this product's real density —
+capture one fixed set into the task directory:
+
+- the archetype wall, full frame;
+- the same frame scaled to 480px wide;
+- 200% crops of the two densest controls.
+
+Record the paths in `design.md` §1 beside the direction. Then the three-second check, run by
+the agent on its own capture: look at the 480px frame for three seconds and write two
+sentences — what year's what kind of product this could be mistaken for, and what the eye
+lands on first, and whether that first thing could belong to any product in the category.
+If the first sentence names a generic template era, or the second names something generic,
+the derivation steps above missed, and the direction goes back before it lands as a spec.
+
+**The review pass.** One reviewer with no context from this session. They see the baseline
+set and two sentences from `design.md` §1 (the direction, the signature treatment) and
+nothing else: no code, no options table, no stated costs. They report whether the surface
+still reads as the direction, naming the spots where it does not. The verdict is written
+back into §1: survived records the review beside the direction — still 🌡, one reviewer is
+evidence, not users; drift names the spots and either feeds a re-tune or updates the
+revisit condition. The pass costs one sub-agent run. Skipping it is allowed once and written
+down: "not reviewed" is a fact the deliverable carries in §1, not a silence.
 
 ---
 

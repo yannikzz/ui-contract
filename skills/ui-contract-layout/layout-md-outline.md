@@ -136,7 +136,7 @@ Settling a ⏳ has **two** endings, not one. The visual scale can hand back a nu
 | ⛔ | the direction that number belonged to is dead; something structural has to change | a process failure — it is unfinished work, not an open question |
 | 🌡 (`design.md`) | a clause is a hypothesis about the world | normal |
 
-⚠ **`ui-contract-audit`'s check 10 does not report ⛔ yet.** It counts and lifts ⏳ rows only. So a ⛔ line is currently invisible to the health check — that is a known gap, written here rather than left for someone to discover. What the marker buys today is that a refuted line is not *miscounted* as a pending one, and that the next reader of the document can tell the two apart. Do not read a green check 10 as "nothing was refuted".
+**`ui-contract-audit`'s check 10 reports all three states.** It counts and lifts ⏳ rows, and lifts ⛔ rows verbatim with what refuted them — reported as refuted, never counted as pending. A green check 10 means no table row is waiting and none was refuted. What it still cannot do is see past the placement rule: a marker written outside a table row is invisible, and a coupling nobody marked was never a candidate for reporting — that second ⚠ stands.
 
 ⚠ **This only catches couplings somebody noticed.** One nobody spotted sails straight through, and the wireframe stays the backstop that finds it. Do not read "no ⏳ left" as "no coupling left".
 

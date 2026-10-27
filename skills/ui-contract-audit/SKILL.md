@@ -102,6 +102,8 @@ The asset layer in this version ships only the allowlist type and the structural
 - The token-file checks run only if the project already has a token source
 - The declaration-table check needs both `design.md` and the token file; with either missing it skips and says which one
 - The "asset layer matches the region tree" check compares against the container, not against a shell
+- Check 10 reports all three states of a structural number: settled, waiting (⏳), refuted (⛔) — refuted rows are lifted verbatim and counted separately from pending ones
+- The report ends with a machine-readable tail, `AUDIT-JSON {"checks":{...},"warnings":N}`: one entry per check, `pass`/`skip`/`fail`, worst grade wins. The prose and the exit codes are unchanged; automation reads the tail instead of parsing prose
 - The two agent-judgement checks are available but must be requested; they are not part of the cheap path
 
 Say which checks ran and which were skipped. A green report that silently skipped half its checks is worse than a red one.
