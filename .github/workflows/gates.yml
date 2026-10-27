@@ -1,27 +1,37 @@
 # 网关 0：磁盘结构，以及每条断言真的能失败。
 #
-# **这里只跑四道网关里的第一道。** 另外三道进不来，各有各的理由，写在这里而不是
+# **这里只跑得动四道网关里的第一道。** 另外三道进不来，各有各的理由，写在这里而不是
 # 让下一个人去猜：
 #
 #   网关 1（testing/preflight.sh）  要 `claude` CLI、要鉴权、还被一个按组织灰度的
 #                                  feature gate 挡着。它本身是 $0 的，但拿不到那三样
-#                                  东西的 runner 上跑不了。
+#                                  东西的 runner 上跑不了——run.sh 照常调它，它发现
+#                                  没有 CLI 就喊一声跳过（exit 0）。
 #   网关 2（testing/grader-check/） 花钱（实测 $0.74 一轮）。
 #   网关 3（testing/evals/）        花钱（实测约 $2.60/run，全量约 $36）。
 #
 # 所以：**CI 绿不等于可以合并。** 它只保证结构层没塌。改了 skills/ 或 testing/
 # 之后仍然要在本地跑 ./testing/run.sh，那一条会连网关 1 一起跑。
 #
-# 脚本用 glob 发现，不写死名字：testing/structure/ 下新增一个 *.sh，CI 自动带上它。
-# 手维护一张脚本清单，就是又一个会和磁盘吵架的事实源——CLAUDE.md 反对的正是这个。
+# 跑的就是 ./testing/run.sh，不是另一份脚本清单。这里曾经用 glob 扫
+# testing/structure/*.sh，本意是新脚本自动带上；结果 run.sh 里写死的清单和这个 glob
+# 成了两个事实源——PR #4 往目录里加了一个被 source 的 lib.sh，本地绿、CI 红。
+# 本地和 CI 走同一个入口，两边就不可能再分家。代价：testing/structure/ 下新增的
+# 检查脚本要接进 run.sh 才会被跑，CI 不再单独兜底——本地一直就是这样。
 name: gates
 
+# push 只留 main：分支上的推送已经由 pull_request 覆盖，两个都开，每个 PR 跑两遍。
 on:
   push:
-    branches: ['**']
+    branches: [main]
   pull_request:
 
+# 仓库默认已是只读；写在这里，是为了默认值哪天被改了这里也不跟着变。
+permissions:
+  contents: read
+
 jobs:
+  # job 名是分支保护里的必过检查（gate-0），改名等于把门拆了。
   gate-0:
     runs-on: ubuntu-latest
     steps:
@@ -35,11 +45,5 @@ jobs:
           python3 -c "import yaml" || { echo "缺 PyYAML：invariants.sh 第 3、8、36 条要用真解析器读 frontmatter"; exit 1; }
           command -v dash || echo "没有 dash，脚本会退回 sh——dash 专属的问题将测不到"
 
-      - name: 网关 0
-        run: |
-          fail=0
-          for s in testing/structure/*.sh; do
-            printf '\n=== %s ===\n' "$s"
-            "$s" || fail=1
-          done
-          exit $fail
+      - name: 网关 0（经由 run.sh）
+        run: ./testing/run.sh

@@ -1,0 +1,41 @@
+name: It produced a bad spec
+description: The most useful report there is — the prompt you used and where the result went wrong.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A form factor whose region tree came out wrong is worth more than a wording fix. English or Chinese, either is fine. 中英文都可以。
+  - type: textarea
+    id: prompt
+    attributes:
+      label: The prompt you used
+      description: Paste it as you typed it.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: product
+    attributes:
+      label: What kind of product
+      description: The form factor — admin console, mobile app, marketing site, editor, CLI, something else.
+    validations:
+      required: true
+  - type: textarea
+    id: wrong
+    attributes:
+      label: What went wrong
+      description: A region that should not exist, a feature sent to the wrong region, a decision-tree branch that does not fit your product — and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: The relevant output
+      description: An excerpt of layout.md or design.md, or a screenshot of the wireframe. Optional, but it saves a round trip.
+  - type: input
+    id: env
+    attributes:
+      label: Agent and version
+      description: Which agent you ran it in, and the plugin version if you know it.
+      placeholder: Claude Code, ui-contract 0.3.3 — or Cursor via install.sh, installed around 2026-10-20
